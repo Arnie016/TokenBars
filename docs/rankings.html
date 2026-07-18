@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TokenBar Rankings · Public Identity Map</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="page-body rankings-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="/docs">How it works</a><a href="/social">Social</a><a href="/profile">Profile</a><a href="/archetypes">Archetypes</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a>
+      </nav>
+      <div class="top-actions"><a class="signin-link" href="/profile#sign-in">Sign in</a><a class="download-pill" href="/#download">Download for macOS</a></div>
+    </header>
+    <main class="page-main">
+      <section class="page-hero compact-page-hero"><p class="eyebrow">Opt-in competition</p><h1>The public map of how AI builders build.</h1><p>Rankings use only shared identity JSON. The score is not pay-to-win: specificity, useful output, strategy, project diversity, provider coverage, and shipping evidence matter more than raw token volume.</p></section>
+      <section class="rankings-entry-panel" aria-labelledby="rankings-entry-title">
+        <div>
+          <p class="eyebrow">Enter without uploading raw logs</p>
+          <h2 id="rankings-entry-title">Publish a safe proof card from your Mac, then paste the token here.</h2>
+          <p>TokenBar analyzes locally, creates a share token, then posts only generated identity evidence. Raw prompts, transcripts, source code, and secrets stay off the public board.</p>
+          <form class="token-lookup rankings-token-lookup" data-profile-lookup>
+            <label for="rankings-profile-token">Open a shared TokenBar profile</label>
+            <div><input id="rankings-profile-token" name="token" placeholder="TBAR-..." autocomplete="off" /><button type="submit">Open</button></div>
+            <p data-profile-lookup-state>Paste the token returned by <code>tokenbar submit</code>, <code>tokenbar prove</code>, or <code>tokenbar publish-proof</code>. It opens the public profile/proof card, not private logs.</p>
+            <div class="token-surface-launcher" data-token-surface-launcher aria-live="polite"></div>
+          </form>
+        </div>
+        <div class="command-panel compact-command-panel">
+          <div class="command-row">
+            <span>Submit repo</span>
+            <code>tokenbar submit --project "My Codex App"</code>
+            <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy</button>
+          </div>
+          <div class="command-row">
+            <span>Publish</span>
+            <code>tokenbar publish-proof</code>
+            <button type="button" data-copy-command="tokenbar publish-proof">Copy</button>
+          </div>
+          <div class="command-row">
+            <span>Unlisted</span>
+            <code>tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions</code>
+            <button type="button" data-copy-command="tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions">Copy</button>
+          </div>
+        </div>
+      </section>
+      <section class="ranking-privacy-panel" aria-label="Ranking privacy rules">
+        <article><span>Public</span><strong>Listed</strong><p>Appears in For You, regional boards, and loop-maturity rankings.</p></article>
+        <article><span>Unlisted</span><strong>Direct token only</strong><p>Opens by <code>TBAR-...</code> token but does not appear in public rankings.</p></article>
+        <article><span>Private</span><strong>Local first</strong><p>Review the dossier locally until the proof is worth sharing.</p></article>
+      </section>
+      <section class="regional-board ranking-regional-board" data-reveal>
+        <div class="section-heading">
+          <p class="eyebrow">Regional proof boards</p>
+          <h2>Compete where your builder story has context.</h2>
+          <p>Region boards are built from public proof cards only. A Singapore proof can rank locally and inside Southeast Asia without exposing private logs.</p>
+        </div>
+        <div class="region-tabs" role="tablist" aria-label="Leaderboard regions">
+          <button type="button" class="is-active" data-region-tab="Global">Global</button>
+          <button type="button" data-region-tab="Singapore">Singapore</button>
+          <button type="button" data-region-tab="Southeast Asia">Southeast Asia</button>
+          <button type="button" data-region-tab="Europe">Europe</button>
+          <button type="button" data-region-tab="North America">North America</button>
+        </div>
+        <div class="region-list" data-region-list>
+          <div class="region-row is-empty"><span>0</span><strong>No public proof yet</strong><em>Run tokenbar submit to enter</em><b>--</b></div>
+        </div>
+      </section>
+      <section class="leaderboard-shell">
+        <div class="stats-card"><span>Opt-in profiles</span><strong data-stats-count>0</strong><small>from public shares</small></div>
+        <div class="stats-card"><span>Avg specificity</span><strong data-stats-specificity>0/100</strong><small>identity sharpness</small></div>
+        <div class="stats-card"><span>Avg loop maturity</span><strong data-stats-loop>0/100</strong><small>agent-loop quality</small></div>
+        <div class="stats-card"><span>Bucket coverage</span><strong data-stats-coverage>pending</strong><small>archetype variety</small></div>
+      </section>
+      <section class="ranking-formula-panel" aria-label="Ranking formula">
+        <div>
+          <p class="eyebrow">Ranking contract</p>
+          <h2>Proof beats spend.</h2>
+          <p>The composite leaderboard favors verified execution, loop maturity, specificity, and range. Token volume is visible, but capped so the board does not become pay-to-win.</p>
+        </div>
+        <ol>
+          <li><b>34%</b><span>Proof score</span></li>
+          <li><b>24%</b><span>Loop maturity</span></li>
+          <li><b>22%</b><span>Identity specificity</span></li>
+          <li><b>14%</b><span>Project/provider range</span></li>
+          <li><b>6%</b><span>Capped token volume</span></li>
+        </ol>
+      </section>
+      <section class="ranking-board-section" aria-label="TokenBar category leaderboards">
+        <div class="section-heading">
+          <p class="eyebrow">Identity boards</p>
+          <h2>Different kinds of excellence should rank differently.</h2>
+          <p>One builder can lead on loop discipline, another on craft, completion, ambition, or discernment. Every board below is generated from public proof cards only.</p>
+        </div>
+        <div class="ranking-board-grid" data-ranking-leaderboards>
+          <article class="ranking-board-card is-empty">
+            <h3>No public boards yet</h3>
+            <p>Run <code>tokenbar submit</code> to generate the first safe proof-card leaderboard entry with project context.</p>
+          </article>
+        </div>
+      </section>
+      <section class="rankings-grid">
+        <article><h2>Top archetypes</h2><div data-stats-archetypes><p>No public opt-in profiles yet.</p></div></article>
+        <article><h2>Most specific profiles</h2><div data-stats-top-profiles><p>No public profile rankings yet.</p></div></article>
+        <article><h2>Loop maturity leaders</h2><div data-stats-top-loop-profiles><p>No loop-maturity rankings yet.</p></div></article>
+        <article><h2>Provider coverage</h2><div data-stats-provider-coverage><p>No public opt-in profiles yet.</p></div></article>
+        <article><h2>Specificity bands</h2><div data-stats-specificity-bands><p>Waiting for public profiles.</p></div></article>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
