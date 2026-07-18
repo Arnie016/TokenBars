@@ -76,6 +76,14 @@ Generate the handoff manifest with:
 tokenbar trailer --json > tokenbar-identity-trailer.json
 ```
 
+Preview the storyboard locally with:
+
+```bash
+tokenbar trailer --html
+```
+
+The HTML preview is a safe local artifact under the TokenBar support directory. It embeds the same renderer manifest, voice timing, privacy boundary, and proof metrics, but still excludes raw transcripts, source code, private prompts, credentials, and private diffs.
+
 ## Copy-Paste Renderer Prompt
 
 ```text
