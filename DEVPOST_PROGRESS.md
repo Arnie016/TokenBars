@@ -149,3 +149,13 @@
 - HUMAN_TEST: NOT RUN — automated smoke and a layout-only capture do not prove a person selected an artifact, reviewed an unlisted share card, or copied share text.
 - Blocker: no automated product-path blocker; a browser/manual capture is required for the human test.
 - Next move: Arnav should perform one unlisted Create Identity run at `/profile`, verify the share contract, title, TBAR token, safe-proof link, exclusion line, and copied share text, then explicitly approve any `HUMAN_TEST=PASS` claim.
+
+## 2026-07-18 — submit rechecks the approved local artifact
+
+- Change: Create Identity now captures the approved browser-local selection key at submit time and rechecks that the same file is still selected after its local read, before requesting `/api/actions`. A replacement artifact cannot be submitted under stale approval or an older idempotency key.
+- Tests: `python3 scripts/smoke_builder_identity_flow.py`, `node --check docs/app.js`, and `git diff --check` passed. The smoke asserts the stale-selection rejection and the submit-scoped idempotency key.
+- Browser artifact: `outputs/builder-identity-create-journey-20260718-1715.png` — Chrome headless capture of local `/profile`; it contains no selected artifact, token, transcript, source, secret, or private path. Later anchored capture attempts were blank and are not evidence.
+- Privacy boundary: the selection key is random browser-local state. The identity JSON is rechecked locally before the existing action request; raw transcripts, source code, credentials, private diffs, and local paths remain excluded.
+- HUMAN_TEST: NOT RUN — automated smoke and a layout capture do not show a human selecting an artifact, reviewing an unlisted share card, or copying share text.
+- Blocker: no automated product-path blocker; human browser confirmation is still required.
+- Next move: Arnav should perform one unlisted Create Identity run at `/profile`, verify the share contract, title, TBAR token, safe-proof link, exclusion line, and copied share text, then explicitly approve any `HUMAN_TEST=PASS` claim.
