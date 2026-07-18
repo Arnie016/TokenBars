@@ -1,2 +1,0 @@
-[console_scripts]
-tokenbar = tokenbar_runner:main
