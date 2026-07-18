@@ -36,7 +36,8 @@ Usage:
   tokenbar join             Submit this repo to the public builder board
   tokenbar submit           Submit this repo to a hackathon/social profile with a safe TBAR token
   tokenbar proof latest     Reprint the latest safe proof token, links, and privacy receipt
-  tokenbar video            Print a HyperFrames-ready 30s demo shot list
+  tokenbar trailer          Print a renderer-ready 30s Builder Identity trailer
+  tokenbar video            Alias for the identity trailer brief
   tokenbar save URL         Save a builder/social reference link locally
   tokenbar inbox            List saved builder signals and reference links
   tokenbar claim            Generate a private local builder identity token
@@ -70,7 +71,8 @@ Identity and sharing:
   tokenbar skill [FILE]     Preview/export portable identity Skill.md
   tokenbar history          List recent local identity snapshots
   tokenbar rankings         Show local identity rankings from snapshots
-  tokenbar video            Produce the privacy-safe product-video brief
+  tokenbar trailer          Produce the privacy-safe identity-trailer brief
+  tokenbar video            Alias for trailer
   tokenbar verify [FILE]    Audit an identity JSON before sharing
 
 Power user:
@@ -7979,23 +7981,199 @@ profile_title = latest.get("title") or latest.get("label") or "Builder Identity"
 proof_score = latest.get("proofScore") or latest.get("proof_score") or latest.get("scoreDistribution", {}).get("proof") or "pending"
 loop_score = latest.get("loopScore") or latest.get("loop_score") or latest.get("scoreDistribution", {}).get("loop") or "pending"
 token = latest.get("shareToken") or latest.get("token") or "TBAR-..."
+director_bay_path = Path("/Users/arnav/Desktop/testing/plugins/epic-trailer-generator/frontend/director-bay")
 renderer_prompt = (
-    "Create a 30-second premium product video for TokenBar, a local-first macOS/CLI Builder Identity app. "
+    "Create a 30-second Builder Identity trailer for TokenBar, a local-first macOS/CLI identity layer for AI builders. "
     "Tone: precise, cinematic, data-rich, not SaaS boilerplate. "
-    "Show the menu-bar token surface, terminal proof command, TBAR proof passport, social shipped-work feed, "
-    "and leaderboard/self-over-time view. Use dark glass for the app, white editorial paper for reports, "
-    "subtle grain, thin measurement lines, and color accents that adapt to the builder archetype. "
+    "Open with a visual analogy: scattered AI work becomes a passport dossier. Then show the real product surfaces: "
+    "menu-bar token surface, terminal proof command, TBAR proof passport, shipped-work feed, and self-over-time ranking. "
+    "Use dark glass for the app, white editorial paper for reports, subtle grain, thin measurement lines, and an accent "
+    "color that adapts to the builder archetype. "
     "Never show raw logs, source code, private prompts, credentials, or fake customer claims."
 )
 shots = [
-    {"timing": "0-4s", "title": "Menu-bar cold open", "direction": "A tiny status item expands into the TokenBar control surface. Huge local token count, forecast line, and provider tabs. Caption: Your AI work finally has an instrument panel."},
-    {"timing": "4-8s", "title": "CLI claim", "direction": "Terminal types `tokenbar prove`; six stages light up: scan, analyze, score, redact, sign, publish. The output ends with a TBAR token."},
-    {"timing": "8-13s", "title": "Identity reveal", "direction": f"A report card resolves into `{profile_title}`. Scores animate as evidence-backed dimensions, not vanity badges."},
-    {"timing": "13-18s", "title": "Proof passport", "direction": "A share card shows proof score, loop maturity, sessions, aggregate tokens, and redaction boundary. Stamp: raw transcripts excluded."},
-    {"timing": "18-23s", "title": "Social layer", "direction": "For You feed of shipped work, then rankings by proof, loop maturity, specificity, region, and self-over-time improvement."},
-    {"timing": "23-27s", "title": "Privacy split", "direction": "Screen divides: local machine holds raw logs; public web receives only generated safe proof fields."},
-    {"timing": "27-30s", "title": "CTA", "direction": "Download for macOS. Run `tokenbar prove`. Paste the TBAR token. Own your builder identity."},
+    {
+        "id": "work-scatter",
+        "timing": "0-3s",
+        "start": 0,
+        "end": 3,
+        "title": "Scattered work becomes a dossier",
+        "onScreenText": "SEEN",
+        "direction": "Floating fragments labelled Codex, Claude Code, Gemini, and Cursor collapse into one clean identity passport.",
+        "visualElements": ["dark room", "thin measurement grid", "paper dossier silhouette", "safe aggregate labels only"],
+        "transitionOut": "Fragments snap into the menu-bar icon.",
+        "intelligenceRole": "Shows TokenBar as a layer that organizes agent work instead of just measuring tokens.",
+    },
+    {
+        "id": "menu-bar-proof",
+        "timing": "3-8s",
+        "start": 3,
+        "end": 8,
+        "title": "Live menu-bar proof",
+        "onScreenText": "4.33B tokens. 192 sessions. One local trail.",
+        "direction": "The macOS menu-bar surface opens. Forecast, provider tabs, cost, and selected day markers are readable.",
+        "visualElements": ["real TokenBar app capture", "provider chips", "forecast graph", "today marker"],
+        "transitionOut": "Graph line becomes a terminal cursor.",
+        "intelligenceRole": "Grounds the identity story in measured local activity before any public claim.",
+    },
+    {
+        "id": "claim-command",
+        "timing": "8-13s",
+        "start": 8,
+        "end": 13,
+        "title": "Run the claim",
+        "onScreenText": "tokenbar prove",
+        "direction": "Terminal runs `tokenbar prove`; six stages light up: scan, analyze, score, redact, sign, publish.",
+        "visualElements": ["terminal close-up", "stage rail", "TBAR token appears", "privacy receipt"],
+        "transitionOut": "The TBAR token stamps the dossier.",
+        "intelligenceRole": "Turns a local analysis loop into an inspectable proof artifact.",
+    },
+    {
+        "id": "identity-reveal",
+        "timing": "13-18s",
+        "start": 13,
+        "end": 18,
+        "title": "Builder identity reveal",
+        "onScreenText": profile_title,
+        "direction": f"A passport card resolves into `{profile_title}` with proof {proof_score} and loop {loop_score}. Scores are labelled as evidence-backed confidence, not a vanity rank.",
+        "visualElements": ["white editorial report paper", "identity title", "confidence bands", "provenance footer"],
+        "transitionOut": "Report corner folds into a share card.",
+        "intelligenceRole": "Explains what kind of builder the user is becoming and what evidence supports it.",
+    },
+    {
+        "id": "share-social",
+        "timing": "18-23s",
+        "start": 18,
+        "end": 23,
+        "title": "Proof card and social layer",
+        "onScreenText": "Share the proof, not the private work.",
+        "direction": "A public proof card opens beside a For You feed of shipped work and self-over-time rankings.",
+        "visualElements": ["proof passport", "shipped-work feed", "self-over-time leaderboard", "redaction badges"],
+        "transitionOut": "Public card slides away from a locked local vault.",
+        "intelligenceRole": "Makes sharing competitive and social while preserving private source material.",
+    },
+    {
+        "id": "privacy-split",
+        "timing": "23-27s",
+        "start": 23,
+        "end": 27,
+        "title": "Local-first boundary",
+        "onScreenText": "Raw logs stay local.",
+        "direction": "Split screen: local machine holds raw sessions; public profile receives only generated safe fields.",
+        "visualElements": ["locked local disk", "safe public JSON", "no raw transcripts stamp"],
+        "transitionOut": "Safe JSON becomes a clean public profile URL.",
+        "intelligenceRole": "Prevents the trailer from promising insight by surveillance.",
+    },
+    {
+        "id": "cta",
+        "timing": "27-30s",
+        "start": 27,
+        "end": 30,
+        "title": "One command",
+        "onScreenText": "Run tokenbar prove.",
+        "direction": "Download for macOS. Run `tokenbar prove`. Paste the TBAR token. Own your builder identity.",
+        "visualElements": ["macOS download button", "copyable command", "TBAR token", "profile URL"],
+        "transitionOut": "End frame holds on logo, command, and privacy promise.",
+        "intelligenceRole": "Gives a clear action that produces the identity trailer source material.",
+    },
 ]
+voice_timing_plan = [
+    {"window": "0-3s", "beatId": "work-scatter", "voiceLine": "Your AI work has a shape, even before your resume can explain it."},
+    {"window": "3-8s", "beatId": "menu-bar-proof", "voiceLine": f"TokenBar reads the local trail: {fmt_tokens(last7_tokens)} in seven days, sessions, pace, and pressure."},
+    {"window": "8-16s", "beatId": "claim-command", "voiceLine": "Run one command. It scans locally, scores the pattern, redacts the private parts, and signs a proof token."},
+    {"window": "16-23s", "beatId": "share-social", "voiceLine": f"This becomes a builder passport: {profile_title}, with evidence people can inspect."},
+    {"window": "23-30s", "beatId": "privacy-split", "voiceLine": "Share the proof. Keep the raw work. Build the identity graph for how AI builders actually build."},
+]
+interaction_events = [
+    {
+        "id": "prove-command-enter",
+        "beatId": "claim-command",
+        "start": 8.4,
+        "end": 12.6,
+        "target": "terminal command",
+        "cursorPath": [
+            {"time": 8.4, "x": 0.18, "y": 0.72, "state": "prompt focused"},
+            {"time": 9.2, "x": 0.48, "y": 0.72, "state": "command typed"},
+            {"time": 9.5, "x": 0.5, "y": 0.72, "state": "enter"}
+        ],
+        "clickAt": None,
+        "uiResponse": "Stage rail advances through scan, analyze, score, redact, sign, publish.",
+        "proofResponse": "A TBAR token and privacy receipt appear.",
+        "sfxCue": "soft-terminal-enter",
+    },
+    {
+        "id": "share-proof-click",
+        "beatId": "share-social",
+        "start": 19.2,
+        "end": 21.4,
+        "target": "share proof card",
+        "cursorPath": [
+            {"time": 19.2, "x": 0.67, "y": 0.54, "state": "hover share"},
+            {"time": 19.7, "x": 0.67, "y": 0.54, "state": "click"}
+        ],
+        "clickAt": 19.7,
+        "uiResponse": "Public proof card expands with redaction badges.",
+        "proofResponse": "Only aggregate evidence, safe title, proof score, loop score, and profile URL are visible.",
+        "sfxCue": "proof-card-open",
+    },
+]
+timing_plan = {
+    "rhythm": "visual analogy -> product proof -> command proof -> identity reveal -> social proof -> privacy boundary -> CTA",
+    "microBeatPolicy": "No sub-0.35s flashes without a click, stamp, graph snap, or bass hit.",
+    "proofHoldPolicy": "Readable command, token, and proof-card surfaces receive 2.5s+ holds or return cuts.",
+}
+visual_choreography = {
+    "screenPlan": [
+        {"sceneId": "work-scatter", "start": 0, "end": 3, "owner": "visual-analogy", "screenShare": 0.85, "reason": "explain scattered AI work before showing UI"},
+        {"sceneId": "menu-bar-proof", "start": 3, "end": 8, "owner": "product-ui", "screenShare": 0.78, "reason": "prove the app exists and the data is live"},
+        {"sceneId": "claim-command", "start": 8, "end": 13, "owner": "terminal", "screenShare": 0.72, "reason": "show the reproducible local command"},
+        {"sceneId": "identity-reveal", "start": 13, "end": 18, "owner": "identity-dossier", "screenShare": 0.8, "reason": "make the builder identity memorable"},
+        {"sceneId": "share-social", "start": 18, "end": 23, "owner": "public-proof", "screenShare": 0.74, "reason": "show why the result is worth sharing"},
+        {"sceneId": "privacy-split", "start": 23, "end": 27, "owner": "privacy-boundary", "screenShare": 0.68, "reason": "make trust explicit before CTA"},
+        {"sceneId": "cta", "start": 27, "end": 30, "owner": "command-and-download", "screenShare": 0.64, "reason": "leave with one action"},
+    ],
+    "safeZones": [
+        {"id": "caption-lower", "x": 0.08, "y": 0.78, "w": 0.84, "h": 0.14},
+        {"id": "command-center", "x": 0.12, "y": 0.62, "w": 0.76, "h": 0.16},
+    ],
+}
+template_strategy = {
+    "selectionMode": "Rank templates by product proof, local-first trust, social CTA, and identity emotion.",
+    "selectedTemplate": "identity-passport-proof",
+    "selectedReason": "TokenBar needs to make invisible AI work feel like a personal passport while showing real CLI/app proof early.",
+    "candidateTemplates": [
+        {"id": "identity-passport-proof", "bestFor": ["builder identity", "local proof", "shareable profile"]},
+        {"id": "real-product-proof", "bestFor": ["developer tool", "CLI command", "macOS app capture"]},
+        {"id": "social-leaderboard-launch", "bestFor": ["public profiles", "rankings", "viral sharing"]},
+    ],
+}
+prompt_editable_manifest = {
+    "fieldGroups": [
+        {"id": "story", "paths": ["templateStrategy", "shots", "voiceTimingPlan"], "commands": ["make it more cinematic", "make it more founder-focused"], "guardrail": "Preserve the local-first privacy promise."},
+        {"id": "proof", "paths": ["metrics", "captureChecklist", "interactionEvents"], "commands": ["show more CLI", "show more menu bar"], "guardrail": "Every proof claim must map to safe aggregate evidence."},
+        {"id": "privacy", "paths": ["privacy", "visualChoreography.screenPlan"], "commands": ["make privacy clearer"], "guardrail": "Never add raw transcripts, source code, credentials, private prompts, or private diffs."},
+        {"id": "render", "paths": ["renderer", "directorBayBridge", "timingPlan"], "commands": ["prepare Director Bay", "prepare HyperFrames"], "guardrail": "Keep exact shot timing and readable proof holds."},
+    ],
+    "preserveOnEdit": ["privacy", "metrics.tokenCue", "templateStrategy.selectedTemplate", "directorBayBridge.sourceThread"],
+    "responseContract": "Report changed fields, unchanged privacy boundaries, and whether the manifest remains 30 seconds.",
+}
+director_bay_bridge = {
+    "sourceThread": "019e7a08-b6d6-7863-be79-66b20c9353df",
+    "rendererConcept": "Director Bay identity trailer handoff",
+    "localPathHint": str(director_bay_path),
+    "localPathDetected": director_bay_path.exists(),
+    "learnedCapabilities": [
+        "command palette edits",
+        "editable keyframes",
+        "voice timing contract",
+        "proof beat",
+        "manifest validation",
+        "MCP state/write tools",
+    ],
+    "voiceTimingContract": ["0-3", "3-8", "8-16", "16-23", "23-30"],
+    "draftArtifactHint": "/tmp/director-bay-voice-render-smoke-49344/bitepdf-local-proof-project.mp4",
+    "uiSmokeHint": "/tmp/director-bay-keyframe-editor.png",
+}
 capture_checklist = [
     "`tokenbar usage` terminal close-up with the large 7d token line.",
     "macOS menu-bar TokenBar overview, forecast, quick insights, and provider tabs.",
@@ -8015,7 +8193,9 @@ privacy = {
 if json_mode:
     payload = {
         "schema": "tokenbar.video_brief.v1",
+        "kind": "identityTrailer",
         "renderer": "HyperFrames",
+        "compatibleEditors": ["Director Bay", "Remotion", "HTML/CSS/JS renderers"],
         "durationSeconds": 30,
         "prompt": renderer_prompt,
         "metrics": {
@@ -8029,15 +8209,23 @@ if json_mode:
             "loopScore": loop_score,
             "tokenCue": token,
         },
+        "templateStrategy": template_strategy,
         "shots": shots,
+        "voiceTimingPlan": voice_timing_plan,
+        "timingPlan": timing_plan,
+        "visualChoreography": visual_choreography,
+        "interactionEvents": interaction_events,
+        "promptEditableManifest": prompt_editable_manifest,
+        "directorBayBridge": director_bay_bridge,
+        "renderCommandHint": "tokenbar trailer --json > tokenbar-identity-trailer.json",
         "captureChecklist": capture_checklist,
         "privacy": privacy,
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     raise SystemExit(0)
 
-print("TokenBar video brief")
-print("HyperFrames-ready. Privacy-safe. No raw prompts, transcripts, source code, credentials, or private diffs.")
+print("TokenBar identity trailer brief")
+print("HyperFrames-ready and Director Bay-ready. Privacy-safe. No raw prompts, transcripts, source code, credentials, or private diffs.")
 print()
 print("Fast renderer prompt")
 print("```")
@@ -8058,17 +8246,27 @@ print(f"  latest title: {profile_title}")
 print(f"  proof/loop:   {proof_score} / {loop_score}")
 print(f"  token cue:    {token}")
 print()
-print("Shot list")
+print("30-second micro-storyboard")
 for shot in shots:
     print(f"  {shot['timing']:<6} {shot['title']}")
     print(f"         {shot['direction']}")
+print()
+print("Voice timing")
+for beat in voice_timing_plan:
+    print(f"  {beat['window']:<7} {beat['voiceLine']}")
+print()
+print("Director Bay bridge")
+print(f"  source thread: {director_bay_bridge['sourceThread']}")
+print(f"  local path:    {director_bay_bridge['localPathHint']}")
+print(f"  detected:      {str(director_bay_bridge['localPathDetected']).lower()}")
+print("  contract:      0-3 / 3-8 / 8-16 / 16-23 / 23-30")
 print()
 print("Capture checklist")
 for index, item in enumerate(capture_checklist, start=1):
     print(f"  {index}. {item}")
 print()
-print("HyperFrames integration note")
-print("  Use this as the creative brief for a HyperFrames HTML/CSS/JS scene.")
+print("Renderer integration note")
+print("  Use `tokenbar trailer --json > tokenbar-identity-trailer.json` as the handoff for HyperFrames, Director Bay, Remotion, or another renderer.")
 print("  Render locally first; publish only final video frames that exclude raw private data.")
 PY
 }
@@ -9629,7 +9827,7 @@ case "$command" in
   quickstart|identity-quickstart|profile-quickstart|start)
     identity_quickstart
     ;;
-  video|demo-video|shot-list|hyperframes|hyperframe)
+  video|demo-video|shot-list|hyperframes|hyperframe|trailer|identity-trailer)
     video_brief "${command_args[0]:-}"
     ;;
   readiness|ready|identity-ready|profile-ready|launch-ready)
