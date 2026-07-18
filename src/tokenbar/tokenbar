@@ -7970,9 +7970,9 @@ def fmt_tokens(value):
         return f"{value / 1_000:.0f}K"
     return str(int(value))
 
-today_tokens = ctx.get("today_tokens") or nested("today", "total_tokens", default=nested("today_total_tokens", default=0))
-last7_tokens = ctx.get("last7_tokens") or nested("windows", "7d", "total_tokens", default=nested("last7_total_tokens", default=0))
-cost = ctx.get("projected_weekly_cost") or nested("windows", "7d", "estimated_cost", default=nested("last7_estimated_cost", default=0))
+today_tokens = nested("today", "total_tokens", default=nested("today_total_tokens", default=0))
+last7_tokens = nested("windows", "7d", "total_tokens", default=nested("last7_total_tokens", default=0))
+cost = nested("windows", "7d", "estimated_cost", default=nested("last7_estimated_cost", default=0))
 profile_title = latest.get("title") or latest.get("label") or "Builder Identity"
 proof_score = latest.get("proofScore") or latest.get("proof_score") or latest.get("scoreDistribution", {}).get("proof") or "pending"
 loop_score = latest.get("loopScore") or latest.get("loop_score") or latest.get("scoreDistribution", {}).get("loop") or "pending"

@@ -1,0 +1,77 @@
+Metadata-Version: 2.4
+Name: tokenbar
+Version: 0.1.1
+Summary: A local-first CLI token usage and budget bar for coding agents and developer workflows
+Author: Arnav Salkade
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/Arnie016/TokenBar
+Project-URL: Repository, https://github.com/Arnie016/TokenBar
+Project-URL: Issues, https://github.com/Arnie016/TokenBar/issues
+Project-URL: PyPI, https://pypi.org/project/tokenbar/
+Keywords: cli,tokens,openai,coding-agents,developer-tools,budget,usage
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: MacOS
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Software Development
+Classifier: Topic :: Utilities
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
+# TokenBar
+
+TokenBar is a local-first CLI token usage and budget bar for coding agents and developer workflows.
+
+It gives you a quick terminal view of token usage, budget status, reset timing, power estimate, and natural-language prompts like:
+
+```bash
+will I run out?
+why spike?
+show folders
+set daily limit 100M
+heat?
+```
+
+## Identity profiles
+
+TokenBar can generate a local-first AI builder identity report from your indexed coding-agent usage.
+It exports HTML, true PDF, identity JSON, a portable `Skill.md`, and a share manifest.
+
+```bash
+pip install tokenbar
+tokenbar quickstart
+tokenbar claim
+tokenbar identity
+tokenbar card
+tokenbar bundle
+tokenbar verify
+tokenbar publish my identity --days 7 --pdf
+tokenbar profile --days 30 --focus "agent infrastructure" --open
+```
+
+`tokenbar quickstart` prints the end-to-end local identity workflow, the configured
+upload endpoint, detected provider sources, and the privacy boundary before anything
+is shared.
+
+The profile engine ranks multiple archetypes probabilistically, adds an NPC-style class,
+scores multidimensional traits, and keeps raw transcripts/source code out of the exported
+artifact unless you explicitly share later.
+
+`tokenbar claim` generates a fresh local profile packet and share token without uploading.
+`tokenbar claim --publish` or `tokenbar publish` uploads only the generated `.identity.json`
+to the configured profile API. `tokenbar share` does the upload step for an existing identity
+JSON. Hosted activation returns a public profile URL plus aggregate stats URL.
+The hosted endpoint accepts the same schema that a durable Convex/Supabase profile store
+should use later.
+
+`tokenbar card` prints the latest identity JSON as a compact terminal card with the label
+rationale, top probabilities, trait drivers, session signals, and local artifact paths.
+
+`tokenbar bundle` creates a portable zip with the HTML report, identity JSON, Skill.md,
+share manifest, PDF when present, and a bundle manifest that restates the privacy boundary.
+
+`tokenbar verify` audits an identity JSON or share manifest before upload/bundling. It
+fails if the artifact claims to include raw transcripts, source code, or secret-like tokens.

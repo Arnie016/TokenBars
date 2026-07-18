@@ -1,92 +1,86 @@
 # TokenBar
 
-**A macOS menu bar usage monitor for OpenAI Codex and AI coding agents.**
+TokenBar is a local-first CLI token usage and budget bar for coding agents and developer workflows.
 
-TokenBar keeps coding-agent usage visible while you work: tokens, quota pressure, reset timing, forecasted spend, and daily work rhythm from a compact macOS icon-bar surface.
-
-It is built for heavy OpenAI Codex users first, with future connector surfaces for Claude by Anthropic, Cursor, Google coding agents, and other agentic development tools once explicit usage APIs or local exports are available.
-
-[LinkedIn launch post](https://www.linkedin.com/posts/arnav-salkade-27076a201_a-500000-engineer-must-use-at-least-250000-activity-7462243251710763009-aluS)
-
-![TokenBar AI overview](assets/screenshots/tokenbar-overview.png)
-
-## Quick Start
-
-Install TokenBar and the terminal launcher:
+It gives you a quick terminal view of token usage, budget status, reset timing, power estimate, and natural-language prompts like:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash
+will I run out?
+why spike?
+show folders
+set daily limit 100M
+heat?
 ```
 
-Then open it from any terminal:
+## Identity profiles
+
+TokenBar can generate a local-first AI builder identity memorandum from your indexed coding-agent usage.
+The serious artifact is the local report: HTML, true PDF, identity JSON, portable `Skill.md`, and a share manifest. The hosted profile is activated later from the generated token/JSON, without uploading raw transcripts or source code.
+The PDF is designed as a premium dossier: themed profile art, score distribution, probability buckets, memorable session facts, career-fit notes, growth edge, provider inventory, and shipping evidence.
 
 ```bash
-tokenbar
+pip install tokenbar
+tokenbar quickstart
+tokenbar readiness
+tokenbar claim
+tokenbar identity
+tokenbar profile --pdf
+tokenbar publish-proof
+tokenbar share latest
+tokenbar card
+tokenbar skill
+tokenbar history
+tokenbar rankings
+tokenbar timeline
+tokenbar compare latest
+tokenbar compare old.identity.json new.identity.json
+tokenbar bundle
+tokenbar proof
+tokenbar verify
+tokenbar publish --days 7 --pdf
+tokenbar profile --days 30 --focus "agent infrastructure" --open
 ```
 
-The launcher installs TokenBar into `~/Applications` and adds `tokenbar` under `~/.local/bin`. Launching it opens the macOS app, plays a short terminal movie, then drops into a small `TokenBar ›` prompt where you can ask about usage, cost, energy, providers, diagnostics, or installation.
+`tokenbar quickstart` prints the end-to-end local identity workflow, the configured
+upload endpoint, detected provider sources, and the privacy boundary before anything
+is shared.
+`tokenbar readiness` checks whether local identity reports, Skill.md, timeline, proof
+packet, shipping evidence, and hosted share configuration are ready.
 
-```text
-TokenBar › usage
-TokenBar › cost
-TokenBar › energy
-TokenBar › providers
-TokenBar › quit
-```
+The profile engine ranks multiple archetypes probabilistically, adds an NPC-style class,
+scores multidimensional traits, and keeps raw transcripts/source code out of the exported
+artifact unless you explicitly share later.
 
-Optional sound cues:
+`tokenbar claim` creates a local identity packet and share token without uploading.
+`tokenbar identity` creates the local identity memorandum. `tokenbar profile --pdf`
+creates the boardroom-ready PDF. `tokenbar publish-proof` uploads only the safe generated
+identity artifact to the Builder Identity action and returns a proof-card URL, public profile URL,
+feed entry, and rankings evidence. `tokenbar share latest` remains the advanced direct JSON upload.
+`tokenbar publish --days 7 --pdf` combines fresh local report generation, PDF export,
+and safe hosted-profile activation in one command.
+The hosted endpoints accept the same safe schema for durable Supabase storage.
+Profiles use `docs/tokenbar_profiles_supabase.sql`; proof actions use
+`docs/tokenbar_actions_supabase.sql` plus `TOKENBAR_ACTION_STORE=supabase`.
 
-```bash
-tokenbar --sound
-```
+`tokenbar card` prints the latest identity JSON as a compact terminal card with the label
+rationale, top probabilities, trait drivers, session signals, and local artifact paths.
+`tokenbar skill` previews or exports the latest portable identity `Skill.md` so another
+agent or teammate can understand your working style without raw transcripts or source code.
 
-The audio uses built-in macOS sounds only and is off by default.
+`tokenbar compare` diffs two identity snapshots so repeat reports can show how your
+archetype, dimensions, behavior patterns, provider coverage, and usage changed over time.
+Use `tokenbar history` to list local snapshots and `tokenbar compare latest` to diff the
+newest two reports without copying file paths.
 
-## Why It Exists
+`tokenbar timeline` exports a local HTML timeline across recent identity snapshots so
+repeat reports become a visible profile evolution, not just individual files.
+`tokenbar rankings` summarizes local snapshots into archetype, NPC, operating-mode,
+rarest-bucket, and specificity rankings before any public upload.
 
-Coding agents are becoming part of daily software work, but usage limits and cost burn are still too easy to lose track of. TokenBar makes that invisible layer visible from the menu bar, so builders can see when Codex is healthy, when weekly pressure is tight, and how current usage might project forward.
+`tokenbar bundle` creates a portable zip with the HTML report, identity JSON, Skill.md,
+share manifest, PDF when present, and a bundle manifest that restates the privacy boundary.
+`tokenbar proof` creates a fuller local portfolio packet with the latest identity artifacts,
+local rankings, newest-vs-previous comparison, and an HTML timeline.
 
-## What It Shows
-
-- OpenAI Codex token usage from local session logs
-- 5-hour and weekly quota pressure
-- Daily token history with peak-day highlighting
-- Estimated dollar usage from local token counts
-- Forecast views for usage pace and spend
-- Quick Insights for today, weekly pressure, peak day, average day, and projected cost
-
-## AI Overview
-
-The overview is designed as a compact data-storytelling surface. The default view is a proper history line chart with a dotted projection line. Use the arrow controls to move through different views of the same usage data, including cost forecast, work rhythm, cumulative usage, spike detection, heat blocks, pace against average, peak share, weekly burn, and agent activity.
-
-![TokenBar forecast controls](assets/screenshots/tokenbar-readme-forecast-preview.png)
-
-![TokenBar quick insights](assets/screenshots/tokenbar-quick-insights.png)
-
-## Provider Status
-
-TokenBar currently reads OpenAI Codex usage locally. Claude by Anthropic, Cursor, Google coding agents, and other coding-agent surfaces are shown as future connector targets until explicit usage APIs or local exports are wired in.
-
-Browser sign-in is not treated as usage authorization. TokenBar does not read browser cookies, passwords, account secrets, or provider tokens.
-
-## Keywords
-
-OpenAI Codex, ChatGPT, Codex, AI coding agents, coding agent usage, token usage, token monitor, quota monitor, cost forecast, macOS menu bar app, SwiftUI, local-first, Claude Anthropic, Gemini, Cursor, Google coding agents, developer productivity, agentic coding, AI developer tools.
-
-## Download
-
-Latest macOS arm64 build:
-
-[Download TokenBar](https://github.com/Arnie016/codex-goated-skills/releases/download/v0.1.0/CodexLimitBar-macOS-arm64-2026-05-20.zip)
-
-After manual download, drag the app into `~/Applications` or `/Applications`, then run:
-
-```bash
-tokenbar
-```
-
-Because this early build is ad-hoc signed, macOS may show a Gatekeeper warning on first open.
-
-## Status
-
-Early public build. The current app is local-first and focused on Codex. Exact billing, purchased credits, and organization-level usage should still be verified in the official provider dashboard.
+`tokenbar verify` audits an identity JSON or share manifest before upload/bundling. It
+fails if the artifact claims to include raw transcripts, source code, or secret-like tokens.

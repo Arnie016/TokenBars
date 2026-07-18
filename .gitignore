@@ -5,3 +5,4 @@ DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+.vercel

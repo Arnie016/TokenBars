@@ -16,12 +16,11 @@ or:
 TOKENBAR_SOUND=1 tokenbar
 ```
 
-The launch movie uses short cues:
+The launch animation is intentionally short and data-aware. The current motion language is QD opening an agent console, reading the local usage index, building a runway forecast, checking budget dials, and arming the natural-language prompt editor. With `--sound`, it uses short cues:
 
-- electron/current entry: light tick
-- token formation: small pop
-- quota gate pressure: heavier alert
-- forecast/interface readiness: glass/purr finish
+- local log read: light tick
+- budget and reset estimate lock-in: small pop
+- app opened: warm resolved chime
 
 ## Demo Video Direction
 

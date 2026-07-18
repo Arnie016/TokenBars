@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TokenBar Social · Builder Network</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="page-body social-page" data-identity="blueprint">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="/docs">How it works</a><a href="/social">Social</a><a href="/profile">Profile</a><a href="/archetypes">Archetypes</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a>
+      </nav>
+      <div class="top-actions"><a class="signin-link" href="/profile#sign-in">Sign in</a><a class="download-pill" href="/#download">Download for macOS</a></div>
+    </header>
+
+    <section class="social-scoreboard" aria-label="Live TokenBar leaderboard preview">
+      <div class="scoreboard-title">
+        <span>Live opt-in board</span>
+        <strong data-scoreboard-region>Global</strong>
+      </div>
+      <div data-scoreboard-list>
+        <a class="scoreboard-row is-empty" href="/docs">
+          <span>0</span><strong>Waiting for first proof</strong><em>Run tokenbar submit</em><b>--</b>
+        </a>
+      </div>
+    </section>
+
+    <main class="page-main">
+      <section class="social-hero" data-reveal>
+        <div>
+          <h1>Codex builders, ranked by proof.</h1>
+          <p>Run TokenBar inside the repo you are submitting. Publish a safe identity token. Compete by region, archetype, useful output, strategy, and project range without uploading raw logs.</p>
+          <div class="social-command">
+            <code>tokenbar submit --project "My Codex App"</code>
+            <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy</button>
+          </div>
+          <div class="share-mode-mini" aria-label="Public and unlisted share commands">
+            <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Public ranking</button>
+            <button type="button" data-copy-command="tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions">Anonymous proof</button>
+          </div>
+          <div class="identity-switcher" aria-label="Preview builder identity themes">
+            <button type="button" class="is-active" data-identity-pick="blueprint"><span></span>Blueprint</button>
+            <button type="button" data-identity-pick="cartographer"><span></span>Cartographer</button>
+            <button type="button" data-identity-pick="ronin"><span></span>Ronin</button>
+            <button type="button" data-identity-pick="alchemist"><span></span>Alchemist</button>
+          </div>
+          <div class="social-badges" aria-label="Supported coding tools">
+            <span>Codex</span><span>Claude Code</span><span>Gemini</span><span>Cursor</span>
+          </div>
+        </div>
+        <aside class="social-terminal" aria-label="TokenBar social activation flow">
+          <span>public card</span>
+          <strong>Blueprint Captain</strong>
+          <p>187 sessions · 14.2B tokens · Singapore · system design</p>
+          <div class="score-breakdown">
+            <div><b>38</b><small>output</small></div>
+            <div><b>31</b><small>strategy</small></div>
+            <div><b>25</b><small>range</small></div>
+          </div>
+          <span>share token</span>
+          <code>TBAR-SG-7K2L9Q</code>
+        </aside>
+      </section>
+
+      <section class="submit-booth" data-reveal aria-label="Hackathon repo submission booth">
+        <div class="submit-booth-copy">
+          <p class="eyebrow">Submit your build</p>
+          <h2>One repo becomes a public builder card.</h2>
+          <p>Run the command from your hackathon repo. TokenBar reads local aggregate evidence, prints a <code>TBAR</code> token, then this page turns it into a profile, feed post, and leaderboard entry. Raw logs and source never leave your machine.</p>
+          <div class="submit-booth-command">
+            <code>tokenbar submit --project "My Codex App"</code>
+            <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy command</button>
+          </div>
+        </div>
+        <form class="submit-booth-token" data-profile-lookup>
+          <label for="submit-booth-token">Paste your TBAR token</label>
+          <div><input id="submit-booth-token" name="token" placeholder="TBAR-..." autocomplete="off" /><button type="submit">Open profile</button></div>
+          <p data-profile-lookup-state>After <code>tokenbar submit</code> finishes, paste the token here to unlock profile, proof card, feed, and rankings surfaces.</p>
+          <div class="token-surface-launcher" data-token-surface-launcher aria-live="polite"></div>
+        </form>
+        <aside class="submit-booth-preview" aria-label="Example public builder card">
+          <span>Public card preview</span>
+          <strong>Launch Cartographer</strong>
+          <p>Project proof, loop maturity, region rank, and next frontier in one safe share card.</p>
+          <dl><div><dt>Public</dt><dd>profile</dd></div><div><dt>Private</dt><dd>raw logs</dd></div></dl>
+        </aside>
+      </section>
+
+      <section class="hackathon-intake" data-reveal aria-label="Hackathon builder profile intake">
+        <div class="intake-copy">
+          <p class="eyebrow">Hackathon intake</p>
+          <h2>Submit a repo, get a builder profile.</h2>
+          <p>Every participant can run TokenBar inside their own repo, generate a safe <code>TBAR-...</code> profile token, and submit that token to the social board. The public page shows builder identity, shipped-work proof, region, loop maturity, and next frontier. No raw repo upload.</p>
+          <div class="intake-flags" aria-label="Submission privacy flags">
+            <span>Own profile page</span><span>Shareable proof token</span><span>Opt-in rankings</span><span>No raw logs</span>
+          </div>
+        </div>
+        <div class="intake-steps" aria-label="Repo submission commands">
+          <article>
+            <span>01</span>
+            <strong>Choose the repo</strong>
+            <code>cd ~/path/to/repo</code>
+            <button type="button" data-copy-command="cd ~/path/to/repo">Copy</button>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>Create the token</strong>
+            <code>tokenbar submit --project "My Codex App" --event "OpenAI Build Week" --track "Apps for Your Life"</code>
+            <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot; --event &quot;OpenAI Build Week&quot; --track &quot;Apps for Your Life&quot;">Copy</button>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Attach context</strong>
+            <code>tokenbar save https://example.com --tag inspiration</code>
+            <button type="button" data-copy-command="tokenbar save https://example.com --tag inspiration">Copy</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="activation-station" data-reveal>
+        <div>
+          <h2>Activate your public profile</h2>
+          <p>No account is required for the first share. Clerk later attaches reports from multiple machines, GitHub, LinkedIn, and portfolio links to one builder identity.</p>
+        </div>
+        <form class="token-lookup social-token-form" data-profile-lookup>
+          <label for="social-profile-token">TokenBar identity token</label>
+          <div><input id="social-profile-token" name="token" placeholder="TBAR-..." autocomplete="off" /><button type="submit">Open</button></div>
+          <p data-profile-lookup-state>Run <code>tokenbar submit</code>. Paste the returned token here to open the profile, proof card, feed entry, and rankings.</p>
+        </form>
+        <form class="submission-update-form" data-submission-update>
+          <div class="submission-update-head">
+            <span>Submit to the hackathon board</span>
+            <strong>Token + public project links only</strong>
+          </div>
+          <label for="submission-token">TBAR token</label>
+          <input id="submission-token" name="token" placeholder="TBAR-..." autocomplete="off" />
+          <label for="submission-title">Project name</label>
+          <input id="submission-title" name="projectTitle" placeholder="Your shipped project" autocomplete="off" />
+          <label for="submission-tagline">One-line proof</label>
+          <input id="submission-tagline" name="tagline" placeholder="What did this repo prove?" autocomplete="off" />
+          <div class="submission-grid">
+            <label>Event<input name="event" placeholder="OpenAI Build Week" autocomplete="off" /></label>
+            <label>Track<input name="track" placeholder="Apps for Your Life" autocomplete="off" /></label>
+          </div>
+          <div class="submission-grid">
+            <label>GitHub URL<input name="repoUrl" placeholder="https://github.com/..." autocomplete="off" /></label>
+            <label>Demo URL<input name="demoUrl" placeholder="https://..." autocomplete="off" /></label>
+          </div>
+          <label>Visibility<select name="visibility"><option value="public">Public rankings</option><option value="unlisted">Unlisted link</option></select></label>
+          <button type="submit">Attach project to token</button>
+          <p data-submission-update-state>No source code, raw logs, transcripts, private diffs, or secrets are uploaded.</p>
+          <div class="submission-update-preview" data-submission-update-preview></div>
+        </form>
+        <form class="proof-receipt-form" data-proof-receipt-form>
+          <div class="proof-receipt-head">
+            <span>Local receipt handoff</span>
+            <button type="button" data-copy-command="tokenbar proof latest --json">Copy command</button>
+          </div>
+          <label for="social-proof-receipt">Paste the output from <code>tokenbar proof latest --json</code></label>
+          <textarea id="social-proof-receipt" name="receipt" spellcheck="false" placeholder='{"schema":"tokenbar.local_proof_receipt.v1", ...}'></textarea>
+          <div class="proof-receipt-actions">
+            <button type="submit">Preview receipt</button>
+            <p data-proof-receipt-state>Client-side only. The browser checks the receipt shape before showing share surfaces.</p>
+          </div>
+          <div class="proof-receipt-preview" data-proof-receipt-preview></div>
+        </form>
+        <div class="analysis-size-strip" aria-label="TokenBar analysis sizes">
+          <span><b>S</b> 7d snapshot</span>
+          <span><b>M</b> 30d profile</span>
+          <span><b>L</b> multi-repo dossier</span>
+          <span><b>XL</b> studio index</span>
+        </div>
+        <div class="share-contract-panel" data-share-contract aria-label="Public proof contract">
+          <span>Public proof contract</span>
+          <strong>Rankings use public proof cards only.</strong>
+          <p>Unlisted tokens open by direct link, private tokens stay out of lookup, and raw transcripts, source code, credentials, private diffs, and env files never become public material.</p>
+          <dl>
+            <div><dt>Public</dt><dd>feed + boards</dd></div>
+            <div><dt>Unlisted</dt><dd>direct link only</dd></div>
+            <div><dt>Private</dt><dd>owner reload only</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="loop-scale" data-reveal aria-label="TokenBar builder loop scale">
+        <div class="section-heading">
+          <h2>Builder Loop Scale</h2>
+          <p>The full loop becomes the scoring spine: every public identity is graded by how the builder plans, separates roles, writes state, restarts, scores taste, reads traces, deletes stale harness, and finds the next bottleneck.</p>
+        </div>
+        <div class="scale-meter" aria-label="Example loop score">
+          <span>Loop maturity</span>
+          <strong>84</strong>
+          <i><b style="width:84%"></b></i>
+        </div>
+        <div class="loop-grid">
+          <article><span>I</span><h3>Write the loop, not the prompt</h3><p>Can the builder turn a one-off request into a repeatable agent procedure?</p><b>Loop design</b></article>
+          <article><span>II</span><h3>Separate the roles</h3><p>Planner, builder, evaluator, and shipper stay distinct instead of becoming one vague agent.</p><b>Role clarity</b></article>
+          <article><span>III</span><h3>Negotiate the contract first</h3><p>The work starts with acceptance criteria, files touched, non-goals, and proof of done.</p><b>Contract strength</b></article>
+          <article><span>IV</span><h3>Write to disk, not to context</h3><p>Important state survives the chat window through notes, traces, manifests, and progress files.</p><b>State discipline</b></article>
+          <article><span>V</span><h3>Let the loop restart</h3><p>Good builders know when to throw away a tangled run and resume from clean state.</p><b>Recovery</b></article>
+          <article><span>VI</span><h3>Score the subjective</h3><p>Taste, originality, clarity, and usefulness get scored with visible rubrics instead of vibes.</p><b>Taste calibration</b></article>
+          <article><span>VII</span><h3>Read the traces</h3><p>Debugging looks at the actual transcript and command trail, not just the final answer.</p><b>Trace literacy</b></article>
+          <article><span>VIII</span><h3>Delete the harness</h3><p>Old scaffolds, stale tests, and dead automation are removed once they stop helping.</p><b>Harness hygiene</b></article>
+          <article><span>IX</span><h3>The bottleneck always moves</h3><p>The builder keeps finding the next constraint: planning, verification, taste, distribution, or trust.</p><b>Bottleneck sense</b></article>
+        </div>
+      </section>
+
+      <section class="social-layout">
+        <div class="builder-feed" data-reveal>
+          <div class="section-heading">
+            <h2>For You: shipped by builders</h2>
+            <p>A social home page should show what people shipped with agents, why it matters, and how their builder identity shaped the work.</p>
+          </div>
+          <div class="hackathon-roster" data-hackathon-roster aria-label="Public hackathon builder roster">
+            <article class="roster-card is-empty">
+              <span>Roster pending</span>
+              <strong>No public submissions yet</strong>
+              <p>Run <code>tokenbar submit --project "My Codex App"</code> to create a safe profile token and appear here.</p>
+            </article>
+          </div>
+          <div class="feed-list shipped-feed" data-social-feed>
+            <article class="feed-card shipped-card" data-identity-theme="blueprint">
+              <div><span class="rank-dot">#1 SG</span><strong>TokenBar Social</strong><small>acacia · Blueprint Captain</small></div>
+              <p>Shipped a public identity layer for Codex builders: claim token, leaderboard, profile pages, and privacy-preserving rankings.</p>
+              <div class="feed-story-card" aria-label="Builder story card">
+                <span>Builder story</span>
+                <section><b>What shipped</b><strong>Reloadable proof cards, public profiles, social feed entries, and rankings from local-only identity evidence.</strong></section>
+                <section><b>Why it matters</b><p>A builder can show how they work with agents without exposing raw prompts, source code, private diffs, or secrets.</p></section>
+                <section><b>Tradeoff</b><p>The public surface has to keep uncertainty visible instead of pretending every agent run was clean.</p></section>
+                <em>safe aggregate proof-card action; no raw transcripts or source code</em>
+              </div>
+              <ul class="feed-evidence">
+                <li>Generated a reloadable proof card from local-only identity evidence.</li>
+                <li>Built profile, ranking, and social feed surfaces without raw transcript upload.</li>
+                <li>Exposed proof, loop maturity, and privacy flags as visible receipts.</li>
+              </ul>
+              <div class="feed-safety" aria-label="Safe sharing boundary">
+                <span>No raw transcripts</span><span>No source code</span><span>generated proof artifact only</span>
+              </div>
+              <dl><div><dt>Proof</dt><dd>94</dd></div><div><dt>Loop</dt><dd>84</dd></div><div><dt>Tokens</dt><dd>14.2B</dd></div></dl>
+              <div class="post-actions">
+                <button type="button" data-share-proof data-share-url="/social" data-share-text="TokenBar Social turns local Codex evidence into safe builder proof cards, feeds, and rankings without uploading raw logs.">Share proof</button>
+                <a class="profile-card-link" href="/profile">Discuss profile</a>
+                <a class="profile-card-link" href="/rankings">Rankings</a>
+              </div>
+            </article>
+            <article class="feed-card shipped-card" data-identity-theme="cartographer">
+              <div><span class="rank-dot green">#2 SEA</span><strong>Launch Packet</strong><small>promptforge · Launch Cartographer</small></div>
+              <p>Turned a messy agent run into a clean release path: demo, docs, screenshots, pricing copy, and public proof packet.</p>
+              <div class="feed-story-card" aria-label="Builder story card">
+                <span>Builder story</span>
+                <section><b>What shipped</b><strong>A launch route with visible demos, docs, screenshots, and a proof packet.</strong></section>
+                <section><b>Why it matters</b><p>The profile tells a human what happened, what was proven, and where the builder still needs to improve.</p></section>
+                <section><b>Tradeoff</b><p>Volume helps, but TokenBar ranks execution quality and loop maturity above raw token burn.</p></section>
+                <em>safe aggregate proof-card action; no raw transcripts or source code</em>
+              </div>
+              <ul class="feed-evidence">
+                <li>Converted an agent loop into visible artifacts and a clean release route.</li>
+                <li>Separated public proof from private workspace details.</li>
+                <li>Made the next frontier explicit instead of pretending the run was perfect.</li>
+              </ul>
+              <div class="feed-safety" aria-label="Safe sharing boundary">
+                <span>No raw transcripts</span><span>No source code</span><span>generated proof artifact only</span>
+              </div>
+              <dl><div><dt>Proof</dt><dd>91</dd></div><div><dt>Loop</dt><dd>79</dd></div><div><dt>Tokens</dt><dd>8.8B</dd></div></dl>
+              <div class="post-actions">
+                <button type="button" data-share-proof data-share-url="/social" data-share-text="TokenBar profiles separate public proof from private workspace details, then rank useful output, strategy, and loop maturity.">Share proof</button>
+                <a class="profile-card-link" href="/profile">Discuss profile</a>
+                <a class="profile-card-link" href="/rankings">Rankings</a>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="social-sidebar" data-reveal>
+          <h2>Identity rankings</h2>
+          <ul>
+            <li><strong>Proof score</strong><span>shipping evidence, commit bursts, products, docs, demos.</span></li>
+            <li><strong>Loop maturity</strong><span>the nine-part scale from prompt into repeatable agent procedure.</span></li>
+            <li><strong>Builder identity</strong><span>archetype, persona, operating style, strengths, and growth edge.</span></li>
+            <li><strong>Tokens</strong><span>volume helps, but raw spend cannot carry a weak profile.</span></li>
+          </ul>
+          <div class="action-loop-rankings" data-action-loop-rankings>
+            <p>Run <code>tokenbar submit</code> to enter the public board with repo context, <code>tokenbar prove</code> for identity-only proof, or <code>tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions</code> for an anonymous direct-link proof that stays out of rankings.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="regional-board" data-reveal>
+        <div class="section-heading">
+          <h2>Regional leaderboards</h2>
+          <p>Builders can compete globally or by region while keeping profiles private, unlisted, or public.</p>
+        </div>
+        <div class="region-tabs" role="tablist" aria-label="Leaderboard regions">
+          <button type="button" class="is-active" data-region-tab="Global">Global</button>
+          <button type="button" data-region-tab="Singapore">Singapore</button>
+          <button type="button" data-region-tab="Southeast Asia">Southeast Asia</button>
+          <button type="button" data-region-tab="Europe">Europe</button>
+          <button type="button" data-region-tab="North America">North America</button>
+        </div>
+        <div class="region-list" data-region-list>
+          <div class="region-row is-empty"><span>0</span><strong>No public proof yet</strong><em>Run tokenbar submit to enter</em><b>--</b></div>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

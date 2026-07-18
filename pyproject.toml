@@ -1,0 +1,51 @@
+[project]
+name = "tokenbar"
+version = "0.1.1"
+description = "A local-first CLI token usage and budget bar for coding agents and developer workflows"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+  { name = "Arnav Salkade" }
+]
+keywords = [
+  "cli",
+  "tokens",
+  "openai",
+  "coding-agents",
+  "developer-tools",
+  "budget",
+  "usage"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development",
+  "Topic :: Utilities"
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Arnie016/TokenBar"
+Repository = "https://github.com/Arnie016/TokenBar"
+Issues = "https://github.com/Arnie016/TokenBar/issues"
+PyPI = "https://pypi.org/project/tokenbar/"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+tokenbar = ["tokenbar"]
+
+[tool.vercel]
+entrypoint = "api.index:handler"
+
+[project.scripts]
+tokenbar = "tokenbar_runner:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
