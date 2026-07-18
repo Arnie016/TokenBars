@@ -1,2 +1,0 @@
-tokenbar
-tokenbar_runner

@@ -6,3 +6,7 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 .vercel
+__pycache__/
+*.py[cod]
+dist/
+*.egg-info/
