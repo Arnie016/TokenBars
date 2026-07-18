@@ -2,14 +2,9 @@
 
 Submission window: July 13–21, 2026.
 
-## Pre-existing foundation
+## Build Week implementation
 
-- TokenBar command-line and macOS usage/cost presentation.
-- Local token accounting, forecast, and utility surfaces.
-
-These establish the founder problem—model spending and builder activity were difficult to understand—but are not presented as new Build Week work.
-
-## Post–July 13 extension
+All capabilities presented in this submission were built during the July 13–21 Build Week window. Earlier repository shells, references, or unrelated experiments are not part of the judged claim.
 
 - Builder Identity product surface instead of token accounting alone.
 - Browser-first Create Identity journey from a deliberately selected local artifact.
@@ -26,7 +21,7 @@ Automated proof passes, but the core experience remains `HUMAN_TEST=NOT RUN` unt
 ## Commit policy
 
 - Use `build-week:` commit subjects for Builder Identity work.
-- Keep the pre-existing TokenBar utility clearly separated from the identity/passport extension in commits, README, demo, and Devpost.
+- Keep the submitted TokenBar and identity/passport capabilities traceable through commits, README, demo, and Devpost.
 - Never commit private source artifacts, prompts, transcripts, credentials, or filesystem paths selected by a user.
 - Tag the final judged state only after the human privacy/share test and submission checklist pass.
 
