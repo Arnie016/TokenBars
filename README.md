@@ -12,6 +12,52 @@ set daily limit 100M
 heat?
 ```
 
+## macOS install + run (judge-ready path)
+
+Install the menu-bar app and CLI in one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash
+```
+
+The installer places:
+
+- `~/Applications/TokenBar.app`
+- `~/.local/bin/tokenbar` (launcher)
+
+Run:
+
+```bash
+tokenbar
+```
+
+If `tokenbar` is not found in `PATH`, add it:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## Privacy-safe first run
+
+Before generating anything that is uploaded, start with:
+
+```bash
+tokenbar quickstart
+```
+
+This prints the upload endpoints and current privacy boundary.
+
+Optional local checks:
+
+```bash
+tokenbar readiness
+tokenbar verify <identity-or-manifest-path>
+tokenbar bundle
+```
+
+TokenBar never uploads raw transcripts, source code, private diffs, or credentials. Review `PRIVACY.md`
+before first sharing.
+
 ## Identity profiles
 
 TokenBar can generate a local-first AI builder identity memorandum from your indexed coding-agent usage.
@@ -84,3 +130,15 @@ local rankings, newest-vs-previous comparison, and an HTML timeline.
 
 `tokenbar verify` audits an identity JSON or share manifest before upload/bundling. It
 fails if the artifact claims to include raw transcripts, source code, or secret-like tokens.
+
+## macOS Gatekeeper note
+
+The downloadable app bundle is distributed as a zipped `.app` package and is not guaranteed to be notarized.
+If macOS blocks first launch, run:
+
+```bash
+xattr -dr com.apple.quarantine ~/Applications/TokenBar.app
+open ~/Applications/TokenBar.app
+```
+
+or use **System Settings → Privacy & Security → Open Anyway** after first attempt.

@@ -11,7 +11,35 @@ tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/tokenbar-install.XXXXXX")"
 cleanup() {
   rm -rf "$tmp_dir"
 }
+
+print_post_install_guidance() {
+  echo
+  echo "First-run privacy check:"
+  echo "  tokenbar quickstart"
+  echo
+  echo "Optional checks before any upload/share:"
+  echo "  tokenbar readiness"
+  echo "  tokenbar verify <identity-or-manifest-path>"
+  echo
+  echo "If the app is blocked by Gatekeeper:"
+  echo "  xattr -dr com.apple.quarantine \"$app_path\""
+  echo "  open \"$app_path\""
+  echo
+  echo "If tokenbar launch succeeds here, launch paths are:"
+  echo "  open \"$app_path\""
+  echo "  tokenbar"
+  echo
+  echo "Note: do not claim notarization/signing unless you can verify it in your environment."
+}
+
 trap cleanup EXIT
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "TokenBar app install is macOS-only."
+  echo "The downloaded launcher can still be used on this platform at your discretion,"
+  echo "but only macOS installation of the .app bundle is supported by this script."
+  exit 1
+fi
 
 echo "Downloading TokenBar..."
 curl -fL "$download_url" -o "$tmp_dir/TokenBar.zip"
@@ -45,3 +73,5 @@ if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
 fi
 echo "Open TokenBar now with:"
 echo "  tokenbar"
+
+print_post_install_guidance
