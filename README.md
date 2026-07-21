@@ -12,6 +12,18 @@ set daily limit 100M
 heat?
 ```
 
+An exported multi-agent usage table can also become a concise Builder Pulse or
+a privacy-safe payload for the social profile surface:
+
+```bash
+tokenbar usage usage-report.txt
+tokenbar usage usage-report.txt --json
+```
+
+The import distinguishes input/output from cache traffic, labels reported costs
+as estimates, and never includes the raw report, transcripts, source code, or
+local paths in the JSON output.
+
 ## Identity profiles
 
 TokenBar can generate a local-first AI builder identity memorandum from your indexed coding-agent usage.
@@ -54,8 +66,9 @@ artifact unless you explicitly share later.
 `tokenbar claim` creates a local identity packet and share token without uploading.
 `tokenbar identity` creates the local identity memorandum. `tokenbar profile --pdf`
 creates the boardroom-ready PDF. `tokenbar publish-proof` uploads only the safe generated
-identity artifact to the Builder Identity action and returns a proof-card URL, public profile URL,
-feed entry, and rankings evidence. `tokenbar share latest` remains the advanced direct JSON upload.
+identity artifact to the Builder Identity action and returns a proof-card URL plus scoped
+public surfaces based on visibility (direct link only for unlisted/private, broader surfaces
+for public). `tokenbar share latest` remains the advanced direct JSON upload.
 `tokenbar publish --days 7 --pdf` combines fresh local report generation, PDF export,
 and safe hosted-profile activation in one command.
 The hosted endpoints accept the same safe schema for durable Supabase storage.
