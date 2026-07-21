@@ -1,0 +1,74 @@
+{
+  "builds": [
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "docs/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/health",
+      "dest": "/api/health.py"
+    },
+    {
+      "src": "/api/profiles",
+      "dest": "/api/profiles.py"
+    },
+    {
+      "src": "/api/actions",
+      "dest": "/api/actions.py"
+    },
+    {
+      "src": "/api/stripe/webhook",
+      "dest": "/api/stripe/webhook.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/docs/assets/$1"
+    },
+    {
+      "src": "/app.js",
+      "dest": "/docs/app.js"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/docs/styles.css"
+    },
+    {
+      "src": "/api/config",
+      "dest": "/api/config.py"
+    },
+    {
+      "src": "/api/report-feedback",
+      "dest": "/api/report_feedback.py"
+    },
+    {
+      "src": "/social/?",
+      "dest": "/docs/social.html"
+    },
+    {
+      "src": "/profile/?",
+      "dest": "/docs/profile.html"
+    },
+    {
+      "src": "/archetypes/?",
+      "dest": "/docs/archetypes.html"
+    },
+    {
+      "src": "/rankings/?",
+      "dest": "/docs/rankings.html"
+    },
+    {
+      "src": "/docs/?",
+      "dest": "/docs/docs.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/docs/index.html"
+    }
+  ]
+}

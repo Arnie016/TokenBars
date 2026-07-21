@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TokenBar Docs · Commands and Setup</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="page-body docs-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="/docs">How it works</a><a href="/social">Social</a><a href="/profile">Profile</a><a href="/archetypes">Archetypes</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a>
+      </nav>
+      <div class="top-actions"><a class="signin-link" href="/profile#sign-in">Sign in</a><a class="download-pill" href="/#download">Download for macOS</a></div>
+    </header>
+    <main class="page-main">
+      <section class="page-hero compact-page-hero"><p class="eyebrow">Terminal first</p><h1>Install TokenBar, claim your builder identity, then decide what to share.</h1><p>The Mac app shows the live menu-bar surface. The CLI creates reports, dossiers, bundles, rankings, and optional public profile links.</p></section>
+      <section class="command-docs">
+        <div class="command-row"><code>pip install tokenbar</code><button type="button" data-copy-command="pip install tokenbar">Copy</button><span>Install the CLI when the Python package is available.</span></div>
+        <div class="command-row"><code>curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash</code><button type="button" data-copy-command="curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash">Copy</button><span>Install launcher and CLI.</span></div>
+        <div class="command-row"><code>tokenbar submit --project "My Codex App"</code><button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy</button><span>Hackathon path: run local identity analysis, attach project metadata, publish safe proof fields, and get a TBAR token.</span></div>
+        <div class="command-row"><code>tokenbar prove</code><button type="button" data-copy-command="tokenbar prove">Copy</button><span>Generic proof path: run local identity analysis, publish only safe proof fields, and get a TBAR token.</span></div>
+        <div class="command-row"><code>tokenbar proof latest</code><button type="button" data-copy-command="tokenbar proof latest">Copy</button><span>Recover the last safe proof token, public links, privacy receipt, and share copy without rerunning analysis.</span></div>
+        <div class="command-row"><code>tokenbar trailer</code><button type="button" data-copy-command="tokenbar trailer">Copy</button><span>Generate a privacy-safe 30-second Builder Identity trailer plan from local aggregate evidence.</span></div>
+        <div class="command-row"><code>tokenbar trailer --json</code><button type="button" data-copy-command="tokenbar trailer --json">Copy</button><span>Emit a renderer-ready identity-trailer manifest with shots, voice timing, interaction events, privacy rules, and Director Bay/HyperFrames handoff fields.</span></div>
+        <div class="command-row"><code>tokenbar trailer --html</code><button type="button" data-copy-command="tokenbar trailer --html">Copy</button><span>Export a local standalone storyboard preview that a judge or video renderer can inspect without raw logs or source code.</span></div>
+        <div class="command-row"><code>tokenbar video</code><button type="button" data-copy-command="tokenbar video">Copy</button><span>Compatibility alias for the identity trailer brief.</span></div>
+        <div class="command-row"><code>tokenbar claim</code><button type="button" data-copy-command="tokenbar claim">Copy</button><span>Generate a private local identity packet, Skill.md, and report without publishing.</span></div>
+        <div class="command-row"><code>tokenbar save https://example.com --tag agent-loop</code><button type="button" data-copy-command="tokenbar save https://example.com --tag agent-loop">Copy</button><span>Save a social/GitHub/blog reference to your local builder-signal inbox. Nothing is uploaded.</span></div>
+        <div class="command-row"><code>tokenbar inbox digest</code><button type="button" data-copy-command="tokenbar inbox digest">Copy</button><span>Review saved builder signals by host and tag before using them in a report or proof story.</span></div>
+        <div class="command-row"><code>tokenbar publish-proof</code><button type="button" data-copy-command="tokenbar publish-proof">Copy</button><span>Opt in to a safe proof-card run, profile link, feed entry, and rankings evidence.</span></div>
+        <div class="command-row"><code>tokenbar identity</code><button type="button" data-copy-command="tokenbar identity">Copy</button><span>Generate the default local builder profile without publishing.</span></div>
+        <div class="command-row"><code>tokenbar profile --pdf</code><button type="button" data-copy-command="tokenbar profile --pdf">Copy</button><span>Create a print-ready PDF report.</span></div>
+        <div class="command-row"><code>tokenbar submit --project "My Codex App" --repo https://github.com/me/app --demo https://app.example.com</code><button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot; --repo https://github.com/me/app --demo https://app.example.com">Copy</button><span>Submit a repo with public project links; raw repo contents still stay local.</span></div>
+        <div class="command-row"><code>tokenbar social</code><button type="button" data-copy-command="tokenbar social">Copy</button><span>Open the public profile and leaderboard layer.</span></div>
+        <div class="command-row"><code>tokenbar rankings</code><button type="button" data-copy-command="tokenbar rankings">Copy</button><span>Show local identity leaderboard from your snapshots.</span></div>
+        <div class="command-row"><code>tokenbar bundle</code><button type="button" data-copy-command="tokenbar bundle">Copy</button><span>Package report, Skill.md, JSON, and proof manifest.</span></div>
+      </section>
+      <section class="install-cards">
+        <article><h2>Download app</h2><p>Download the macOS ZIP, open it, move TokenBar to Applications, then launch it from the menu bar.</p><a class="button primary" href="/#download">Download for macOS</a></article>
+        <article><h2>Run locally</h2><p>TokenBar reads Codex first, then Claude Code, Cursor, and Gemini connectors as they are enabled. Raw transcripts stay on your machine.</p></article>
+        <article><h2>Publish safely</h2><p><code>tokenbar submit</code> is the hackathon/social path. <code>tokenbar prove</code> is identity-only proof. Both run locally first, then upload only generated safe proof fields. Use <code>tokenbar claim</code> when you want a private review before any public token exists.</p></article>
+        <article><h2>Report corrections</h2><p>Reports include a feedback endpoint for disputes, misclassification, or takedown requests. AgentMail delivery is enabled when the deployment has feedback env vars configured.</p></article>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

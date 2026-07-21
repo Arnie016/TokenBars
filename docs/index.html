@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="TokenBar is a macOS menu bar monitor for AI coding-agent tokens, budgets, reset timing, cost forecasts, and local work rhythm."
+    />
+    <title>TokenBar · AI Coding Usage From Your Menu Bar</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1020'/%3E%3Crect x='12' y='10' width='14' height='44' rx='7' fill='%232f81f7'/%3E%3Crect x='26' y='10' width='12' height='44' fill='%235ed34f'/%3E%3Crect x='38' y='10' width='14' height='44' rx='7' fill='%23ff7a18'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="home-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home">
+        <span class="brand-mark" aria-hidden="true">tb</span>
+        <span>TokenBar</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="/docs">How it works</a>
+        <a href="/social">Social</a>
+        <a href="/profile">Profile</a>
+        <a href="/archetypes">Archetypes</a>
+        <a href="/rankings">Rankings</a>
+        <a href="/docs">Docs</a>
+      </nav>
+      <div class="top-actions">
+        <a class="signin-link" href="/profile#sign-in">Sign in</a>
+        <a class="download-pill" href="/#download">Download for macOS</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero identity-hero">
+        <div class="hero-copy">
+          <div class="hero-pill"><span></span> Local-first. Identity-first.</div>
+          <h1>Own your builder identity.</h1>
+          <p>
+            TokenBar runs as a local identity layer for Codex, Claude Code, Gemini,
+            and Cursor: it reads your sessions, shows how you plan, steer, ship, and
+            turns agent work into proof you can share.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/#download">Download for macOS</a>
+            <a class="button secondary" href="/profile">See my profile</a>
+            <button class="button secondary" type="button" data-copy-install>
+              Copy install command
+            </button>
+          </div>
+          <div class="hero-trust" aria-label="TokenBar trust signals">
+            <span class="avatar-stack" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <strong>14-day Pro trial</strong>
+            <span>Private analysis · share only what you choose</span>
+          </div>
+          <div class="connector-cloud" aria-label="Supported coding agent surfaces">
+            <span><b>cx</b>Codex</span>
+            <span><b>cl</b>Claude Code</span>
+            <span><b>gm</b>Gemini</span>
+            <span><b>cu</b>Cursor</span>
+          </div>
+          <div class="install-line" aria-label="Terminal install command">
+            <code>curl -fsSL .../install.sh | bash</code>
+            <span data-copy-state>ready</span>
+          </div>
+        </div>
+
+        <div class="stage identity-stage" aria-label="TokenBar identity app preview">
+          <div class="mac-menu" aria-hidden="true">
+            <span></span><span>312M</span><span>30°C</span><span>Sat 7 Jun · 10:17 PM</span>
+          </div>
+          <figure class="hero-shot" data-product-rig>
+            <img src="./assets/tokenbar-overview.png" alt="TokenBar macOS menu bar overview showing token history, forecast, and runout cards" />
+            <figcaption>
+              <span>Live menu bar surface</span>
+              <strong>Tokens, cost, reset pressure, and builder identity in one native Mac panel.</strong>
+            </figcaption>
+          </figure>
+          <div class="tool-orbit" aria-label="TokenBar coding tool coverage">
+            <span class="tool-chip tool-codex"><i>cx</i><b>Codex</b><small>terminal sessions</small></span>
+            <span class="tool-chip tool-claude"><i>cl</i><b>Claude Code</b><small>project traces</small></span>
+            <span class="tool-chip tool-gemini"><i>gm</i><b>Gemini</b><small>agent notes</small></span>
+            <span class="tool-chip tool-cursor"><i>cu</i><b>Cursor</b><small>workspace runs</small></span>
+          </div>
+          <div class="surface-depth" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="hero-persona-orbit" aria-hidden="true">
+            <span class="orbiter orbiter-blue"></span>
+            <span class="orbiter orbiter-green"></span>
+            <span class="orbiter orbiter-orange"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics-strip" aria-label="TokenBar usage highlights">
+        <div>
+          <span>Identity model</span>
+          <strong>2,304</strong>
+          <small>composable local buckets</small>
+        </div>
+        <div>
+          <span>Privacy</span>
+          <strong>Local</strong>
+          <small>raw sessions stay on device</small>
+        </div>
+        <div>
+          <span>Exports</span>
+          <strong>PDF</strong>
+          <small>Skill.md, JSON, proof packet</small>
+        </div>
+        <div>
+          <span>Connectors</span>
+          <strong>Codex+</strong>
+          <small>Claude, Cursor, Gemini-ready</small>
+        </div>
+      </section>
+
+      <section class="identity-lab" id="how" data-reveal>
+        <span id="profile" class="anchor-target"></span>
+        <span id="archetypes" class="anchor-target"></span>
+        <div class="identity-lab-copy">
+          <h2>Your builder identity, live.</h2>
+          <p>Run TokenBar locally, let it read the agent trail, and publish only the profile artifact you choose.</p>
+          <div class="identity-lab-tabs" role="tablist" aria-label="TokenBar identity walkthrough">
+            <button type="button" class="is-active" data-identity-tab="0">Run</button>
+            <button type="button" data-identity-tab="1">Profile</button>
+            <button type="button" data-identity-tab="2">Archetypes</button>
+          </div>
+          <div class="identity-lab-actions">
+            <div class="copy-command">
+              <code>tokenbar identity</code>
+              <button type="button" data-copy-command="tokenbar identity">Copy</button>
+            </div>
+            <a class="button primary" href="https://buy.stripe.com/6oUdR9euydTK5pE8s5b7y00">Try Pro free</a>
+          </div>
+        </div>
+
+        <div class="identity-slideshow" aria-live="polite">
+          <button class="slide-arrow prev" type="button" data-slide-prev aria-label="Previous identity slide"></button>
+          <div class="identity-track">
+            <article class="identity-slide is-active" data-identity-slide>
+              <div class="slide-kicker">Local first</div>
+              <h3>Local report. Optional public proof.</h3>
+              <div class="finder-panel compact-panel">
+                <div class="finder-steps">
+                  <div>
+                    <span>1</span><strong>Install</strong>
+                    <code>curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash</code>
+                    <button type="button" data-copy-command="curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash">Copy</button>
+                  </div>
+                  <div>
+                    <span>2</span><strong>Claim</strong>
+                    <code>tokenbar claim</code>
+                    <button type="button" data-copy-command="tokenbar claim">Copy</button>
+                  </div>
+                  <div>
+                    <span>3</span><strong>Submit</strong>
+                    <code>tokenbar submit --project "My Codex App"</code>
+                    <button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy</button>
+                  </div>
+                </div>
+                <form class="token-lookup" data-profile-lookup>
+                  <label for="profile-token">Open a shared profile</label>
+                  <div>
+                    <input id="profile-token" name="token" placeholder="TBAR-..." autocomplete="off" />
+                    <button type="submit">Open</button>
+                  </div>
+                  <p data-profile-lookup-state>Paste a public token from <code>tokenbar submit</code> or <code>tokenbar publish-proof</code>.</p>
+                </form>
+              </div>
+            </article>
+
+            <article class="identity-slide" data-identity-slide>
+              <div class="slide-kicker">Animated profile</div>
+              <h3>Blueprint Captain</h3>
+              <div class="identity-card kinetic-card" aria-label="TokenBar AI Builder Profile preview">
+                <div class="identity-top">
+                  <span>AI Builder Profile</span>
+                  <strong>Architect · Commander</strong>
+                  <p>Turns vague agent work into scoped moves, clean handoffs, verification, and proof.</p>
+                </div>
+                <div class="signature-map" aria-label="Abstract identity signal map">
+                  <span class="signal-core"></span>
+                  <span class="signal-node node-a"></span>
+                  <span class="signal-node node-b"></span>
+                  <span class="signal-node node-c"></span>
+                  <span class="signal-node node-d"></span>
+                  <span class="signal-line line-a"></span>
+                  <span class="signal-line line-b"></span>
+                  <span class="signal-line line-c"></span>
+                  <strong>signature trace</strong>
+                </div>
+                <div class="identity-bars">
+                  <div><span>Command</span><i style="--score: 88%"></i><b>88</b><em>Frames the lane.</em></div>
+                  <div><span>Velocity</span><i style="--score: 92%"></i><b>92</b><em>Ships the surface.</em></div>
+                  <div><span>Craft</span><i style="--score: 81%"></i><b>81</b><em>Keeps it coherent.</em></div>
+                  <div><span>Reliability</span><i style="--score: 94%"></i><b>94</b><em>Protects the proof.</em></div>
+                  <div><span>Foresight</span><i style="--score: 76%"></i><b>76</b><em>Plans the constraint.</em></div>
+                </div>
+                <div class="identity-edge">
+                  <span>Growth edge</span>
+                  <p>Ask the agent to state the proof it will leave behind before the first edit.</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="identity-slide" data-identity-slide>
+              <div class="slide-kicker">Personality map</div>
+              <h3>Meet the builder creatures.</h3>
+              <div class="creature-status" aria-live="polite">
+                <span data-creature-status>Blueprint Captain is plotting the next safe move.</span>
+              </div>
+              <div class="archetype-grid compact-archetypes creature-theater" aria-label="TokenBar identity archetype examples">
+                <article class="archetype-card blue-card is-featured" data-persona-card data-persona-status="Blueprint Captain is plotting the next safe move.">
+                  <span>Top 7%</span>
+                  <h4>Blueprint Captain</h4>
+                  <p>A tiny general with a ruler, a checklist, and no patience for vague tasks.</p>
+                  <div class="persona-character persona-captain" aria-hidden="true">
+                    <span class="persona-ear left"></span><span class="persona-ear right"></span>
+                    <span class="persona-head"><i></i><i></i><b></b></span>
+                    <span class="persona-body"></span><span class="persona-arm left"></span><span class="persona-arm right"></span>
+                    <span class="persona-tool"></span>
+                  </div>
+                  <small>Command · Depth · Control</small>
+                </article>
+                <article class="archetype-card green-card" data-persona-card data-persona-status="Map Sprite is marking the route through product fog.">
+                  <span>Top 12%</span>
+                  <h4>Map Sprite</h4>
+                  <p>Floats ahead of the build, dropping flags where the next launch path appears.</p>
+                  <div class="persona-character persona-sprite" aria-hidden="true">
+                    <span class="persona-ear left"></span><span class="persona-ear right"></span>
+                    <span class="persona-head"><i></i><i></i><b></b></span>
+                    <span class="persona-body"></span><span class="persona-arm left"></span><span class="persona-arm right"></span>
+                    <span class="persona-tool"></span>
+                  </div>
+                  <small>Mapping · Velocity · Proof</small>
+                </article>
+                <article class="archetype-card orange-card" data-persona-card data-persona-status="Prompt Ronin just cut three branches with one line.">
+                  <span>Top 18%</span>
+                  <h4>Prompt Ronin</h4>
+                  <p>A masked shortcut creature. One line in, five bad branches gone.</p>
+                  <div class="persona-character persona-ronin" aria-hidden="true">
+                    <span class="persona-ear left"></span><span class="persona-ear right"></span>
+                    <span class="persona-head"><i></i><i></i><b></b></span>
+                    <span class="persona-body"></span><span class="persona-arm left"></span><span class="persona-arm right"></span>
+                    <span class="persona-tool"></span>
+                  </div>
+                  <small>Precision · Flow · Nerve</small>
+                </article>
+                <article class="archetype-card ink-card" data-persona-card data-persona-status="Cleanup Golem is compressing chaos into proof.">
+                  <span>Top 9%</span>
+                  <h4>Cleanup Golem</h4>
+                  <p>Heavy little fixer. Sweeps broken runs into tests, proof, and calm.</p>
+                  <div class="persona-character persona-golem" aria-hidden="true">
+                    <span class="persona-ear left"></span><span class="persona-ear right"></span>
+                    <span class="persona-head"><i></i><i></i><b></b></span>
+                    <span class="persona-body"></span><span class="persona-arm left"></span><span class="persona-arm right"></span>
+                    <span class="persona-tool"></span>
+                  </div>
+                  <small>Quality · Testing · Taste</small>
+                </article>
+              </div>
+              <a class="archetype-more" href="/archetypes">Explore the creature map</a>
+            </article>
+          </div>
+          <button class="slide-arrow next" type="button" data-slide-next aria-label="Next identity slide"></button>
+          <div class="slide-dots" aria-label="Identity slide position">
+            <button type="button" class="is-active" data-identity-tab="0" aria-label="Show run slide"></button>
+            <button type="button" data-identity-tab="1" aria-label="Show profile slide"></button>
+            <button type="button" data-identity-tab="2" aria-label="Show archetypes slide"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="atlas-band" id="atlas" data-reveal>
+        <div class="atlas-copy">
+          <h2>Find the profile hiding in your sessions.</h2>
+          <p>
+            TokenBar looks for recurring moves: how you brief agents, recover from chaos,
+            ship evidence, choose tools, and decide when work is actually done.
+          </p>
+          <div class="copy-command atlas-command">
+            <code>tokenbar identity</code>
+            <button type="button" data-copy-command="tokenbar identity">Copy</button>
+          </div>
+        </div>
+
+        <div class="atlas-surface" aria-label="Interactive TokenBar identity atlas">
+          <div class="scanner-panel" data-scanner-rig>
+            <div class="scanner-top">
+              <span>TokenBar identity scanner</span>
+              <strong data-atlas-title>Blueprint Captain</strong>
+            </div>
+            <div class="scanner-window">
+              <div class="scanner-menu">
+                <span>Overview</span><span>Codex</span><span>Claude Code</span><span>Gemini</span><span>Cursor</span>
+              </div>
+              <div class="scanner-signal">
+                <i></i><i></i><i></i><i></i>
+                <b></b>
+              </div>
+              <p data-atlas-line>
+                You plan the board before moving the agent. Your strongest proof comes from
+                scoped tasks, careful handoffs, and visible verification.
+              </p>
+              <div class="scanner-proof">
+                <span>7-day dossier</span>
+                <span>PDF + Skill.md</span>
+                <span>Safe share token</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dossier-stack" aria-label="Builder identity profile examples">
+            <button class="dossier-card is-active" type="button" data-atlas-card data-title="Blueprint Captain" data-line="You plan the board before moving the agent. Your strongest proof comes from scoped tasks, careful handoffs, and visible verification.">
+              <span>01</span>
+              <strong>Blueprint Captain</strong>
+              <small>Plans deeply. Commands calmly.</small>
+              <i class="dossier-face face-blue"></i>
+            </button>
+            <button class="dossier-card" type="button" data-atlas-card data-title="Launch Cartographer" data-line="You turn fog into routes. The report highlights checkpoints, launch surfaces, and artifacts people can follow.">
+              <span>02</span>
+              <strong>Launch Cartographer</strong>
+              <small>Maps messy product terrain.</small>
+              <i class="dossier-face face-green"></i>
+            </button>
+            <button class="dossier-card" type="button" data-atlas-card data-title="Prompt Ronin" data-line="You steer with compact prompts and sharp redirects. The identity layer shows where brevity creates speed and where context is missing.">
+              <span>03</span>
+              <strong>Prompt Ronin</strong>
+              <small>Short prompts. Clean cuts.</small>
+              <i class="dossier-face face-orange"></i>
+            </button>
+            <button class="dossier-card" type="button" data-atlas-card data-title="Signal Alchemist" data-line="You extract useful signal from noisy sessions: usage spikes, decision trails, and proof packets become one readable story.">
+              <span>04</span>
+              <strong>Signal Alchemist</strong>
+              <small>Turns noise into evidence.</small>
+              <i class="dossier-face face-violet"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="proof-band editorial-band" id="proof" data-reveal>
+        <div class="section-copy">
+          <h2>Turn sessions into a shareable proof packet.</h2>
+          <p>
+            One command creates a polished identity report, Skill.md, JSON, and public token.
+            Raw transcripts stay local unless you explicitly publish the safe artifact.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar proof</code>
+            <button type="button" data-copy-command="tokenbar proof">Copy</button>
+          </div>
+        </div>
+        <figure class="editorial-shot proof-shot">
+          <img src="./assets/tokenbar-quick-insights.png" alt="TokenBar quick insights screenshot with usage cards and pressure metrics" />
+          <figcaption>
+            <strong>Proof packet</strong>
+            <span>PDF, Skill.md, identity JSON, and a share token for applications, hiring, demos, or portfolios.</span>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="cinema-band" id="modes" data-reveal>
+        <figure class="cinema-frame">
+          <img src="./assets/walkthrough-overview.png" alt="TokenBar overview screenshot inside the macOS menu bar" />
+        </figure>
+        <div class="cinema-copy">
+          <h2>Watch the work become visible.</h2>
+          <p>
+            The menu bar becomes a native control room: dark, precise, alive with usage pressure,
+            session rhythm, and identity signals that move as your work changes.
+          </p>
+          <a class="text-link" href="#download">Download for macOS</a>
+        </div>
+      </section>
+
+      <section class="cli-band compact-cli" id="cli" data-reveal>
+        <div class="section-copy">
+          <h2>Readable commands, not terminal noise.</h2>
+          <p>
+            The CLI is the private control surface: analyze locally, export the report,
+            then choose whether to publish a safe profile token.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar identity</code>
+            <button type="button" data-copy-command="tokenbar identity">Copy</button>
+          </div>
+        </div>
+        <div class="command-panel" aria-label="TokenBar CLI preview">
+          <div class="command-row">
+            <span>Analyze</span>
+            <code>tokenbar identity</code>
+            <button type="button" data-copy-command="tokenbar identity">Copy</button>
+          </div>
+          <div class="command-row">
+            <span>Export proof</span>
+            <code>tokenbar proof</code>
+            <button type="button" data-copy-command="tokenbar proof">Copy</button>
+          </div>
+          <div class="command-output">
+            <strong>Checkout Captain</strong>
+            <p>PDF saved. Skill.md saved. Raw sessions stayed local.</p>
+            <span>Ready to share only if you run <code>tokenbar submit</code> or <code>tokenbar publish-proof</code>.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing-band" id="pricing" data-reveal>
+        <div>
+          <h2>TokenBar Pro adds the identity layer.</h2>
+          <p>
+            The free tool keeps usage visible. Pro adds richer AI overviews, premium builder
+            profiles, probability maps, PDF reports, identity JSON, portable Skill.md exports,
+            and future hosted profile links with opt-in aggregate stats.
+          </p>
+        </div>
+        <div class="price-card">
+          <span>14 days free</span>
+          <strong>$7/month</strong>
+          <ul>
+            <li>Weekly AI builder profile</li>
+            <li>Superior multi-agent analysis</li>
+            <li>Own your AI work identity</li>
+            <li>PDF, identity token, Skill.md, and probability map export</li>
+            <li>Future cloud profile, aggregate stats, and email delivery</li>
+          </ul>
+          <a class="button primary" href="https://buy.stripe.com/6oUdR9euydTK5pE8s5b7y00">Start free trial</a>
+        </div>
+      </section>
+
+      <section class="stats-band" id="stats" data-reveal>
+        <div class="section-copy">
+          <h2>A living map of how AI builders build.</h2>
+          <p>
+            When builders opt in with <code>tokenbar submit</code> or <code>tokenbar publish-proof</code>, TokenBar uploads only the
+            generated identity JSON. The public layer shows archetype distribution, NPC classes,
+            specificity bands, rare buckets, provider coverage, and profile counts without raw
+            transcripts or source code.
+          </p>
+          <code>tokenbar stats</code>
+        </div>
+        <div class="stats-panel" aria-label="TokenBar public identity stats">
+          <div class="stats-top">
+            <div>
+              <span>Opt-in profiles</span>
+              <strong data-stats-count>local-first</strong>
+            </div>
+            <div>
+              <span>Avg specificity</span>
+              <strong data-stats-specificity>pending</strong>
+            </div>
+            <div>
+              <span>Bucket coverage</span>
+              <strong data-stats-coverage>pending</strong>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Top archetypes</h3>
+            <div data-stats-archetypes>
+              <p>Stats load from the TokenBar profile API when available.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>NPC classes</h3>
+            <div data-stats-npcs>
+              <p>Share remains opt-in. Local reports work without uploading anything.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Identity buckets</h3>
+            <div data-stats-buckets>
+              <p>Specific compositional labels appear here as people opt in.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Rarest buckets</h3>
+            <div data-stats-rarest-buckets>
+              <p>Unique and uncommon identity buckets appear here as the public pool grows.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Session signals</h3>
+            <div data-stats-session-signals>
+              <p>Aggregated prompt behavior appears here after opt-in profile uploads.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Specificity bands</h3>
+            <div data-stats-specificity-bands>
+              <p>Profiles group by how sharply the local model identified a bucket.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Provider coverage</h3>
+            <div data-stats-provider-coverage>
+              <p>Shows which local coding-agent surfaces are represented in opt-in reports.</p>
+            </div>
+          </div>
+          <div class="stats-list">
+            <h3>Most specific profiles</h3>
+            <div data-stats-top-profiles>
+              <p>Public identity cards appear here after builders choose to share them.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="download-band" id="download" data-reveal>
+        <div>
+          <h2>Download TokenBar.</h2>
+          <p>Install the macOS menu bar app, then run the identity command from any repo that has Codex, Claude Code, Gemini, or Cursor session history.</p>
+        </div>
+        <ol class="download-steps" aria-label="TokenBar download steps">
+          <li><strong>Download</strong><span>Get the ZIP and open the app.</span></li>
+          <li><strong>Move to Applications</strong><span>Keep TokenBar where macOS expects it.</span></li>
+          <li><strong>Run identity</strong><span>Use <code>tokenbar identity</code> for your first report.</span></li>
+        </ol>
+        <div class="download-actions">
+          <a class="button primary" href="https://github.com/Arnie016/codex-goated-skills/releases/download/v0.1.0/CodexLimitBar-macOS-arm64-2026-05-20.zip">
+            Download ZIP
+          </a>
+          <a class="button secondary" href="https://github.com/Arnie016/TokenBar">GitHub repo</a>
+          <a class="button secondary" href="https://github.com/Arnie016/codex-goated-skills">Codex skills</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
