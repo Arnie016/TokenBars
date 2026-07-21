@@ -3,7 +3,7 @@
 Deadline: July 21, 2026 at 5:00 PM PT.
 
 - [x] Build/run proof — `python3 scripts/smoke_builder_identity_flow.py` passed locally on 2026-07-18.
-- [ ] Primary `/feedback` Session ID — not recorded yet.
+- [x] Primary `/feedback` Session ID — `019e9743-2a20-7e52-8d94-d16b7df23778` (primary TokenBar task thread)
 - [ ] Demo video — not recorded; keep under three minutes and show the real browser journey plus Codex/GPT-5.6 contribution.
 - [ ] Repository URL and visibility — human decision pending. If private, grant judge access to `testing@devpost.com` and `build-week-event@openai.com` before deadline; do not change visibility or invite anyone automatically.
 - [ ] README — needs final accuracy pass for setup, architecture, tests, proof, pre/post-July-13 work, Codex acceleration, human decisions, failures, and GPT-5.6 contribution.
