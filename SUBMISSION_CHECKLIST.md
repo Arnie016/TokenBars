@@ -2,7 +2,7 @@
 
 Deadline: July 21, 2026 at 5:00 PM PT.
 
-- [ ] Build/run proof — `python3 scripts/smoke_builder_identity_flow.py` and `python3 scripts/smoke_builder_identity_flow.py --port 8827` currently fail locally on 2026-07-21 with `receipt missing capped token ranking policy`; latest browser layout proof remains `outputs/builder-identity-review-next-20260720-0732.png` (not an interaction test).
+- [ ] Build/run proof — `python3 scripts/smoke_builder_identity_flow.py` and `python3 scripts/smoke_builder_identity_flow.py --port 8827` currently fail on smoke assertion `receipt missing capped token ranking policy` (`rankingPolicy.tokensWeight` absent), so build-run proof remains blocked; layout proof artifact still current as `outputs/builder-identity-review-next-20260720-0732.png` (not an interaction test).
 - [x] Primary `/feedback` Session ID — `019e9743-2a20-7e52-8d94-d16b7df23778` (as provided).
 - [ ] Demo video — not recorded; keep under three minutes and show the real browser journey plus Codex/GPT-5.6 contribution.
 - [ ] Repository URL and visibility — human decision pending. If private, grant judge access to `testing@devpost.com` and `build-week-event@openai.com` before deadline; do not change visibility or invite anyone automatically.
