@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import html
 import json
 import math
@@ -17,6 +18,8 @@ import urllib.request
 STORE_PATH = Path(os.environ.get("TOKENBAR_ACTION_STORE_PATH", "/tmp/tokenbar-action-store.json"))
 MAX_BODY_BYTES = 256_000
 ACTION_NAME = "builder_identity.proof_card.v1"
+ACTION_WRITE_TOKEN = (os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN") or "").strip()
+ACTION_OWNER_ID = (os.environ.get("TOKENBAR_ACTION_OWNER_ID") or "").strip()
 
 
 def now_epoch() -> int:
@@ -33,6 +36,17 @@ def supabase_config() -> tuple[str, str] | None:
 
 def supabase_enabled() -> bool:
     return bool(supabase_config()) and (os.environ.get("TOKENBAR_ACTION_STORE") == "supabase")
+
+
+def _request_owner_id(request: BaseHTTPRequestHandler) -> str | None:
+    if not ACTION_WRITE_TOKEN:
+        return ACTION_OWNER_ID or None
+    provided = (request.headers.get("Authorization") or request.headers.get("X-TokenBar-Owner-Token") or "").strip()
+    if provided.lower().startswith("bearer "):
+        provided = provided[7:].strip()
+    if not hmac.compare_digest(provided, ACTION_WRITE_TOKEN):
+        raise RuntimeError("missing or invalid TOKENBAR_ACTION_WRITE_TOKEN")
+    return ACTION_OWNER_ID or "authenticated-owner"
 
 
 def supabase_request(path: str, method: str = "GET", body: dict | None = None) -> object:
@@ -74,6 +88,7 @@ def action_run_to_row(run: dict) -> dict:
         "token": run["token"],
         "action": run.get("action") or ACTION_NAME,
         "status": run.get("status") or "complete",
+        "owner_id": run.get("ownerId"),
         "run": run,
         "proof": run.get("proof") if isinstance(run.get("proof"), dict) else {},
         "created_at_epoch": run.get("createdAt") or now_epoch(),
@@ -148,6 +163,8 @@ def storage_health() -> dict:
         "supabaseConfigured": bool(config),
         "actionStoreRequested": requested,
         "supabaseExplicitlyEnabled": enabled,
+        "actionWriteTokenConfigured": bool(ACTION_WRITE_TOKEN),
+        "actionOwnerIdConfigured": bool(ACTION_OWNER_ID),
         "enableWith": "TOKENBAR_ACTION_STORE=supabase",
         "table": "tokenbar_action_runs",
         "setupSql": "docs/tokenbar_actions_supabase.sql",
@@ -714,6 +731,7 @@ def build_surface_bundle(
     social_url: str = "",
     rankings_url: str = "",
     loop_rankings_url: str = "",
+    trailer_url: str = "",
     visibility: str = "public",
     share_copy: str = "",
 ) -> dict:
@@ -747,6 +765,12 @@ def build_surface_bundle(
             "label": "Loop rankings",
             "description": "repeatable agent-loop maturity board",
             "url": loop_rankings_url,
+        },
+        {
+            "key": "identityTrailer",
+            "label": "Identity trailer",
+            "description": "30-second storyboard from safe proof anchors",
+            "url": trailer_url,
         },
     ]
     return {
@@ -806,6 +830,101 @@ def clean_builder_signal_summary(value: object) -> dict:
     }
 
 
+def clean_spotlight_sources(value: object) -> dict:
+    raw = value if isinstance(value, dict) else {}
+    privacy = raw.get("privacy") if isinstance(raw.get("privacy"), dict) else {}
+    if privacy.get("rawTranscriptsIncluded") or privacy.get("sourceCodeIncluded"):
+        return {}
+
+    def clean_items(items: object, limit: int, item_limit: int) -> list[str]:
+        rows: list[str] = []
+        if not isinstance(items, list):
+            return rows
+        for item in items:
+            text = str(item or "").replace("\x00", "").strip()
+            if not text:
+                continue
+            text = re.sub(r"[\r\n\t]+", " ", text)
+            rows.append(text[:item_limit])
+            if len(rows) >= limit:
+                break
+        return rows
+
+    sessions = clean_items(raw.get("sessions"), 8, 96)
+    projects = clean_items(raw.get("projects"), 8, 120)
+    notes = clean_items(raw.get("notes"), 8, 240)
+    raw_story = raw.get("story") if isinstance(raw.get("story"), dict) else {}
+    raw_beats = raw.get("storyBeats") if isinstance(raw.get("storyBeats"), list) else []
+
+    def clean_story_field(key: str, fallback: str) -> str:
+        text = str(raw_story.get(key) or "").replace("\x00", "").strip()
+        text = re.sub(r"[\r\n\t]+", " ", text)
+        return (text[:280] if text else fallback)
+
+    project_text = ", ".join(projects[:2]) if projects else "the selected work"
+    session_text = ", ".join(sessions[:2]) if sessions else "the selected session trail"
+    note_text = notes[0] if notes else ""
+    story = {
+        "insight": clean_story_field("insight", f"{project_text} is tied to a visible proof trail instead of an unstructured chat history."),
+        "struggle": clean_story_field("struggle", "The hard part was compressing scattered agent work into public evidence without exposing private context."),
+        "features": clean_story_field("features", note_text or f"{session_text} became a public-safe anchor for the builder profile."),
+        "progress": clean_story_field("progress", f"TokenBar can turn {project_text} into a proof card, profile surface, social feed item, and trailer storyboard."),
+    }
+    if not (sessions or projects or notes or any(story.values())):
+        return {}
+    story_beats: list[dict] = []
+    for beat in raw_beats[:6]:
+        if not isinstance(beat, dict):
+            continue
+        label = re.sub(r"[\r\n\t]+", " ", str(beat.get("label") or "").replace("\x00", "").strip())[:80]
+        text = re.sub(r"[\r\n\t]+", " ", str(beat.get("text") or "").replace("\x00", "").strip())[:240]
+        if label and text:
+            story_beats.append({"label": label, "text": text})
+    if not story_beats:
+        story_beats = [
+            {
+                "label": "Key insight",
+                "text": story["insight"],
+            },
+            {
+                "label": "Struggle",
+                "text": story["struggle"],
+            },
+            {
+                "label": "Feature shipped",
+                "text": story["features"],
+            },
+            {
+                "label": "Progress",
+                "text": story["progress"],
+            },
+        ]
+    def safe_int(value: object) -> int:
+        try:
+            return int(value or 0)
+        except Exception:
+            return 0
+
+    return {
+        "schema": "tokenbar.spotlight_sources.v1",
+        "sessions": sessions,
+        "projects": projects,
+        "notes": notes,
+        "story": story,
+        "storyBeats": story_beats,
+        "privacy": {
+            "userProvidedOnly": privacy.get("userProvidedOnly", True) is True,
+            "rawTranscriptsIncluded": False,
+            "sourceCodeIncluded": False,
+            "sessionFilesRead": privacy.get("sessionFilesRead") is True,
+            "localInference": privacy.get("localInference") is True,
+            "storedRawExcerpts": False,
+            "maxSessionBytesRead": safe_int(privacy.get("maxSessionBytesRead")),
+            "matchedSessionFiles": safe_int(privacy.get("matchedSessionFiles")),
+        },
+    }
+
+
 def build_proof_card(identity: dict, base_url: str, share_controls: object = None) -> dict:
     share_controls = normalize_share_controls(share_controls)
     visibility = share_controls["visibility"]
@@ -819,6 +938,7 @@ def build_proof_card(identity: dict, base_url: str, share_controls: object = Non
     shipping = identity.get("shippingAnalysis") if isinstance(identity.get("shippingAnalysis"), dict) else {}
     leaderboard = identity.get("leaderboard") if isinstance(identity.get("leaderboard"), dict) else {}
     builder_signals = clean_builder_signal_summary(identity.get("builderSignalInbox") or identity.get("socialLearningSignals"))
+    spotlight = clean_spotlight_sources(identity.get("spotlightSources"))
 
     title = (
         str(identity.get("title") or "").strip()
@@ -900,6 +1020,14 @@ def build_proof_card(identity: dict, base_url: str, share_controls: object = Non
                 "note": "Handle, nickname, bio, and links were removed from this share variant.",
             },
         )
+    if spotlight:
+        facts.append(
+            {
+                "label": "Spotlight anchors",
+                "value": f"{len(spotlight.get('sessions') or [])} sessions / {len(spotlight.get('projects') or [])} projects",
+                "note": "Builder-selected public anchors only; no raw transcripts, source files, or private diffs were read.",
+            }
+        )
 
     story = build_builder_story(
         identity,
@@ -918,6 +1046,7 @@ def build_proof_card(identity: dict, base_url: str, share_controls: object = Non
     social_url = f"{base_url}/social?token={quote(token)}"
     rankings_url = f"{base_url}/rankings?token={quote(token)}"
     loop_rankings_url = f"{base_url}/rankings?token={quote(token)}#loop"
+    trailer_url = f"{proof_url}&view=trailer"
     share_copy = (
         f"My {'unlisted ' if visibility == 'unlisted' else 'private ' if visibility == 'private' else ''}TokenBar builder identity is {title}: {archetype} / {npc_class}. "
         f"Proof {proof_score:.0f}/100, loop maturity {loop_maturity:.0f}/100. "
@@ -932,6 +1061,7 @@ def build_proof_card(identity: dict, base_url: str, share_controls: object = Non
         social_url=social_url,
         rankings_url=rankings_url,
         loop_rankings_url=loop_rankings_url,
+        trailer_url=trailer_url,
         visibility=visibility,
         share_copy=share_copy,
     )
@@ -959,12 +1089,14 @@ def build_proof_card(identity: dict, base_url: str, share_controls: object = Non
         "builderStory": story,
         "builderSignalInbox": builder_signals,
         "socialLearningSignals": builder_signals,
+        "spotlightSources": spotlight,
         "selfComparison": self_comparison,
         "proofCardUrl": proof_url,
         "profileUrl": profile_url,
         "socialUrl": social_url,
         "rankingsUrl": rankings_url,
         "loopRankingsUrl": loop_rankings_url,
+        "trailerUrl": trailer_url,
         "shareCopy": share_copy,
         "surfaceBundle": surface_bundle,
         "createdAt": now_epoch(),
@@ -1010,9 +1142,10 @@ def build_verification_receipt(proof: dict, run_id: str, stages: list[dict]) -> 
         },
         "rankingPolicy": {
             "tokensWeight": 0.06,
+            "outcomesWeight": 0.14,
             "tokenVolumeCapped": True,
-            "basis": "proof score, loop maturity, specificity, range, and a capped token component",
-            "antiPayToWin": "Token volume is capped at 6% of the leaderboard score, so spend cannot dominate verified execution.",
+            "basis": "proof score, loop maturity, specificity, verified outcomes, range, and a capped token safety signal",
+            "antiPayToWin": "Token volume is capped at 6% and treated as a safety signal; verified outcomes and execution quality rank first.",
         },
         "stageCount": len(completed_stages),
         "completedStages": completed_stages,
@@ -1206,7 +1339,13 @@ def build_share_receipt(proof: dict, run_id: str = "", stages: list[dict] | None
     }
 
 
-def create_action_run(identity: dict, base_url: str, idempotency_key: str = "", share_controls: object = None) -> dict:
+def create_action_run(
+    identity: dict,
+    base_url: str,
+    idempotency_key: str = "",
+    share_controls: object = None,
+    owner_id: str | None = None,
+) -> dict:
     identity = validate_identity(identity)
     digest = identity_digest(identity)
     normalized_share_controls = normalize_share_controls(share_controls)
@@ -1231,6 +1370,7 @@ def create_action_run(identity: dict, base_url: str, idempotency_key: str = "", 
         "runId": run_id,
         "action": ACTION_NAME,
         "status": "complete",
+        "ownerId": owner_id,
         "token": proof["token"],
         "identityDigest": digest,
         "stages": stages,
@@ -1243,6 +1383,7 @@ def create_action_run(identity: dict, base_url: str, idempotency_key: str = "", 
             "socialUrl": proof["socialUrl"],
             "rankingsUrl": proof["rankingsUrl"],
             "loopRankingsUrl": proof["loopRankingsUrl"],
+            "trailerUrl": proof["trailerUrl"],
             "surfaceBundle": proof.get("surfaceBundle"),
         },
         "proof": proof,
@@ -1265,6 +1406,9 @@ def ranking_breakdown_for_proof(proof: dict) -> dict:
     specificity = safe_number(proof.get("specificityScore"))
     total_tokens = safe_number(proof.get("totalTokens"))
     session_count = safe_number(proof.get("sessionCount"))
+    verification_receipt = proof.get("verificationReceipt")
+    completed_stages = verification_receipt.get("completedStages", []) if isinstance(verification_receipt, dict) else []
+    outcomes_component = min(100.0, max(0, len(completed_stages)) * 100.0 / 6.0) if isinstance(completed_stages, list) else 0.0
     try:
         token_component = min(100.0, math.log10(max(1.0, total_tokens)) * 10.0)
     except Exception:
@@ -1275,19 +1419,21 @@ def ranking_breakdown_for_proof(proof: dict) -> dict:
         range_component = 0.0
     weights = {
         "proof": 0.34,
-        "loop": 0.24,
-        "specificity": 0.22,
-        "range": 0.14,
+        "loop": 0.26,
+        "specificity": 0.18,
+        "outcomes": 0.14,
+        "range": 0.06,
         "tokens": 0.06,
     }
     return {
         "proof": round(proof_score, 1),
         "loop": round(loop_maturity, 1),
         "specificity": round(specificity, 1),
+        "outcomes": round(outcomes_component, 1),
         "range": round(range_component, 1),
         "tokens": round(token_component, 1),
         "weights": weights,
-        "note": "Token volume is capped at 6% of the composite ranking score.",
+        "note": "Token volume is capped at 6% of the composite ranking score and treated as a safety signal.",
     }
 
 
@@ -1297,6 +1443,7 @@ def composite_ranking_score(breakdown: dict) -> float:
         safe_number(breakdown.get("proof")) * safe_number(weights.get("proof"))
         + safe_number(breakdown.get("loop")) * safe_number(weights.get("loop"))
         + safe_number(breakdown.get("specificity")) * safe_number(weights.get("specificity"))
+        + safe_number(breakdown.get("outcomes")) * safe_number(weights.get("outcomes"))
         + safe_number(breakdown.get("range")) * safe_number(weights.get("range"))
         + safe_number(breakdown.get("tokens")) * safe_number(weights.get("tokens"))
     )
@@ -1360,12 +1507,14 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
     social_url = proof.get("socialUrl")
     rankings_url = proof.get("rankingsUrl")
     loop_rankings_url = proof.get("loopRankingsUrl")
+    trailer_url = proof.get("trailerUrl")
     if base_url and token:
         proof_url = f"{base_url}/api/actions?token={quote(token)}"
         profile_url = f"{base_url}/api/profiles?token={quote(token)}"
         social_url = f"{base_url}/social?token={quote(token)}"
         rankings_url = f"{base_url}/rankings?token={quote(token)}"
         loop_rankings_url = f"{base_url}/rankings?token={quote(token)}#loop"
+        trailer_url = f"{proof_url}&view=trailer"
     share_url = profile_url or proof_url or social_url or rankings_url
     share_copy = str(proof.get("shareCopy") or "").strip()
     if not share_copy:
@@ -1387,6 +1536,7 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
         social_url=str(social_url or ""),
         rankings_url=str(rankings_url or ""),
         loop_rankings_url=str(loop_rankings_url or ""),
+        trailer_url=str(trailer_url or ""),
         visibility=visibility,
         share_copy=share_copy,
     )
@@ -1396,8 +1546,12 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
     next_action_plan = proof.get("nextActionPlan") if isinstance(proof.get("nextActionPlan"), dict) else build_next_action_plan(proof)
     share_receipt = proof.get("shareReceipt") if isinstance(proof.get("shareReceipt"), dict) else build_share_receipt(proof)
     builder_signals = clean_builder_signal_summary(proof.get("builderSignalInbox") or proof.get("socialLearningSignals"))
+    spotlight = clean_spotlight_sources(proof.get("spotlightSources"))
+    spotlight_note = (spotlight.get("notes") or [""])[0] if spotlight else ""
+    spotlight_story = spotlight.get("story") if isinstance(spotlight.get("story"), dict) else {}
+    spotlight_feature = str(spotlight_story.get("features") or "").strip()
     feed_story = {
-        "whatShipped": what_proved[0] if what_proved else story.get("headline") or f"{title} proof card",
+        "whatShipped": spotlight_note or spotlight_feature or (what_proved[0] if what_proved else story.get("headline") or f"{title} proof card"),
         "whyItMatters": story.get("summary") or proof.get("verdict") or "A safe public builder identity proof was generated from local TokenBar analysis.",
         "tradeoff": tradeoffs[0] if tradeoffs else (uncertainties[0] if uncertainties else "Public claims stay bounded to safe aggregate evidence."),
         "nextFrontier": story.get("nextFrontier") or "",
@@ -1447,6 +1601,7 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
         "socialUrl": social_url,
         "rankingsUrl": rankings_url,
         "loopRankingsUrl": loop_rankings_url,
+        "trailerUrl": trailer_url,
         "shareCopy": share_copy,
         "surfaceBundle": surface_bundle,
         "publicVisibility": visibility,
@@ -1465,6 +1620,7 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
         "safeEvidenceReceipt": safe_evidence_receipt,
         "builderSignalInbox": builder_signals,
         "socialLearningSignals": builder_signals,
+        "spotlightSources": spotlight,
         "nextActionPlan": next_action_plan,
         "shareReceipt": share_receipt,
         "privacy": {
@@ -1629,7 +1785,7 @@ def aggregate_action_feed(store: dict, base_url: str = "") -> dict:
     leaderboards = {
         "overall": board(
             "Overall proof",
-            "Composite ranking from proof, loop maturity, specificity, range, and capped token volume.",
+            "Composite ranking from proof, loop maturity, specificity, verified outcomes, range, and capped token signal.",
             feed,
             "score",
         ),
@@ -1709,6 +1865,126 @@ def aggregate_action_feed(store: dict, base_url: str = "") -> dict:
             "publicMaterial": "proof cards generated from safe identity JSON only",
         },
     }
+
+
+def identity_trailer_html(proof: dict) -> str:
+    story = proof.get("builderStory") if isinstance(proof.get("builderStory"), dict) else {}
+    spotlight = clean_spotlight_sources(proof.get("spotlightSources"))
+    privacy = proof.get("privacy") if isinstance(proof.get("privacy"), dict) else {}
+    title = html.escape(str(proof.get("title") or "Builder Identity"))
+    archetype = html.escape(str(proof.get("primaryArchetype") or "Builder"))
+    npc_class = html.escape(str(proof.get("npcClass") or "proof card"))
+    proof_score = safe_number(proof.get("proofScore"))
+    loop_maturity = safe_number(proof.get("loopMaturity"))
+    sessions = spotlight.get("sessions") or []
+    projects = spotlight.get("projects") or []
+    notes = spotlight.get("notes") or []
+    beats = spotlight.get("storyBeats") or [
+        {"label": "Key insight", "text": "The builder turned local agent evidence into a shareable identity story."},
+        {"label": "Struggle", "text": "The public proof stays careful about what it does not know."},
+        {"label": "Progress", "text": "The next loop is now visible, not buried in a transcript."},
+    ]
+    spotlight_story = spotlight.get("story") if isinstance(spotlight.get("story"), dict) else {}
+    story_beats = [
+        {"label": "Insight", "text": spotlight_story.get("insight") or ""},
+        {"label": "Struggle", "text": spotlight_story.get("struggle") or ""},
+        {"label": "Feature", "text": spotlight_story.get("features") or ""},
+        {"label": "Progress", "text": spotlight_story.get("progress") or ""},
+    ]
+    anchor_cards = "".join(
+        f"<li><span>{html.escape(kind)}</span><strong>{html.escape(value)}</strong><em>user-provided public anchor</em></li>"
+        for kind, values in [("Session", sessions), ("Project", projects), ("Note", notes)]
+        for value in values[:4]
+    )
+    beat_cards = "".join(
+        f"<div><span>{html.escape(str(beat.get('label') or 'Beat'))}</span><p>{html.escape(str(beat.get('text') or ''))}</p></div>"
+        for beat in (story_beats + beats)[:8]
+        if isinstance(beat, dict)
+        if str(beat.get("text") or "").strip()
+    )
+    raw_state = "No raw transcripts" if privacy.get("rawTranscriptsIncluded") is False else "Review privacy flag"
+    source_state = "No source code" if privacy.get("sourceCodeIncluded") is False else "Review privacy flag"
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TokenBar identity trailer - {title}</title>
+  <style>
+    :root {{ color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+    body {{ margin:0; background:#05070b; color:#f8fbff; }}
+    main {{ min-height:100vh; padding:42px 24px; display:grid; place-items:center; background:
+      radial-gradient(circle at 18% 16%, rgba(40,128,255,.32), transparent 32%),
+      radial-gradient(circle at 82% 10%, rgba(255,115,45,.22), transparent 26%),
+      linear-gradient(135deg,#05070b,#0b1220 54%,#08090d); }}
+    article {{ width:min(1120px,100%); border:1px solid rgba(197,214,255,.22); border-radius:34px; overflow:hidden; box-shadow:0 40px 120px rgba(0,0,0,.55); background:rgba(7,12,22,.82); }}
+    header {{ padding:46px; display:grid; grid-template-columns:1.05fr .95fr; gap:34px; align-items:end; border-bottom:1px solid rgba(197,214,255,.14); }}
+    .eyebrow {{ color:#91bdff; font-size:12px; font-weight:950; letter-spacing:.16em; text-transform:uppercase; }}
+    h1 {{ margin:12px 0 16px; font-size:clamp(54px,8vw,108px); line-height:.86; letter-spacing:-.055em; }}
+    p {{ color:#b8c2d6; font-size:18px; line-height:1.55; }}
+    .scoregrid {{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }}
+    .scoregrid div, .beatgrid div, li {{ border:1px solid rgba(197,214,255,.16); border-radius:20px; padding:18px; background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.025)); }}
+    .scoregrid span, .beatgrid span, li span {{ display:block; color:#7fb2ff; font-size:12px; font-weight:950; letter-spacing:.12em; text-transform:uppercase; }}
+    .scoregrid strong {{ display:block; margin-top:8px; font-size:44px; line-height:1; }}
+    section {{ padding:34px 46px; border-bottom:1px solid rgba(197,214,255,.12); }}
+    h2 {{ margin:0 0 16px; font-size:34px; letter-spacing:-.035em; }}
+    .filmstrip {{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }}
+    .filmstrip div {{ min-height:170px; border-radius:24px; border:1px solid rgba(197,214,255,.16); background:
+      linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.02)),
+      radial-gradient(circle at 30% 20%,rgba(58,145,255,.45),transparent 38%); padding:18px; position:relative; overflow:hidden; }}
+    .filmstrip div:after {{ content:""; position:absolute; inset:auto 18px 18px; height:4px; border-radius:999px; background:linear-gradient(90deg,#2887ff,#48d25d,#ff7a1a); }}
+    .filmstrip strong {{ position:absolute; bottom:34px; left:18px; right:18px; font-size:22px; line-height:1.05; }}
+    .beatgrid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }}
+    ul {{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }}
+    li strong {{ display:block; margin-top:8px; color:#fff; font-size:18px; overflow-wrap:anywhere; }}
+    li em {{ display:block; margin-top:10px; color:#8794aa; font-style:normal; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }}
+    footer {{ padding:28px 46px; display:flex; justify-content:space-between; gap:18px; color:#a8b3c8; flex-wrap:wrap; }}
+    a {{ color:#ffffff; font-weight:900; }}
+    @media (max-width:850px) {{ header {{ grid-template-columns:1fr; }} .filmstrip, .beatgrid {{ grid-template-columns:1fr; }} h1 {{ font-size:58px; }} }}
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <header>
+        <div>
+          <div class="eyebrow">TokenBar identity trailer</div>
+          <h1>{title}</h1>
+          <p>{html.escape(str(story.get("summary") or proof.get("verdict") or "A 30-second builder identity trailer from safe aggregate proof."))}</p>
+        </div>
+        <div class="scoregrid">
+          <div><span>Archetype</span><strong>{archetype}</strong></div>
+          <div><span>Class</span><strong>{npc_class}</strong></div>
+          <div><span>Proof</span><strong>{proof_score:.0f}</strong></div>
+          <div><span>Loop</span><strong>{loop_maturity:.0f}</strong></div>
+        </div>
+      </header>
+      <section>
+        <h2>30-second micro-storyboard</h2>
+        <div class="filmstrip">
+          <div><span>00-06</span><strong>The private build trail wakes up.</strong></div>
+          <div><span>06-13</span><strong>Signals become a builder identity.</strong></div>
+          <div><span>13-21</span><strong>Struggles, tradeoffs, and shipped proof surface.</strong></div>
+          <div><span>21-30</span><strong>A shareable card closes the loop.</strong></div>
+        </div>
+      </section>
+      <section>
+        <h2>Spotlight sessions & projects</h2>
+        <p>These are builder-selected anchors. TokenBar does not read or upload raw session transcripts, source files, private diffs, or secrets for this public trailer.</p>
+        <ul>{anchor_cards or "<li><span>Anchor</span><strong>No spotlight anchors selected yet.</strong><em>run tokenbar publish-proof --spotlight-note ...</em></li>"}</ul>
+      </section>
+      <section>
+        <h2>Story beats</h2>
+        <div class="beatgrid">{beat_cards}</div>
+      </section>
+      <footer>
+        <span>{html.escape(raw_state)} · {html.escape(source_state)}</span>
+        <a href="{html.escape(str(proof.get("profileUrl") or "#"))}">Open public profile</a>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>"""
 
 
 def proof_card_html(proof: dict) -> str:
@@ -1815,6 +2091,7 @@ def proof_card_html(proof: dict) -> str:
         if isinstance(item, dict)
     )
     builder_signals = clean_builder_signal_summary(proof.get("builderSignalInbox") or proof.get("socialLearningSignals"))
+    spotlight = clean_spotlight_sources(proof.get("spotlightSources"))
     reference_chips = []
     for item in (builder_signals.get("topTags") or [])[:5]:
         if isinstance(item, dict) and item.get("name"):
@@ -1846,6 +2123,38 @@ def proof_card_html(proof: dict) -> str:
           </div>
         </div>
         <div class="reference-chips">{''.join(reference_chips) or "<span>local signal<small>1</small></span>"}</div>
+      </section>
+        """
+    spotlight_anchor_cards = "".join(
+        f"<div><span>{html.escape(kind)}</span><strong>{html.escape(value)}</strong><p>User-selected public anchor; no raw files read.</p></div>"
+        for kind, values in [("Session", spotlight.get("sessions") or []), ("Project", spotlight.get("projects") or []), ("Note", spotlight.get("notes") or [])]
+        for value in values[:4]
+    )
+    spotlight_beat_cards = "".join(
+        f"<div><span>{html.escape(str(beat.get('label') or 'Beat'))}</span><p>{html.escape(str(beat.get('text') or ''))}</p></div>"
+        for beat in (spotlight.get("storyBeats") or [])
+        if isinstance(beat, dict)
+    )
+    spotlight_story = spotlight.get("story") if isinstance(spotlight.get("story"), dict) else {}
+    spotlight_story_cards = "".join(
+        f"<div><span>{html.escape(label)}</span><p>{html.escape(str(value))}</p></div>"
+        for label, value in [
+            ("Insight", spotlight_story.get("insight") or ""),
+            ("Struggle", spotlight_story.get("struggle") or ""),
+            ("Feature", spotlight_story.get("features") or ""),
+            ("Progress", spotlight_story.get("progress") or ""),
+        ]
+        if value
+    )
+    spotlight_html = ""
+    if spotlight:
+        spotlight_html = f"""
+      <section>
+        <h2>Spotlight sessions & projects</h2>
+        <p class="receipt-note">Builder-selected anchors that turn the proof card into a specific story. TokenBar treats these as labels only; it does not upload raw transcripts, source code, private diffs, or secrets.</p>
+        <div class="spotlight-grid">{spotlight_anchor_cards}</div>
+        <div class="spotlight-beats">{spotlight_story_cards}</div>
+        <div class="spotlight-beats">{spotlight_beat_cards}</div>
       </section>
         """
     share_receipt_cards = "".join(
@@ -1949,6 +2258,11 @@ def proof_card_html(proof: dict) -> str:
     .reference-chips {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }}
     .reference-chips span {{ display:inline-flex; gap:8px; align-items:center; border:1px solid #d8e5ff; border-radius:999px; padding:8px 10px; background:#fff; color:#0f172a; font-size:12px; font-weight:900; }}
     .reference-chips small {{ color:#64748b; font-size:11px; font-weight:950; }}
+    .spotlight-grid, .spotlight-beats {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-top:14px; }}
+    .spotlight-grid div, .spotlight-beats div {{ border:1px solid #d8e5ff; border-radius:18px; padding:16px; background:linear-gradient(135deg,#ffffff,#f7fbff); }}
+    .spotlight-grid span, .spotlight-beats span {{ display:block; color:#2563eb; font-size:12px; font-weight:950; letter-spacing:.08em; text-transform:uppercase; }}
+    .spotlight-grid strong {{ display:block; margin-top:7px; color:#0b1220; font-size:19px; line-height:1.15; overflow-wrap:anywhere; }}
+    .spotlight-grid p, .spotlight-beats p {{ margin:8px 0 0; font-size:14px; }}
     .next-action-plan {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:0 42px 42px; }}
     .next-action-plan div {{ border:1px solid #bcd4ff; border-radius:18px; padding:18px; background:linear-gradient(135deg,#f8fbff,#ffffff); }}
     .next-action-plan span {{ display:block; color:#2563eb; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; }}
@@ -1991,6 +2305,7 @@ def proof_card_html(proof: dict) -> str:
         <p class="receipt-note">A compact trail of the safe work evidence behind this proof card. Counts can be redacted by the builder; provenance remains visible.</p>
         <div class="shipped-work">{shipped_work}</div>
       </section>
+      {spotlight_html}
       {reference_radar_html}
       <section>
         <h2>What remains uncertain</h2>
@@ -2111,7 +2426,11 @@ def handler(request: BaseHTTPRequestHandler) -> None:
                 proof_for_response["shareReceipt"] = build_share_receipt(proof_for_response, str(receipt.get("runId") or ""))
             accept = request.headers.get("Accept", "")
             if "text/html" in accept and "application/json" not in accept:
-                respond_html(request, 200, proof_card_html(proof_for_response))
+                view = (query.get("view") or [""])[0].strip().lower()
+                if view == "trailer":
+                    respond_html(request, 200, identity_trailer_html(proof_for_response))
+                else:
+                    respond_html(request, 200, proof_card_html(proof_for_response))
             else:
                 respond_json(request, 200, {"ok": True, "proof": proof_for_response})
             return
@@ -2141,11 +2460,18 @@ def handler(request: BaseHTTPRequestHandler) -> None:
         body = json.loads(request.rfile.read(length).decode("utf-8"))
         if not isinstance(body, dict):
             raise ValueError("expected JSON object")
+        owner_id = _request_owner_id(request)
         identity = body.get("identity") if isinstance(body.get("identity"), dict) else body
         action = str(body.get("action") or ACTION_NAME)
         if action != ACTION_NAME:
             raise ValueError(f"unsupported action: {action}")
-        run = create_action_run(identity, public_base(request), str(body.get("idempotencyKey") or ""), body.get("shareControls"))
+        run = create_action_run(
+            identity,
+            public_base(request),
+            str(body.get("idempotencyKey") or ""),
+            body.get("shareControls"),
+            owner_id=owner_id,
+        )
         storage = save_action_run(run)
         respond_json(request, 201, {"ok": True, "runId": run["runId"], "status": run["status"], "storage": storage, "stages": run["stages"], "result": run["result"], "proof": run["proof"]})
     except Exception as exc:

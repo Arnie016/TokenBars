@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TokenBar Profile · Builder Identity</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./tokenbar-codex.css" />
   </head>
-  <body class="page-body profile-page">
+  <body class="page-body profile-page tokenbar-codex">
     <header class="topbar">
       <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
       <nav aria-label="Primary navigation">
-        <a href="/docs">How it works</a><a href="/social">Social</a><a href="/profile">Profile</a><a href="/archetypes">Archetypes</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a>
+        <a href="/#usage">Usage</a><a href="/threads">Threads</a><a href="/profile" aria-current="page">Identity</a><a href="/social">For You</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a>
       </nav>
       <div class="top-actions"><a class="signin-link" href="#sign-in">Sign in</a><a class="download-pill" href="/#download">Download for macOS</a></div>
     </header>
@@ -20,19 +21,15 @@
         <div>
           <p class="eyebrow">Private analysis, public proof</p>
           <h1>Turn a messy agent history into a builder identity.</h1>
-          <p>TokenBar reads safe local aggregates, builds a private identity report, and publishes only the proof fields you choose. A judge should understand your taste, execution, ambition, and uncertainty in under a minute.</p>
-          <div class="profile-command-stack" aria-label="TokenBar profile activation commands">
-            <div class="command-row">
-              <span>1. Submit repo</span>
-              <code>tokenbar submit --project "My Codex App"</code><button type="button" data-copy-command="tokenbar submit --project &quot;My Codex App&quot;">Copy</button>
-            </div>
-            <div class="command-row">
-              <span>2. Private review</span>
-              <code>tokenbar claim</code><button type="button" data-copy-command="tokenbar claim">Copy</button>
-            </div>
-            <div class="command-row">
-              <span>3. Open social layer</span>
-              <code>tokenbar social</code><button type="button" data-copy-command="tokenbar social">Copy</button>
+          <p>TokenBar reads safe local aggregates, builds a private identity report, and publishes only the proof fields you choose. Judges should understand your taste, execution, ambition, and uncertainty in under 60 seconds.</p>
+          <p>Each builder gets a shareable profile.</p>
+          <p>The profile also states what remains uncertain so judges can read limits as well as strengths.</p>
+          <p>It shares the safe evidence without reading or uploading the raw thread.</p>
+          <div class="profile-hero-actions">
+            <a class="button primary" href="#token-dock">Open a builder token</a>
+            <a class="button secondary" href="/#download">Download macOS app</a>
+            <div class="profile-hero-command" aria-label="Generate a TokenBar proof token">
+              <code>tokenbar prove</code><button type="button" data-copy-command="tokenbar prove">Copy</button>
             </div>
           </div>
         </div>
@@ -54,16 +51,43 @@
         <article><span>Public</span><strong>A reloadable identity token</strong><p>The <code>TBAR-...</code> token opens a proof card, profile, For You feed entry, and ranking evidence.</p></article>
       </section>
 
+      <section class="token-dock" id="token-dock" aria-labelledby="token-dock-title">
+        <div class="token-dock-intro">
+          <p class="eyebrow">Token Dock</p>
+          <h2 id="token-dock-title">One token opens the builder, not their private workspace.</h2>
+          <p>Paste a share token to reveal the builder's identity signals, measured usage, proof quality, next frontier, and safe public links. Raw prompts, code, secrets, and local paths stay out.</p>
+          <form class="token-lookup token-dock-form" data-profile-lookup>
+            <label for="profile-token">Builder token</label>
+            <div><input id="profile-token" name="token" placeholder="TBAR-..." autocomplete="off" spellcheck="false" /><button type="submit">Reveal profile</button></div>
+            <p data-profile-lookup-state>Tokens are created locally with <code>tokenbar prove</code>.</p>
+          </form>
+          <div class="token-dock-help">
+            <span>No token yet?</span>
+            <code>tokenbar prove</code>
+            <button type="button" data-copy-command="tokenbar prove">Copy</button>
+          </div>
+          <p class="token-dock-codex-note"><b>Codex-native today:</b> run the command in the Codex terminal; TokenBar performs local analysis and the web app handles selective sharing. No <code>config.toml</code> access is required.</p>
+        </div>
+        <div class="token-surface-launcher token-dock-result" data-token-surface-launcher aria-live="polite">
+          <span>Waiting for a builder token</span>
+          <strong>Identity, usage, and proof arrive here.</strong>
+          <p>The token contains a pointer to a redacted, reloadable proof bundle. It does not contain the builder's raw agent history.</p>
+          <div class="token-dock-placeholder" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+      </section>
+
       <section class="repo-passport" data-reveal aria-label="Hackathon submission mode">
         <div>
           <p class="eyebrow">Hackathon submission mode</p>
-          <h2>Each builder gets a shareable profile, not just a repo link.</h2>
-          <p>Run TokenBar from the project you are submitting. The command turns local Codex and agent evidence into a private identity artifact, attaches your public repo/demo links, then publishes a safe proof token when you are ready.</p>
+          <h2>Project proposal mode: turn one run into one profile.</h2>
+          <p>Run TokenBar from your own repo, or a repo someone asked you to join. One local artifact becomes an identity passport. Keep private mode for your own review, or publish a board-safe token for judges.</p>
         </div>
         <div class="repo-passport-card">
           <span>Submission passport</span>
           <strong>Repo -> identity -> proof token -> profile</strong>
-          <p>Judges can open one page to see what you built, how you worked, what evidence is verified, and what remains uncertain.</p>
+          <p>Judges open one page: shipped work, confidence in claims, and what was inferred from local aggregates.</p>
           <div>
             <code>cd ~/path/to/repo && tokenbar submit --project "My Codex App" --repo https://github.com/me/app --demo https://app.example.com</code>
             <button type="button" data-copy-command="cd ~/path/to/repo && tokenbar submit --project &quot;My Codex App&quot; --repo https://github.com/me/app --demo https://app.example.com">Copy</button>
@@ -75,7 +99,7 @@
         <div class="identity-create-intro">
           <p class="eyebrow">Create identity</p>
           <h2 id="identity-create-heading">Turn one safe local artifact into a share-ready passport.</h2>
-          <p>Choose the generated <code>tokenbar.identity.v1</code> JSON from your device. TokenBar reads it in this browser, checks its privacy boundary, and sends only that selected safe artifact to the existing proof action.</p>
+          <p>Pick a generated <code>tokenbar.identity.v1</code> JSON from your machine. TokenBar checks the privacy boundary first, then builds a share-ready profile using only safe signals.</p>
         </div>
         <form class="identity-create-form" data-identity-create>
           <label class="identity-file-picker" for="identity-artifact">
@@ -91,7 +115,7 @@
             <label><input type="radio" name="visibility" value="public" /> Public <small>share card</small></label>
           </fieldset>
           <aside class="identity-share-contract" data-identity-share-contract hidden aria-live="polite"></aside>
-          <button class="button primary" type="submit">Generate 60-second passport</button>
+          <button class="button primary" type="submit" data-identity-submit>Generate 60-second passport</button>
           <p class="identity-create-state" data-identity-create-state aria-live="polite">Nothing leaves this page until you choose an identity JSON and privacy mode.</p>
           <button class="button secondary identity-retry" type="button" data-identity-retry hidden>Try passport generation again</button>
         </form>
@@ -118,9 +142,16 @@
           <button type="button" data-copy-command="tokenbar claim">Copy</button>
         </article>
         <article>
+          <span>Context</span>
+          <strong>Anchor the story to a real session</strong>
+          <p>Choose a ChatGPT/Codex session id, invited project token, and short notes so the profile can explain struggles, tradeoffs, and progress without reading raw chat transcripts.</p>
+          <code>tokenbar claim 019e...</code>
+          <button type="button" data-copy-command="tokenbar claim 019e...">Copy</button>
+        </article>
+        <article>
           <span>Unlisted</span>
           <strong>Direct link, anonymous by default</strong>
-          <p>Share a proof token with a judge, recruiter, or collaborator without entering the public feed or exposing your owner metadata.</p>
+          <p>Share a proof token with a judge, recruiter, or collaborator without entering the public feed or exposing owner metadata.</p>
           <code>tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions</code>
           <button type="button" data-copy-command="tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions">Copy</button>
         </article>
@@ -134,19 +165,6 @@
       </section>
 
       <section class="profile-grid">
-        <article class="profile-panel">
-          <h2>Open a shared profile</h2>
-          <form class="token-lookup" data-profile-lookup>
-            <label for="profile-token">TokenBar identity token</label>
-            <div><input id="profile-token" name="token" placeholder="TBAR-..." autocomplete="off" /><button type="submit">Open</button></div>
-            <p data-profile-lookup-state>Paste the token returned by <code>tokenbar submit</code>, <code>tokenbar prove</code>, or <code>tokenbar publish-proof</code>.</p>
-          </form>
-          <div class="token-surface-launcher" data-token-surface-launcher aria-live="polite">
-            <span>Waiting for token</span>
-            <strong>Paste a <code>TBAR-...</code> token to unlock the public proof bundle.</strong>
-            <p>The launcher opens the proof card, public profile, For You feed, and rankings surface without exposing private logs.</p>
-          </div>
-        </article>
         <article class="profile-panel proof-action-panel">
           <h2>Inspect a proof action</h2>
           <p>Run <code>tokenbar prove</code>, then paste the returned <code>run_...</code> id or <code>TBAR-...</code> token. This shows server-side stages without exposing raw logs.</p>
@@ -184,14 +202,14 @@
       <section class="profile-judge-flow" aria-label="Judge flow">
         <div>
           <p class="eyebrow">Judge flow</p>
-          <h2>Local evidence to public story, without turning into surveillance.</h2>
-          <p>The product is not a GitHub clone or a vanity token scoreboard. It is a compact identity narrative backed by safe aggregate evidence and visible uncertainty.</p>
+          <h2>60-second judge journey</h2>
+          <p>Judge one proof in under a minute with this deterministic flow: submit, open, verify, and share the evidence contract.</p>
         </div>
         <ol>
-          <li><span>01</span><strong>Local Codex evidence</strong><p>Usage totals, bounded/redacted session signals, action stages, and report metadata stay under the builder's control.</p></li>
-          <li><span>02</span><strong>Server-side action</strong><p>The proof action persists request, stages, proof card, profile link, social feed entry, and ranking evidence.</p></li>
-          <li><span>03</span><strong>Selective profile</strong><p>Public, selective, and private modes make it clear which claims are shareable and which are self-review only.</p></li>
-          <li><span>04</span><strong>Reloadable proof</strong><p>A <code>TBAR-...</code> token lets someone reopen the same safe proof without seeing raw workspace data.</p></li>
+          <li><span>01</span><strong>Run in repo</strong><p><code>cd ~/path/to/repo && tokenbar submit --project "My Codex App" --event "Build Week" --track "Apps for Your Life"</code></p><small>this creates a local proof run.</small></li>
+          <li><span>02</span><strong>Paste TBAR token</strong><p>Open <a href="/#token-dock">Profile</a> or enter the token in <code>/social</code>/<code>/rankings</code> so judges can view the same public cards.</p></li>
+          <li><span>03</span><strong>Check verified signals</strong><p>Review proof score, shipped-work evidence, loop maturity, and uncertainty in one profile view before deciding the outcome.</p></li>
+          <li><span>04</span><strong>Copy the safe preview</strong><p>Use the copy controls to export the proof summary and share-contract note for a human review packet.</p></li>
         </ol>
       </section>
     </main>
