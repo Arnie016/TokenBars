@@ -1,0 +1,27 @@
+name: Build Week TokenBar Checkpoint
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run checkpoint commit
+        run: |
+          git fetch --all --prune
+          chmod +x ./scripts/tokenbar_hourly_checkpoint.sh
+          ./scripts/tokenbar_hourly_checkpoint.sh
