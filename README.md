@@ -1,6 +1,36 @@
 # TokenBar
 
-TokenBar is a local-first CLI token usage and budget bar for coding agents and developer workflows.
+TokenBar is a local-first macOS app and CLI for understanding how you build with
+coding agents. It combines usage visibility with a private Builder Story, Codex
+thread control, inspectable proof, and opt-in sharing.
+
+## Native macOS preview
+
+[Download TokenBar for macOS (Apple silicon)](https://github.com/Arnie016/TokenBars/releases/download/macos-app-preview-v0.1.1/TokenBar-macOS.zip)
+
+This preview adds a full native companion alongside the original TokenBar menu-bar
+and CLI utilities:
+
+- **Builder Story** turns safe local aggregates into a concise identity narrative.
+- **Threads** shows active goals, forks, Git review state, Codex deep links, and
+  follow-up drafts saved only on your Mac.
+- **Usage** explains token pace and cost without pretending volume equals output.
+- **Proof** keeps reports private until you explicitly publish a redacted artifact.
+- **Opportunities** turns a project brief into a bounded Codex kickoff without
+  automatically cloning, running, or posting anything.
+
+The preview requires macOS 14 or newer on Apple silicon. Unzip it, move
+`TokenBar.app` to Applications, then open it. The build is ad-hoc signed and not
+yet notarized, so macOS may require **Control-click > Open** the first time.
+
+Raw transcripts, source code, credentials, and project briefs are not uploaded.
+The native app reads TokenBar's generated artifacts and Codex's local thread index;
+sharing remains an explicit action.
+
+Build details and native architecture live in
+[`macos/TokenBarMac`](macos/TokenBarMac/README.md).
+
+## CLI and menu-bar utility
 
 It gives you a quick terminal view of token usage, budget status, reset timing, power estimate, and natural-language prompts like:
 
