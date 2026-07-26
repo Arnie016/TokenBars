@@ -6,26 +6,14 @@ SCRIPT_DIR=${0:A:h}
 OUTPUT_DIR=${1:-"$SCRIPT_DIR/dist"}
 APP_PATH="$OUTPUT_DIR/TokenBar.app"
 ARCHIVE_PATH="$OUTPUT_DIR/TokenBar-macOS.zip"
-DERIVED_DATA=$(mktemp -d /tmp/tokenbar-mac-derived-data.XXXXXX)
 ICON_SOURCE="$SCRIPT_DIR/Resources/TokenBarIcon.png"
-
-cleanup() {
-    rm -rf "$DERIVED_DATA"
-}
-trap cleanup EXIT
 
 (
     cd "$SCRIPT_DIR"
-    xcodebuild \
-        -scheme TokenBarMac \
-        -configuration Release \
-        -destination "platform=macOS" \
-        -derivedDataPath "$DERIVED_DATA" \
-        CODE_SIGNING_ALLOWED=NO \
-        build
+    swift build -c release
 )
 
-EXECUTABLE="$DERIVED_DATA/Build/Products/Release/TokenBarMac"
+EXECUTABLE="$SCRIPT_DIR/.build/release/TokenBarMac"
 if [[ ! -x "$EXECUTABLE" ]]; then
     print -u2 "Expected executable was not produced: $EXECUTABLE"
     exit 1
@@ -34,10 +22,20 @@ fi
 rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
 install -m 755 "$EXECUTABLE" "$APP_PATH/Contents/MacOS/TokenBarMac"
+mkdir -p "$APP_PATH/Contents/Resources/tokenbar"
+install -m 755 "$SCRIPT_DIR/../../src/tokenbar/tokenbar" "$APP_PATH/Contents/Resources/tokenbar/tokenbar"
+install -m 644 "$SCRIPT_DIR/../../src/tokenbar/identity_api.py" "$APP_PATH/Contents/Resources/tokenbar/identity_api.py"
+install -m 644 "$SCRIPT_DIR/../../src/tokenbar/identity_mcp.py" "$APP_PATH/Contents/Resources/tokenbar/identity_mcp.py"
+if [[ -d "$SCRIPT_DIR/Resources/Sounds" ]]; then
+    mkdir -p "$APP_PATH/Contents/Resources/Sounds"
+    cp "$SCRIPT_DIR"/Resources/Sounds/*.mp3 "$APP_PATH/Contents/Resources/Sounds/"
+fi
 codesign --remove-signature "$APP_PATH/Contents/MacOS/TokenBarMac"
 
 if [[ -f "$ICON_SOURCE" ]]; then
-    ICONSET="$DERIVED_DATA/TokenBar.iconset"
+    ICON_WORK_DIR=$(mktemp -d /tmp/tokenbar-iconset.XXXXXX)
+    ICONSET="$ICON_WORK_DIR/TokenBar.iconset"
+    trap 'rm -rf "$ICON_WORK_DIR"' EXIT
     mkdir -p "$ICONSET"
     sips -z 16 16 "$ICON_SOURCE" --out "$ICONSET/icon_16x16.png" >/dev/null
     sips -z 32 32 "$ICON_SOURCE" --out "$ICONSET/icon_16x16@2x.png" >/dev/null
@@ -62,13 +60,15 @@ plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "$INFO_PLIST"
 plutil -insert CFBundleIconFile -string TokenBar.icns "$INFO_PLIST"
 plutil -insert CFBundleName -string TokenBar "$INFO_PLIST"
 plutil -insert CFBundlePackageType -string APPL "$INFO_PLIST"
-plutil -insert CFBundleShortVersionString -string 0.1.1 "$INFO_PLIST"
-plutil -insert CFBundleVersion -string 2 "$INFO_PLIST"
+plutil -insert CFBundleShortVersionString -string 0.1.2 "$INFO_PLIST"
+plutil -insert CFBundleVersion -string 3 "$INFO_PLIST"
 plutil -insert LSApplicationCategoryType -string public.app-category.productivity "$INFO_PLIST"
 plutil -insert LSMinimumSystemVersion -string 14.0 "$INFO_PLIST"
 plutil -insert NSHighResolutionCapable -bool true "$INFO_PLIST"
+plutil -insert NSAppTransportSecurity -xml '<dict><key>NSAllowsLocalNetworking</key><true/></dict>' "$INFO_PLIST"
 
 codesign --force --deep --sign - "$APP_PATH"
+codesign --verify --deep --strict "$APP_PATH"
 
 rm -f "$ARCHIVE_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ARCHIVE_PATH"

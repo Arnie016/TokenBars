@@ -10,7 +10,18 @@ let package = Package(
     products: [
         .executable(name: "TokenBarMac", targets: ["TokenBarMac"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/Cindori/FluidGradient", from: "1.0.0"),
+        .package(url: "https://github.com/EmergeTools/Pow", from: "1.0.0")
+    ],
     targets: [
-        .executableTarget(name: "TokenBarMac")
+        .executableTarget(
+            name: "TokenBarMac",
+            dependencies: [
+                .product(name: "FluidGradient", package: "FluidGradient"),
+                .product(name: "Pow", package: "Pow")
+            ]
+        ),
+        .testTarget(name: "TokenBarMacTests", dependencies: ["TokenBarMac"])
     ]
 )

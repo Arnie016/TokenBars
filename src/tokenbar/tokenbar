@@ -12,11 +12,11 @@ APP_CANDIDATES=(
 download_url="https://github.com/Arnie016/codex-goated-skills/releases/download/v0.1.0/CodexLimitBar-macOS-arm64-2026-05-20.zip"
 install_url="https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh"
 site_url="${TOKENBAR_SITE_URL:-https://www.tokenbar.site}"
-tokenbar_version="${TOKENBAR_VERSION:-0.1.1-dev}"
+tokenbar_version="${TOKENBAR_VERSION:-0.1.1}"
 skills_url="https://github.com/Arnie016/codex-goated-skills"
 install_command="curl -fsSL $install_url | bash"
-usage_index="$HOME/Library/Application Support/CodexLimitBar/usage-index.json"
-support_dir="$HOME/Library/Application Support/CodexLimitBar"
+support_dir="${TOKENBAR_SUPPORT_DIR:-$HOME/Library/Application Support/CodexLimitBar}"
+usage_index="$support_dir/usage-index.json"
 control_file="$support_dir/user-controls.json"
 agent_model="${TOKENBAR_OPENAI_MODEL:-${OPENAI_MODEL:-gpt-5.4}}"
 agent_budget_tokens="${TOKENBAR_BUDGET_TOKENS:-}"
@@ -29,6 +29,9 @@ TokenBar terminal launcher
 Usage:
   tokenbar                  Open TokenBar
   tokenbar usage            Main dashboard: tokens, forecast, folders, commentary
+  tokenbar threads          Read-only Codex task board: goals, recency, and token weight
+  tokenbar usage REPORT     Turn an exported multi-agent usage table into a Builder Pulse
+  usage | tokenbar usage -  Read the same report from stdin
   tokenbar status           Check app install, running process, and usage index
   tokenbar version          Print CLI version
   tokenbar help             Show this command list
@@ -36,17 +39,30 @@ Usage:
   tokenbar join             Submit this repo to the public builder board
   tokenbar submit           Submit this repo to a hackathon/social profile with a safe TBAR token
   tokenbar proof latest     Reprint the latest safe proof token, links, and privacy receipt
+  tokenbar share latest     Copy-friendly alias for the latest safe proof handoff
+  tokenbar revoke latest    Remove your public proof/profile/feed/ranking; keep local reports
+  tokenbar profile latest   Open the latest safe public profile without rerunning analysis
+  tokenbar social latest    Open the latest proof in the For You feed
+  tokenbar rankings latest  Open the latest proof-backed leaderboard position
   tokenbar trailer          Print a renderer-ready 30s Builder Identity trailer
   tokenbar trailer --html   Export a local standalone trailer storyboard
   tokenbar video            Alias for the identity trailer brief
   tokenbar save URL         Save a builder/social reference link locally
   tokenbar inbox            List saved builder signals and reference links
   tokenbar claim            Generate a private local builder identity token
+  tokenbar claim SESSION_ID Make the report/feed/trailer explain that session
+  tokenbar claim --spotlight-session ID --spotlight-project NAME
+                           Make the report/feed/trailer explain a specific session or project
   tokenbar claim --publish-proof
                            Generate locally, then opt in to the safe proof action
   tokenbar profile          Build a private local identity report/PDF
   tokenbar publish-proof    Opt in to a safe proof card, profile link, feed entry, and rankings proof
   tokenbar social           Open public profiles, rankings, and leaderboards
+  tokenbar api              Serve safe identity + usage JSON on localhost
+  tokenbar api --snapshot   Print the same packaged Builder Identity bundle
+  tokenbar mcp              Serve the same safe bundle to Codex over stdio MCP
+  codex mcp add tokenbar -- tokenbar mcp
+                           Connect TokenBar to Codex after installing the CLI
 
 Common actions:
   tokenbar open             Open the macOS menu-bar app
@@ -60,12 +76,17 @@ Identity and sharing:
   tokenbar quickstart       Show the profile command path
   tokenbar join             Social path: attach project metadata, publish safe proof, enter rankings
   tokenbar prove            Fast path: claim locally, publish safe proof, print a TBAR token
+  tokenbar claim --spotlight-session ID --spotlight-project NAME
+                           Anchor the identity story to a selected ChatGPT/Codex session or project
+  tokenbar claim SESSION_ID Same anchor, shorter for Codex/ChatGPT session ids
   tokenbar submit           Hackathon path: attach project metadata, analyze locally, publish safe proof
   tokenbar publish          Advanced legacy profile JSON upload
   tokenbar publish-proof    Opt in to a safe proof card, feed entry, and rankings proof
   tokenbar action [latest]  Advanced alias for publish-proof
   tokenbar proof            Create a portfolio proof packet zip
   tokenbar proof latest     Recover the latest generated proof/share handoff
+  tokenbar share latest     Recover the same share handoff in copy-friendly language
+  tokenbar open-proof       Open profile/feed/rankings links from the latest local receipt
   tokenbar save URL         Save an X/GitHub/blog/video reference to the local builder-signal inbox
   tokenbar inbox [digest]   Review saved builder signals without uploading them
   tokenbar card [FILE]      Print a compact terminal identity card
@@ -161,6 +182,11 @@ supports_agent_interface() {
   [[ -t 0 && -t 1 ]]
 }
 
+looks_like_session_id() {
+  local value="${1:-}"
+  [[ "$value" =~ ^[0-9a-fA-F]{8,}-[0-9a-fA-F-]{8,}$ || "$value" =~ ^[0-9a-fA-F]{24,}$ || "$value" =~ ^run_[0-9a-fA-F]{8,}$ ]]
+}
+
 copy_install_command() {
   if command -v pbcopy >/dev/null 2>&1; then
     printf '%s' "$install_command" | pbcopy
@@ -201,6 +227,7 @@ set_control_value() {
   local value="$2"
   mkdir -p "$support_dir"
   TOKENBAR_CONTROL_PATH="$control_file" TOKENBAR_CONTROL_KEY="$key" TOKENBAR_CONTROL_VALUE="$value" python3 - <<'PY'
+import hashlib
 import json
 import os
 
@@ -1670,7 +1697,328 @@ Interpretation:
 EOF
 }
 
+quick_usage_context_json() {
+  INDEX_PATH="$usage_index" \
+  TOKENBAR_PRICE_PER_MILLION="$agent_price_per_million" \
+  python3 - <<'PY'
+import json
+import os
+from datetime import datetime, timedelta
+
+path = os.environ.get("INDEX_PATH") or ""
+price_raw = os.environ.get("TOKENBAR_PRICE_PER_MILLION") or ""
+
+try:
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+except Exception:
+    data = {}
+
+day_tokens = data.get("dayTokens") if isinstance(data.get("dayTokens"), dict) else {}
+today = datetime.now()
+today_key = today.strftime("%Y-%m-%d")
+last7_keys = [(today - timedelta(days=offset)).strftime("%Y-%m-%d") for offset in range(7)]
+
+def as_int(value):
+    try:
+        return int(value or 0)
+    except Exception:
+        return 0
+
+today_tokens = as_int(day_tokens.get(today_key))
+last7_tokens = sum(as_int(day_tokens.get(key)) for key in last7_keys)
+active_days = sum(1 for key in last7_keys if as_int(day_tokens.get(key)) > 0)
+session_count = len(data.get("sessionPaths") or [])
+
+try:
+    price = float(price_raw) if price_raw else None
+except ValueError:
+    price = None
+
+out = {
+    "today_tokens": today_tokens,
+    "last7_tokens": last7_tokens,
+    "active_days_7d": active_days,
+    "sessions_indexed": session_count,
+    "windows": {
+        "7d": {
+            "total_tokens": last7_tokens,
+            "active_days": active_days,
+        }
+    },
+}
+if price is not None:
+    weekly_cost = (last7_tokens / 1_000_000) * price
+    out["price_per_million"] = price
+    out["projected_weekly_cost"] = weekly_cost
+    out["windows"]["7d"]["estimated_cost"] = weekly_cost
+print(json.dumps(out, separators=(",", ":")))
+PY
+}
+
+imported_usage_report() {
+  local report_path="$1"
+  local json_mode="${2:-false}"
+
+  TOKENBAR_IMPORTED_USAGE_PATH="$report_path" \
+  TOKENBAR_IMPORTED_USAGE_JSON="$json_mode" \
+  python3 - <<'PY'
+import json
+import os
+import re
+import sys
+from collections import Counter
+from datetime import datetime, timedelta
+from pathlib import Path
+
+path = Path(os.environ["TOKENBAR_IMPORTED_USAGE_PATH"]).expanduser()
+json_mode = os.environ.get("TOKENBAR_IMPORTED_USAGE_JSON") == "true"
+
+try:
+    text = path.read_text(encoding="utf-8", errors="replace")
+except Exception as exc:
+    raise SystemExit(f"Could not read usage report: {exc}")
+
+ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+number = re.compile(r"-?[0-9][0-9,]*(?:\.[0-9]+)?")
+date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def numeric(value, money=False):
+    match = number.search(str(value or ""))
+    if not match:
+        return 0.0 if money else 0
+    cleaned = match.group(0).replace(",", "")
+    try:
+        return float(cleaned) if money else int(float(cleaned))
+    except ValueError:
+        return 0.0 if money else 0
+
+def compact(value):
+    value = float(max(0, value or 0))
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M".replace(".0M", "M")
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K".replace(".0K", "K")
+    return str(int(value))
+
+daily = []
+agent_totals = Counter()
+models = set()
+reported_total = None
+
+for raw_line in ansi.sub("", text).splitlines():
+    if "│" not in raw_line:
+        continue
+    cells = [cell.strip() for cell in raw_line.split("│")[1:-1]]
+    if len(cells) < 9:
+        continue
+    day, agent, model = cells[0], cells[1], cells[2]
+    if model.startswith("-"):
+        model_name = re.sub(r"^\[[^\]]+\]\s*", "", model[1:].strip())
+        if model_name:
+            models.add(model_name)
+    if day == "Total":
+        reported_total = {
+            "inputTokens": numeric(cells[3]),
+            "outputTokens": numeric(cells[4]),
+            "cacheCreateTokens": numeric(cells[5]),
+            "cacheReadTokens": numeric(cells[6]),
+            "totalTokens": numeric(cells[7]),
+            "reportedCostUsd": numeric(cells[8], money=True),
+        }
+    elif date_pattern.match(day) and agent == "All":
+        daily.append({
+            "date": day,
+            "inputTokens": numeric(cells[3]),
+            "outputTokens": numeric(cells[4]),
+            "cacheCreateTokens": numeric(cells[5]),
+            "cacheReadTokens": numeric(cells[6]),
+            "totalTokens": numeric(cells[7]),
+            "reportedCostUsd": numeric(cells[8], money=True),
+        })
+    elif not day and agent.startswith("-"):
+        agent_name = agent[1:].strip()
+        agent_tokens = numeric(cells[7])
+        if agent_name and agent_tokens:
+            agent_totals[agent_name] += agent_tokens
+
+if not daily:
+    raise SystemExit("No daily rows found. Expected the box-table Coding (Agent) CLI Usage Report.")
+
+daily.sort(key=lambda item: item["date"])
+end_date = datetime.strptime(daily[-1]["date"], "%Y-%m-%d")
+window_start = end_date - timedelta(days=6)
+last7 = [item for item in daily if datetime.strptime(item["date"], "%Y-%m-%d") >= window_start]
+peak = max(daily, key=lambda item: item["totalTokens"])
+
+total_keys = ("inputTokens", "outputTokens", "cacheCreateTokens", "cacheReadTokens", "totalTokens", "reportedCostUsd")
+totals = reported_total or {key: sum(item[key] for item in daily) for key in total_keys}
+last7_tokens = sum(item["totalTokens"] for item in last7)
+last7_cost = sum(item["reportedCostUsd"] for item in last7)
+cache_tokens = totals["cacheCreateTokens"] + totals["cacheReadTokens"]
+fresh_tokens = totals["inputTokens"] + totals["outputTokens"]
+cache_share = round(cache_tokens / max(1, totals["totalTokens"]) * 100, 1)
+attributed_total = max(1, sum(agent_totals.values()))
+top_agent, top_agent_tokens = agent_totals.most_common(1)[0] if agent_totals else ("Unknown", 0)
+top_agent_share = round(top_agent_tokens / attributed_total * 100, 1) if agent_totals else 0
+
+if last7_tokens >= 4_000_000_000:
+    commentary = f"{compact(last7_tokens)} in seven days. The agents did not take the week off."
+elif last7_tokens >= 1_000_000_000:
+    commentary = f"{compact(last7_tokens)} in seven days: serious agent throughput, not background noise."
+else:
+    commentary = f"{compact(last7_tokens)} in seven days. A quieter trace, but still enough to inspect."
+
+if cache_share >= 80:
+    nuance = (
+        f"{cache_share:.1f}% is cache traffic. Do not market {compact(totals['totalTokens'])} "
+        "as fresh reasoning; the honest story is high reuse and sustained iteration."
+    )
+else:
+    nuance = f"Cache traffic is {cache_share:.1f}% of the measured total."
+
+payload = {
+    "schema": "tokenbar.usage_pulse.v1",
+    "period": {"start": daily[0]["date"], "end": daily[-1]["date"], "activeDays": len(daily)},
+    "totals": totals,
+    "freshInputOutputTokens": fresh_tokens,
+    "last7Days": {
+        "start": window_start.strftime("%Y-%m-%d"),
+        "end": daily[-1]["date"],
+        "activeDays": len(last7),
+        "totalTokens": last7_tokens,
+        "reportedCostUsd": round(last7_cost, 2),
+    },
+    "peakDay": peak,
+    "agentMix": [
+        {"agent": name, "totalTokens": value, "sharePercent": round(value / attributed_total * 100, 1)}
+        for name, value in agent_totals.most_common()
+    ],
+    "models": sorted(model for model in models if model),
+    "cacheSharePercent": cache_share,
+    "commentary": [commentary, nuance],
+    "privacy": {
+        "rawReportIncluded": False,
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "safeForSelectiveShare": True,
+    },
+    "disclaimer": "Costs are report estimates, not an official provider invoice. Token volume does not prove useful output.",
+}
+
+if json_mode:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+use_color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+def paint(code, value):
+    return f"\033[{code}m{value}\033[0m" if use_color else str(value)
+
+def bold(value):
+    return paint("1", value)
+
+def blue(value):
+    return paint("38;5;39", value)
+
+def amber(value):
+    return paint("38;5;214", value)
+
+def purple(value):
+    return paint("38;5;141", value)
+
+def dim(value):
+    return paint("2", value)
+
+print(bold("TokenBar Builder Pulse"))
+print(dim(f"{daily[0]['date']} to {daily[-1]['date']} · {len(daily)} active days · local report"))
+print()
+print(purple(bold(f"{compact(totals['totalTokens'])} total tokens")))
+print(commentary)
+print(dim(nuance))
+print(dim(f"Measured mix: {compact(fresh_tokens)} input/output · {compact(cache_tokens)} cache traffic"))
+print()
+print(bold("Recent pace"))
+print(f"Last 7d: {blue(bold(compact(last7_tokens)))} · {len(last7)}/7 active days · reported estimate ${last7_cost:,.2f}")
+print(f"Peak: {peak['date']} · {amber(bold(compact(peak['totalTokens'])))} · reported estimate ${peak['reportedCostUsd']:,.2f}")
+print()
+print(bold("Agent mix"))
+if agent_totals:
+    for name, value in agent_totals.most_common(5):
+        share = value / attributed_total * 100
+        print(f"{name:<12} {compact(value):>9}  {share:>5.1f}%")
+else:
+    print("Agent totals were not present in this export.")
+print()
+print(bold("Read this correctly"))
+print(f"Top agent: {top_agent} at {top_agent_share:.1f}% of attributed usage.")
+print(f"Models observed: {', '.join(sorted(models)[:8]) or 'not listed'}")
+print(f"Reported all-time estimate: ${totals['reportedCostUsd']:,.2f} (not an official invoice)")
+print("Token volume shows activity, not quality. Pair it with shipped work, verification, and recovery evidence.")
+print()
+print(dim("Privacy: this summary contains aggregate counts only; the raw report stays local."))
+print(f"Share-safe JSON: {blue('tokenbar usage REPORT --json')}")
+PY
+}
+
 usage_report() {
+  local imported_path=""
+  local json_mode=false
+  local temp_report=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help|-h)
+        cat <<'EOF'
+Usage:
+  tokenbar usage                    Read TokenBar's local usage index
+  tokenbar usage REPORT.txt         Summarize an exported multi-agent usage table
+  usage | tokenbar usage -          Read the exported report from stdin
+  tokenbar usage REPORT.txt --json  Emit a share-safe aggregate payload
+
+Raw reports, transcripts, source code, and local paths are never included in
+the JSON payload. Reported costs remain estimates, not provider invoices.
+EOF
+        return 0
+        ;;
+      --json|--social-json)
+        json_mode=true
+        ;;
+      --from)
+        shift
+        imported_path="${1:-}"
+        ;;
+      -)
+        temp_report="$(mktemp "${TMPDIR:-/tmp}/tokenbar-usage-report.XXXXXX")"
+        cat > "$temp_report"
+        imported_path="$temp_report"
+        ;;
+      *)
+        if [[ -z "$imported_path" ]]; then
+          imported_path="$1"
+        else
+          printf 'Unknown tokenbar usage option: %s\n' "$1" >&2
+          return 2
+        fi
+        ;;
+    esac
+    shift || true
+  done
+
+  if [[ -n "$imported_path" ]]; then
+    if [[ ! -f "$imported_path" ]]; then
+      printf 'Usage report not found: %s\n' "$imported_path" >&2
+      return 1
+    fi
+    imported_usage_report "$imported_path" "$json_mode"
+    if [[ -n "$temp_report" ]]; then
+      rm -f "$temp_report"
+    fi
+    return 0
+  fi
+
   local context
   context="$(usage_context_json 2>/dev/null || printf '{}')"
   TOKENBAR_USAGE_CONTEXT="$context" python3 - <<'PY'
@@ -2428,6 +2776,33 @@ ARCHETYPES = [
     },
 ]
 
+ARCHETYPE_DISPLAY_TITLES = {
+    "Scaffold Architect": "Blueprint Builder",
+    "Revenue Systems Captain": "Revenue Engine Pilot",
+    "Agent Infrastructure Cartographer": "Agent Systems Pathfinder",
+    "Report Engine Philosopher": "Evidence Storyteller",
+    "Velocity Operator": "Afterburner Builder",
+    "Quality Guardian": "Reliability Warden",
+    "Prompt Stress Tester": "Chaos Lab Pilot",
+    "Design Systems Bard": "Interface Storysmith",
+    "Research Alchemist": "Signal Alchemist",
+    "Multi-Agent Conductor": "Mission Control Captain",
+    "Product Mythmaker": "Product Lorekeeper",
+    "Local-First Sovereign": "Privacy Homesteader",
+    "Session Archaeologist": "Session Pathfinder",
+    "Workflow Diplomat": "Toolchain Ambassador",
+    "Launch Systems Producer": "Launch Room Producer",
+    "Heuristic Cartel Builder": "Pattern Cartographer",
+    "Proof Layer Broker": "Portfolio Signal Broker",
+    "Runway Economist": "Compute Strategist",
+    "Connector Locksmith": "Integration Locksmith",
+    "Narrative Debugger": "Product Story Detective",
+    "Evidence Gardener": "Evidence Curator",
+    "Agent Coach": "Agent Field Coach",
+    "Chaos-to-Canon Editor": "Sprint Canon Editor",
+    "Portfolio Systems Curator": "Career Story Curator",
+}
+
 LABEL_MODIFIERS = [
     {"name": "Overdrive", "weights": {"surge": 1.0, "execution": 0.45, "volatility": 0.18}},
     {"name": "Proof-Backed", "weights": {"artifact": 1.0, "research_depth": 0.42, "planning": 0.22}},
@@ -2493,15 +2868,17 @@ def identity_label(primary, traits):
     modifier = modifier_results[0]
     stance = stance_results[0]
     base = primary["name"]
-    title = f"{modifier['name']} {base} {stance['name']}"
+    technical_title = f"{modifier['name']} {base} {stance['name']}"
+    title = ARCHETYPE_DISPLAY_TITLES.get(base, base)
     return {
         "title": title,
+        "technicalTitle": technical_title,
         "baseArchetype": base,
         "modifier": modifier["name"],
         "stance": stance["name"],
         "modifierProbability": modifier["probability"],
         "stanceProbability": stance["probability"],
-        "bucketKey": re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-"),
+        "bucketKey": re.sub(r"[^a-z0-9]+", "-", technical_title.lower()).strip("-"),
         "modifierDistribution": [
             {"name": item["name"], "probability": item["probability"]}
             for item in modifier_results
@@ -2525,7 +2902,8 @@ def label_bucket_distribution(archetypes, label):
     for archetype in archetypes:
         for modifier in modifiers:
             for stance in stances:
-                title = f"{modifier['name']} {archetype['name']} {stance['name']}"
+                technical_title = f"{modifier['name']} {archetype['name']} {stance['name']}"
+                title = f"{ARCHETYPE_DISPLAY_TITLES.get(archetype['name'], archetype['name'])} · {modifier['name']} / {stance['name']}"
                 probability = (
                     float(archetype.get("probability") or 0)
                     * float(modifier.get("probability") or 0)
@@ -2534,7 +2912,8 @@ def label_bucket_distribution(archetypes, label):
                 )
                 rows.append({
                     "title": title,
-                    "bucketKey": re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-"),
+                    "technicalTitle": technical_title,
+                    "bucketKey": re.sub(r"[^a-z0-9]+", "-", technical_title.lower()).strip("-"),
                     "baseArchetype": archetype["name"],
                     "modifier": modifier["name"],
                     "stance": stance["name"],
@@ -2544,10 +2923,6 @@ def label_bucket_distribution(archetypes, label):
     return sorted(rows, key=lambda item: item["probability"], reverse=True)
 
 def title_from_context(label):
-    if focus:
-        clean = re.sub(r"[^A-Za-z0-9 +#._-]+", " ", focus).strip()
-        if clean:
-            return f"{clean} {label['modifier']} {label['baseArchetype']} {label['stance']}"
     return label["title"]
 
 def score(seed, low=54, high=94):
@@ -5675,9 +6050,10 @@ EOF
   fi
   rm -f "$verify_log"
 
-  TOKENBAR_SHARE_IDENTITY_PATH="$identity_path" TOKENBAR_PROFILE_UPLOAD_ENDPOINT="$endpoint" python3 - <<'PY'
+  TOKENBAR_SHARE_IDENTITY_PATH="$identity_path" TOKENBAR_PROFILE_UPLOAD_ENDPOINT="$endpoint" TOKENBAR_PROFILE_OWNER_KEY_PATH="$support_dir/proof-owner-key" TOKENBAR_ACTION_WRITE_TOKEN="${TOKENBAR_ACTION_WRITE_TOKEN:-}" python3 - <<'PY'
 import json
 import os
+import secrets
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -5690,10 +6066,84 @@ privacy = payload.get("privacy") or {}
 if privacy.get("rawTranscriptsIncluded") or privacy.get("sourceCodeIncluded"):
     raise SystemExit("Refusing to upload an identity file that claims to include raw transcripts or source code.")
 
+# Direct profile upload is a legacy compatibility path. Keep the same compact
+# public boundary as publish-proof instead of sending local report/visual data.
+allowed = {
+    "schema",
+    "token",
+    "title",
+    "subtitle",
+    "primaryArchetype",
+    "npcClass",
+    "identityLabel",
+    "labelRationale",
+    "archetypeDistribution",
+    "modifierDistribution",
+    "stanceDistribution",
+    "labelDistribution",
+    "labelModel",
+    "specificityScore",
+    "estimatedRarityPercent",
+    "proofScore",
+    "loopMaturity",
+    "loopScore",
+    "loopScale",
+    "privacy",
+    "dimensions",
+    "usage",
+    "sessionAnalysis",
+    "shippingAnalysis",
+    "providerAnalyses",
+    "builderSignalInbox",
+    "socialLearningSignals",
+    "publicProfile",
+    "hackathonSubmission",
+    "submittedProject",
+    "leaderboard",
+    "spotlightSources",
+    "generatedAt",
+}
+payload = {key: value for key, value in payload.items() if key in allowed}
+payload.setdefault("privacy", {})["rawTranscriptsIncluded"] = False
+payload.setdefault("privacy", {})["sourceCodeIncluded"] = False
+payload.setdefault("privacy", {})["publicMetadataOnly"] = True
+encoded_payload = json.dumps(payload).encode("utf-8")
+if len(encoded_payload) > 240_000:
+    raise SystemExit(
+        f"Public-safe identity payload is still too large ({len(encoded_payload)} bytes); use tokenbar publish-proof."
+    )
+
+owner_path = Path(os.environ["TOKENBAR_PROFILE_OWNER_KEY_PATH"]).expanduser()
+owner_path.parent.mkdir(parents=True, exist_ok=True)
+if owner_path.exists():
+    owner_key = owner_path.read_text(encoding="utf-8").strip()
+else:
+    owner_key = secrets.token_urlsafe(48)
+    descriptor = os.open(owner_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(descriptor, (owner_key + "\n").encode("utf-8"))
+    finally:
+        os.close(descriptor)
+if not 32 <= len(owner_key) <= 512:
+    raise SystemExit(f"TokenBar owner key is invalid: {owner_path}")
+try:
+    owner_path.chmod(0o600)
+except OSError:
+    pass
+
+headers = {
+    "Content-Type": "application/json",
+    "User-Agent": "TokenBar CLI",
+    "X-TokenBar-Owner-Key": owner_key,
+}
+write_token = (os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN") or "").strip()
+if write_token:
+    headers["Authorization"] = f"Bearer {write_token}"
+
 request = urllib.request.Request(
     endpoint,
-    data=json.dumps(payload).encode("utf-8"),
-    headers={"Content-Type": "application/json", "User-Agent": "TokenBar CLI"},
+    data=encoded_payload,
+    headers=headers,
     method="POST",
 )
 
@@ -5710,6 +6160,7 @@ if not data.get("ok"):
     raise SystemExit(f"Profile upload failed: {data}")
 
 print(f"Uploaded identity JSON: {path}")
+print(f"Public-safe payload: {len(encoded_payload)} bytes")
 print(f"Public profile: {data.get('shareUrl')}")
 print(f"Aggregate stats: {data.get('statsUrl')}")
 population = data.get("population") or {}
@@ -5740,14 +6191,23 @@ PY
 }
 
 builder_identity_action() {
-  local identity_path endpoint share_visibility redact_owner redact_tokens redact_sessions redact_region
+  local identity_path endpoint share_visibility redact_owner redact_tokens redact_sessions redact_region action_write_token
+  local spotlight_sessions spotlight_projects spotlight_notes spotlight_insights spotlight_struggles spotlight_features spotlight_progress
   identity_path=""
   share_visibility="${TOKENBAR_SHARE_VISIBILITY:-public}"
   redact_owner="${TOKENBAR_REDACT_OWNER:-0}"
   redact_tokens="${TOKENBAR_REDACT_TOKENS:-0}"
   redact_sessions="${TOKENBAR_REDACT_SESSIONS:-0}"
   redact_region="${TOKENBAR_REDACT_REGION:-0}"
+  spotlight_sessions="${TOKENBAR_SPOTLIGHT_SESSIONS:-}"
+  spotlight_projects="${TOKENBAR_SPOTLIGHT_PROJECTS:-}"
+  spotlight_notes="${TOKENBAR_SPOTLIGHT_NOTES:-}"
+  spotlight_insights="${TOKENBAR_SPOTLIGHT_INSIGHTS:-}"
+  spotlight_struggles="${TOKENBAR_SPOTLIGHT_STRUGGLES:-}"
+  spotlight_features="${TOKENBAR_SPOTLIGHT_FEATURES:-}"
+  spotlight_progress="${TOKENBAR_SPOTLIGHT_PROGRESS:-}"
   endpoint="${TOKENBAR_ACTION_URL:-${TOKENBAR_ACTION_ENDPOINT:-$site_url/api/actions}}"
+  action_write_token="${TOKENBAR_ACTION_WRITE_TOKEN:-}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -5776,19 +6236,57 @@ builder_identity_action() {
       --hide-region|--redact-region)
         redact_region="1"
         ;;
+      --spotlight-session|--session)
+        shift
+        spotlight_sessions="${spotlight_sessions}${spotlight_sessions:+,}${1:-}"
+        ;;
+      --spotlight-project)
+        shift
+        spotlight_projects="${spotlight_projects}${spotlight_projects:+,}${1:-}"
+        ;;
+      --spotlight-note)
+        shift
+        spotlight_notes="${spotlight_notes}${spotlight_notes:+|}${1:-}"
+        ;;
+      --spotlight-insight)
+        shift
+        spotlight_insights="${spotlight_insights}${spotlight_insights:+|}${1:-}"
+        ;;
+      --spotlight-struggle)
+        shift
+        spotlight_struggles="${spotlight_struggles}${spotlight_struggles:+|}${1:-}"
+        ;;
+      --spotlight-feature)
+        shift
+        spotlight_features="${spotlight_features}${spotlight_features:+|}${1:-}"
+        ;;
+      --spotlight-progress)
+        shift
+        spotlight_progress="${spotlight_progress}${spotlight_progress:+|}${1:-}"
+        ;;
       --help|-h)
         cat <<'EOF'
 Usage:
   tokenbar publish-proof [latest|/path/to/*.identity.json] [--public|--unlisted|--private] [--hide-owner] [--hide-tokens] [--hide-sessions] [--hide-region]
+  tokenbar publish-proof SESSION_ID
+                         [--spotlight-session ID] [--spotlight-project NAME] [--spotlight-note TEXT]
+                         [--spotlight-insight TEXT] [--spotlight-struggle TEXT] [--spotlight-feature TEXT] [--spotlight-progress TEXT]
 
 Examples:
   tokenbar publish-proof
+  tokenbar publish-proof 019e7a08-b6d6-7863-be79-66b20c9353df
   tokenbar publish-proof --unlisted --hide-owner --hide-tokens --hide-sessions
+  tokenbar publish-proof --spotlight-session 019e... --spotlight-project "AI video editor" --spotlight-note "Built the trailer manifest"
+
+Spotlight anchors are public labels you choose to attach to the proof. TokenBar
+does not upload raw session transcripts, source code, private diffs, or secrets.
 EOF
         return 0
         ;;
       *)
-        if [[ -z "$identity_path" ]]; then
+        if looks_like_session_id "$1"; then
+          spotlight_sessions="${spotlight_sessions}${spotlight_sessions:+,}$1"
+        elif [[ -z "$identity_path" ]]; then
           identity_path="$1"
         else
           echo "Unknown publish-proof argument: $1" >&2
@@ -5828,10 +6326,11 @@ EOF
   fi
   rm -f "$verify_log"
 
-  TOKENBAR_ACTION_IDENTITY_PATH="$identity_path" TOKENBAR_ACTION_ENDPOINT="$endpoint" TOKENBAR_SHARE_VISIBILITY="$share_visibility" TOKENBAR_REDACT_OWNER="$redact_owner" TOKENBAR_REDACT_TOKENS="$redact_tokens" TOKENBAR_REDACT_SESSIONS="$redact_sessions" TOKENBAR_REDACT_REGION="$redact_region" TOKENBAR_PROOF_RECEIPT_DIR="$support_dir/proof-receipts" python3 - <<'PY'
+  TOKENBAR_ACTION_IDENTITY_PATH="$identity_path" TOKENBAR_ACTION_ENDPOINT="$endpoint" TOKENBAR_ACTION_WRITE_TOKEN="$action_write_token" TOKENBAR_ACTION_OWNER_KEY_PATH="$support_dir/proof-owner-key" TOKENBAR_SHARE_VISIBILITY="$share_visibility" TOKENBAR_REDACT_OWNER="$redact_owner" TOKENBAR_REDACT_TOKENS="$redact_tokens" TOKENBAR_REDACT_SESSIONS="$redact_sessions" TOKENBAR_REDACT_REGION="$redact_region" TOKENBAR_SPOTLIGHT_SESSIONS="$spotlight_sessions" TOKENBAR_SPOTLIGHT_PROJECTS="$spotlight_projects" TOKENBAR_SPOTLIGHT_NOTES="$spotlight_notes" TOKENBAR_SPOTLIGHT_INSIGHTS="$spotlight_insights" TOKENBAR_SPOTLIGHT_STRUGGLES="$spotlight_struggles" TOKENBAR_SPOTLIGHT_FEATURES="$spotlight_features" TOKENBAR_SPOTLIGHT_PROGRESS="$spotlight_progress" TOKENBAR_PROOF_RECEIPT_DIR="$support_dir/proof-receipts" python3 - <<'PY'
 import hashlib
 import json
 import os
+import secrets
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -5893,9 +6392,61 @@ allowed = {
     "hackathonSubmission",
     "submittedProject",
     "leaderboard",
+    "spotlightSources",
     "generatedAt",
 }
 identity = {key: value for key, value in identity.items() if key in allowed}
+
+def split_env_list(name, sep=",", limit=8, item_limit=120):
+    raw = os.environ.get(name) or ""
+    rows = []
+    for value in raw.split(sep):
+        text = value.replace("\x00", "").strip()
+        if text:
+            rows.append(text[:item_limit])
+        if len(rows) >= limit:
+            break
+    return rows
+
+spotlight_sessions = split_env_list("TOKENBAR_SPOTLIGHT_SESSIONS", ",", 8, 96)
+spotlight_projects = split_env_list("TOKENBAR_SPOTLIGHT_PROJECTS", ",", 8, 120)
+spotlight_notes = split_env_list("TOKENBAR_SPOTLIGHT_NOTES", "|", 8, 240)
+spotlight_insights = split_env_list("TOKENBAR_SPOTLIGHT_INSIGHTS", "|", 4, 240)
+spotlight_struggles = split_env_list("TOKENBAR_SPOTLIGHT_STRUGGLES", "|", 4, 240)
+spotlight_features = split_env_list("TOKENBAR_SPOTLIGHT_FEATURES", "|", 4, 240)
+spotlight_progress = split_env_list("TOKENBAR_SPOTLIGHT_PROGRESS", "|", 4, 240)
+if spotlight_sessions or spotlight_projects or spotlight_notes or spotlight_insights or spotlight_struggles or spotlight_features or spotlight_progress:
+    existing_spotlight = identity.get("spotlightSources") if isinstance(identity.get("spotlightSources"), dict) else {}
+    existing_story = existing_spotlight.get("story") if isinstance(existing_spotlight.get("story"), dict) else {}
+    existing_privacy = existing_spotlight.get("privacy") if isinstance(existing_spotlight.get("privacy"), dict) else {}
+    project_text = ", ".join(spotlight_projects[:2]) if spotlight_projects else "the selected work"
+    session_text = ", ".join(spotlight_sessions[:2]) if spotlight_sessions else "the selected session trail"
+    note_text = spotlight_notes[0] if spotlight_notes else ""
+    story = {
+        "insight": spotlight_insights[0] if spotlight_insights else existing_story.get("insight") or f"{project_text} is now tied to a visible proof trail instead of an unstructured chat history.",
+        "struggle": spotlight_struggles[0] if spotlight_struggles else existing_story.get("struggle") or "The hard part was compressing scattered agent work into public evidence without exposing private context.",
+        "features": spotlight_features[0] if spotlight_features else existing_story.get("features") or (note_text or f"Attached {session_text} as a public-safe anchor for the builder profile."),
+        "progress": spotlight_progress[0] if spotlight_progress else existing_story.get("progress") or f"TokenBar can now turn {project_text} into a proof card, profile surface, social feed item, and trailer storyboard.",
+    }
+    identity["spotlightSources"] = {
+        "schema": "tokenbar.spotlight_sources.v1",
+        "sessions": spotlight_sessions,
+        "projects": spotlight_projects,
+        "notes": spotlight_notes,
+        "story": story,
+        "privacy": {
+            "userProvidedOnly": existing_privacy.get("userProvidedOnly", True),
+            "rawTranscriptsIncluded": False,
+            "sourceCodeIncluded": False,
+            "sessionFilesRead": existing_privacy.get("sessionFilesRead", False),
+            "localInference": existing_privacy.get("localInference", False),
+            "storedRawExcerpts": False,
+            "maxSessionBytesRead": existing_privacy.get("maxSessionBytesRead", 0),
+            "matchedSessionFiles": existing_privacy.get("matchedSessionFiles", 0),
+        },
+    }
+    if existing_spotlight.get("storyBeats"):
+        identity["spotlightSources"]["storyBeats"] = existing_spotlight["storyBeats"]
 
 usage_index = Path.home() / "Library/Application Support/CodexLimitBar/usage-index.json"
 try:
@@ -5928,10 +6479,54 @@ payload = {
     "identity": identity,
     "shareControls": share_controls,
 }
+
+def load_or_create_owner_key():
+    override = (os.environ.get("TOKENBAR_ACTION_OWNER_KEY") or "").strip()
+    if override:
+        if not 32 <= len(override) <= 512:
+            raise SystemExit("TOKENBAR_ACTION_OWNER_KEY must be 32-512 characters.")
+        return override
+
+    owner_path = Path(os.environ["TOKENBAR_ACTION_OWNER_KEY_PATH"]).expanduser()
+    owner_path.parent.mkdir(parents=True, exist_ok=True)
+    if owner_path.exists():
+        key = owner_path.read_text(encoding="utf-8").strip()
+        if not 32 <= len(key) <= 512:
+            raise SystemExit(f"TokenBar owner key is invalid: {owner_path}")
+        try:
+            owner_path.chmod(0o600)
+        except OSError:
+            pass
+        return key
+
+    candidate = secrets.token_urlsafe(48)
+    try:
+        descriptor = os.open(owner_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        key = owner_path.read_text(encoding="utf-8").strip()
+        if not 32 <= len(key) <= 512:
+            raise SystemExit(f"TokenBar owner key is invalid: {owner_path}")
+        return key
+    try:
+        os.write(descriptor, (candidate + "\n").encode("utf-8"))
+    finally:
+        os.close(descriptor)
+    return candidate
+
+owner_key = load_or_create_owner_key()
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "User-Agent": "TokenBar CLI",
+    "X-TokenBar-Owner-Key": owner_key,
+}
+owner_token = os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN", "").strip()
+if owner_token:
+    headers["Authorization"] = f"Bearer {owner_token}"
 request = urllib.request.Request(
     endpoint,
     data=json.dumps(payload).encode("utf-8"),
-    headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "TokenBar CLI"},
+    headers=headers,
     method="POST",
 )
 
@@ -5993,6 +6588,7 @@ if receipt_dir:
             "socialFeed": surface_url("socialFeed", result.get("socialUrl") or proof.get("socialUrl")),
             "rankings": surface_url("rankings", result.get("rankingsUrl") or proof.get("rankingsUrl")),
             "loopRankings": surface_url("loopRankings", result.get("loopRankingsUrl") or proof.get("loopRankingsUrl")),
+            "identityTrailer": surface_url("identityTrailer", result.get("trailerUrl") or proof.get("trailerUrl")),
         }
     token = str(proof.get("token") or "").strip()
     run_id = str(data.get("runId") or "").strip()
@@ -6016,6 +6612,8 @@ if receipt_dir:
         "proofScore": proof.get("proofScore", 0),
         "loopMaturity": proof.get("loopMaturity", 0),
         "shareMode": share_mode,
+        "ownerBound": True,
+        "revoked": False,
         "redactions": redactions,
         "surfaces": {key: value for key, value in surfaces.items() if value},
         "shareReceipt": share_receipt,
@@ -6054,8 +6652,10 @@ else:
     print(f"  For You feed: {surface_url('socialFeed', result.get('socialUrl') or proof.get('socialUrl'))}")
     print(f"  Leaderboards: {surface_url('rankings', result.get('rankingsUrl') or proof.get('rankingsUrl'))}")
     print(f"  Loop rankings: {surface_url('loopRankings', result.get('loopRankingsUrl') or proof.get('loopRankingsUrl'))}")
+    print(f"  Identity trailer: {surface_url('identityTrailer', result.get('trailerUrl') or proof.get('trailerUrl'))}")
     print(f"Proof card: {surface_url('proofCard', result.get('proofCardUrl') or proof.get('proofCardUrl'))}")
     print(f"Profile link: {surface_url('publicProfile', result.get('profileUrl') or proof.get('profileUrl'))}")
+    print(f"Trailer link: {surface_url('identityTrailer', result.get('trailerUrl') or proof.get('trailerUrl'))}")
 print()
 print("Public proof summary:")
 print(f"  Identity: {proof.get('title') or 'Builder Identity'}")
@@ -6090,6 +6690,146 @@ if receipt_path:
 PY
 }
 
+revoke_proof() {
+  local selector endpoint action_write_token
+  selector="${1:-latest}"
+  endpoint="${TOKENBAR_ACTION_URL:-${TOKENBAR_ACTION_ENDPOINT:-$site_url/api/actions}}"
+  action_write_token="${TOKENBAR_ACTION_WRITE_TOKEN:-}"
+
+  case "$selector" in
+    --help|-h|help)
+      cat <<'EOF'
+Usage:
+  tokenbar revoke latest
+  tokenbar revoke TBAR-TOKEN
+
+Removes the proof card, public profile, For You entry, and rankings entry tied
+to a proof you published from this device. Your private identity JSON, HTML,
+PDF, Skill.md, and local usage history are kept.
+EOF
+      return 0
+      ;;
+    latest|TBAR-*) ;;
+    *)
+      echo "Expected 'latest' or a TBAR proof token." >&2
+      return 2
+      ;;
+  esac
+
+  TOKENBAR_REVOKE_SELECTOR="$selector" TOKENBAR_ACTION_ENDPOINT="$endpoint" TOKENBAR_ACTION_WRITE_TOKEN="$action_write_token" TOKENBAR_ACTION_OWNER_KEY_PATH="$support_dir/proof-owner-key" TOKENBAR_PROOF_RECEIPT_DIR="$support_dir/proof-receipts" python3 - <<'PY'
+import json
+import os
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlsplit
+
+selector = os.environ.get("TOKENBAR_REVOKE_SELECTOR") or "latest"
+receipt_dir = Path(os.environ["TOKENBAR_PROOF_RECEIPT_DIR"]).expanduser()
+
+def load_receipt(path):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(data, dict) or data.get("schema") != "tokenbar.local_proof_receipt.v1":
+        return None
+    return data
+
+if selector.startswith("TBAR-"):
+    receipt_path = receipt_dir / f"{selector}.json"
+    receipt = load_receipt(receipt_path)
+    if receipt is None:
+        raise SystemExit("No local ownership receipt exists for that token. Only its publishing device can revoke it.")
+else:
+    candidates = []
+    for path in receipt_dir.glob("*.json"):
+        receipt = load_receipt(path)
+        if not receipt or receipt.get("revoked") or receipt.get("shareMode") == "private":
+            continue
+        token = str(receipt.get("token") or "")
+        if not token.startswith("TBAR-"):
+            continue
+        surfaces = receipt.get("surfaces") if isinstance(receipt.get("surfaces"), dict) else {}
+        if not (surfaces.get("proofCard") or surfaces.get("publicProfile")):
+            continue
+        candidates.append((path.stat().st_mtime, path, receipt))
+    if not candidates:
+        raise SystemExit("No active public proof receipt found. Run: tokenbar prove")
+    _, receipt_path, receipt = max(candidates, key=lambda item: item[0])
+
+if receipt.get("revoked"):
+    raise SystemExit(f"Proof {receipt.get('token')} is already revoked.")
+if receipt.get("ownerBound") is not True:
+    raise SystemExit("This proof predates device ownership receipts and cannot be safely revoked from the CLI. Publish a new proof first.")
+
+owner_path = Path(os.environ["TOKENBAR_ACTION_OWNER_KEY_PATH"]).expanduser()
+try:
+    owner_key = owner_path.read_text(encoding="utf-8").strip()
+except Exception as exc:
+    raise SystemExit("TokenBar cannot find this device's private proof-owner key. Revocation was not attempted.") from exc
+if not 32 <= len(owner_key) <= 512:
+    raise SystemExit("TokenBar's private proof-owner key is invalid. Revocation was not attempted.")
+
+token = str(receipt.get("token") or "").strip()
+endpoint = os.environ.get("TOKENBAR_ACTION_ENDPOINT") or ""
+surfaces = receipt.get("surfaces") if isinstance(receipt.get("surfaces"), dict) else {}
+surface_url = surfaces.get("proofCard") or surfaces.get("publicProfile") or ""
+if surface_url:
+    parsed = urlsplit(surface_url)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        endpoint = f"{parsed.scheme}://{parsed.netloc}/api/actions"
+
+payload = {"action": "builder_identity.revoke.v1", "token": token}
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "User-Agent": "TokenBar CLI",
+    "X-TokenBar-Owner-Key": owner_key,
+}
+owner_token = (os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN") or "").strip()
+if owner_token:
+    headers["Authorization"] = f"Bearer {owner_token}"
+request = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+try:
+    with urllib.request.urlopen(request, timeout=30) as response:
+        result = json.loads(response.read().decode("utf-8"))
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode("utf-8", "replace")
+    raise SystemExit(f"Proof revocation failed: HTTP {exc.code} {body}") from exc
+except Exception as exc:
+    raise SystemExit(f"Proof revocation failed: {exc}") from exc
+if not result.get("ok"):
+    raise SystemExit(f"Proof revocation failed: {result}")
+
+revoked_at = datetime.now(timezone.utc).isoformat()
+for path in receipt_dir.glob("*.json"):
+    candidate = load_receipt(path)
+    if not candidate or candidate.get("token") != token:
+        continue
+    candidate["revoked"] = True
+    candidate["revokedAt"] = revoked_at
+    candidate["surfaces"] = {}
+    candidate["shareCopy"] = "This TokenBar public proof was revoked by its owner. The private local report was kept."
+    candidate["revocation"] = {
+        "serverConfirmed": True,
+        "publicSurfacesRemoved": bool(result.get("publicSurfacesRemoved")),
+        "localArtifactsDeleted": False,
+        "runId": result.get("runId"),
+    }
+    path.write_text(json.dumps(candidate, indent=2, sort_keys=True), encoding="utf-8")
+
+print("TokenBar proof revoked")
+print(f"  Token: {token}")
+if result.get("publicSurfacesRemoved"):
+    print("  Public proof, profile, feed, and rankings: removed")
+else:
+    print("  This device's proof: removed; the same safe token remains published by another owner")
+print("  Private identity, reports, and usage history: kept")
+PY
+}
+
 proof_latest() {
   local json_output="0"
   local public_output="0"
@@ -6106,6 +6846,7 @@ proof_latest() {
 Usage:
   tokenbar proof latest [--json]
   tokenbar proof latest --public
+  tokenbar share latest
 
 Print the latest safe proof token, share links, privacy receipt, and share copy
 without rerunning local analysis or uploading anything.
@@ -6140,25 +6881,22 @@ def load_receipt(candidate):
         return None
     return data
 
-if want_public:
-    receipt_dir = Path(os.environ.get("TOKENBAR_PROOF_RECEIPT_DIR") or path.parent).expanduser()
-    candidates = []
-    for candidate in receipt_dir.glob("*.json"):
-        data = load_receipt(candidate)
-        if not data or data.get("shareMode") == "private":
-            continue
-        surfaces = data.get("surfaces") if isinstance(data.get("surfaces"), dict) else {}
-        if surfaces.get("proofCard") or surfaces.get("publicProfile"):
-            candidates.append((candidate.stat().st_mtime, candidate, data))
-    if not candidates:
-        raise SystemExit("No shareable local proof receipt found. Run: tokenbar prove")
-    _, path, receipt = max(candidates, key=lambda item: item[0])
-else:
-    if not path.exists():
-        raise SystemExit("No local proof receipt found. Run: tokenbar prove")
-    receipt = load_receipt(path)
-    if receipt is None:
-        raise SystemExit(f"Local proof receipt is unreadable: {path}")
+receipt_dir = Path(os.environ.get("TOKENBAR_PROOF_RECEIPT_DIR") or path.parent).expanduser()
+candidates = []
+for candidate in receipt_dir.glob("*.json"):
+    data = load_receipt(candidate)
+    if not data or data.get("revoked"):
+        continue
+    if want_public and data.get("shareMode") == "private":
+        continue
+    surfaces = data.get("surfaces") if isinstance(data.get("surfaces"), dict) else {}
+    if want_public and not (surfaces.get("proofCard") or surfaces.get("publicProfile")):
+        continue
+    candidates.append((candidate.stat().st_mtime, candidate, data))
+if not candidates:
+    label = "shareable " if want_public else "active "
+    raise SystemExit(f"No {label}local proof receipt found. Run: tokenbar prove")
+_, path, receipt = max(candidates, key=lambda item: item[0])
 
 if os.environ.get("TOKENBAR_PROOF_RECEIPT_JSON") == "1":
     print(json.dumps(receipt, indent=2, sort_keys=True))
@@ -6227,6 +6965,160 @@ print(f"Receipt file: {path}")
 PY
 }
 
+open_proof_surface() {
+  local surface selector print_only surface_url label
+  surface="${1:-profile}"
+  shift || true
+  selector="latest"
+  print_only="${TOKENBAR_NO_OPEN:-0}"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      latest|--latest)
+        selector="latest"
+        ;;
+      TBAR-*)
+        selector="$1"
+        ;;
+      --print|--no-open)
+        print_only="1"
+        ;;
+      --help|-h)
+        cat <<'EOF'
+Usage:
+  tokenbar profile latest [--print]
+  tokenbar social latest [--print]
+  tokenbar rankings latest [--print]
+  tokenbar open-proof [profile|social|rankings|loop|card|trailer] [latest|TBAR-TOKEN] [--print]
+
+Reads the newest shareable local proof receipt and opens the exact safe surface
+returned by the proof action. It does not rerun analysis or publish anything.
+EOF
+        return 0
+        ;;
+      *)
+        echo "Unknown proof surface argument: $1" >&2
+        return 2
+        ;;
+    esac
+    shift
+  done
+
+  case "$surface" in
+    profile|public-profile) label="public profile" ;;
+    social|feed|for-you) label="For You feed" ;;
+    rankings|leaderboard|leaderboards) label="leaderboards" ;;
+    loop|loop-rankings) label="loop rankings" ;;
+    card|proof|proof-card) label="proof card" ;;
+    trailer|video) label="identity trailer" ;;
+    *)
+      echo "Unknown proof surface: $surface" >&2
+      return 2
+      ;;
+  esac
+
+  surface_url="$(TOKENBAR_PROOF_RECEIPT_DIR="$support_dir/proof-receipts" TOKENBAR_PROOF_SURFACE="$surface" TOKENBAR_PROOF_SELECTOR="$selector" TOKENBAR_PROOF_SITE_URL="$site_url" python3 - <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+from urllib.parse import quote
+
+surface = os.environ.get("TOKENBAR_PROOF_SURFACE", "profile")
+selector = os.environ.get("TOKENBAR_PROOF_SELECTOR", "latest")
+site_url = os.environ.get("TOKENBAR_PROOF_SITE_URL", "").rstrip("/")
+receipt_dir = Path(os.environ["TOKENBAR_PROOF_RECEIPT_DIR"]).expanduser()
+
+aliases = {
+    "public-profile": "profile",
+    "feed": "social",
+    "for-you": "social",
+    "leaderboard": "rankings",
+    "leaderboards": "rankings",
+    "loop-rankings": "loop",
+    "proof": "card",
+    "proof-card": "card",
+    "video": "trailer",
+}
+surface = aliases.get(surface, surface)
+surface_keys = {
+    "profile": "publicProfile",
+    "social": "socialFeed",
+    "rankings": "rankings",
+    "loop": "loopRankings",
+    "card": "proofCard",
+    "trailer": "identityTrailer",
+}
+fallback_paths = {
+    "profile": "/profile",
+    "social": "/social",
+    "rankings": "/rankings",
+    "loop": "/rankings",
+    "card": "/api/actions",
+    "trailer": "/api/actions",
+}
+
+def fallback_url(token):
+    url = f"{site_url}{fallback_paths[surface]}?token={quote(token)}"
+    if surface == "loop":
+        url += "#loop"
+    elif surface == "trailer":
+        url += "&view=trailer"
+    return url
+
+if selector.startswith("TBAR-"):
+    explicit_receipt = receipt_dir / f"{selector}.json"
+    if explicit_receipt.is_file():
+        try:
+            explicit_data = json.loads(explicit_receipt.read_text(encoding="utf-8"))
+        except Exception:
+            explicit_data = {}
+        if explicit_data.get("revoked"):
+            sys.stderr.write(f"Proof {selector} was revoked by this device.\n")
+            raise SystemExit(1)
+    print(fallback_url(selector))
+    raise SystemExit(0)
+
+candidates = []
+seen = set()
+for candidate in [receipt_dir / "latest.json", *sorted(receipt_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)]:
+    if candidate in seen or not candidate.is_file():
+        continue
+    seen.add(candidate)
+    try:
+        receipt = json.loads(candidate.read_text(encoding="utf-8"))
+    except Exception:
+        continue
+    if not isinstance(receipt, dict) or receipt.get("schema") != "tokenbar.local_proof_receipt.v1":
+        continue
+    if receipt.get("revoked") or receipt.get("shareMode") == "private":
+        continue
+    candidates.append(receipt)
+
+for receipt in candidates:
+    surfaces = receipt.get("surfaces") if isinstance(receipt.get("surfaces"), dict) else {}
+    url = surfaces.get(surface_keys[surface])
+    if url:
+        print(url)
+        raise SystemExit(0)
+    token = str(receipt.get("token") or "")
+    if token.startswith("TBAR-"):
+        print(fallback_url(token))
+        raise SystemExit(0)
+
+sys.stderr.write("No shareable local proof receipt found. Run: tokenbar prove\n")
+raise SystemExit(1)
+PY
+)" || return $?
+
+  echo "TokenBar $label"
+  echo "$surface_url"
+  echo "Receipt-only handoff: no analysis rerun and no new upload."
+  if [[ "$print_only" != "1" ]] && command -v open >/dev/null 2>&1; then
+    open "$surface_url" >/dev/null 2>&1 || true
+  fi
+}
+
 publish_profile() {
   local output_dir endpoint identity_path previous_endpoint
   local args=()
@@ -6268,8 +7160,198 @@ publish_profile() {
   fi
 }
 
+patch_identity_spotlight() {
+  local identity_path
+  identity_path="${1:-}"
+  if [[ -z "$identity_path" || ! -f "$identity_path" ]]; then
+    return 0
+  fi
+
+  TOKENBAR_ACTION_IDENTITY_PATH="$identity_path" \
+  TOKENBAR_SPOTLIGHT_SESSIONS="${TOKENBAR_SPOTLIGHT_SESSIONS:-}" \
+  TOKENBAR_SPOTLIGHT_PROJECTS="${TOKENBAR_SPOTLIGHT_PROJECTS:-}" \
+  TOKENBAR_SPOTLIGHT_NOTES="${TOKENBAR_SPOTLIGHT_NOTES:-}" \
+  TOKENBAR_SPOTLIGHT_INSIGHTS="${TOKENBAR_SPOTLIGHT_INSIGHTS:-}" \
+  TOKENBAR_SPOTLIGHT_STRUGGLES="${TOKENBAR_SPOTLIGHT_STRUGGLES:-}" \
+  TOKENBAR_SPOTLIGHT_FEATURES="${TOKENBAR_SPOTLIGHT_FEATURES:-}" \
+  TOKENBAR_SPOTLIGHT_PROGRESS="${TOKENBAR_SPOTLIGHT_PROGRESS:-}" \
+  python3 - <<'PY'
+import json
+import os
+import re
+from pathlib import Path
+
+path = Path(os.environ["TOKENBAR_ACTION_IDENTITY_PATH"]).expanduser()
+try:
+    identity = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+
+def split_env_list(name, sep=",", limit=8, item_limit=120):
+    raw = os.environ.get(name) or ""
+    rows = []
+    for value in raw.split(sep):
+        text = value.replace("\x00", "").strip()
+        text = re.sub(r"[\r\n\t]+", " ", text)
+        if text:
+            rows.append(text[:item_limit])
+        if len(rows) >= limit:
+            break
+    return rows
+
+def infer_local_spotlight_story(sessions, projects):
+    if not sessions:
+        return {}
+    root = Path.home() / ".codex" / "sessions"
+    if not root.exists():
+        return {}
+
+    wanted = [str(item).strip() for item in sessions if str(item).strip()]
+    matches = []
+    try:
+        candidates = sorted(root.rglob("*"), key=lambda item: item.stat().st_mtime, reverse=True)
+    except Exception:
+        return {}
+
+    for candidate in candidates[:300]:
+        if not candidate.is_file():
+            continue
+        name = candidate.name
+        if not any(session_id in name for session_id in wanted):
+            continue
+        matches.append(candidate)
+        if len(matches) >= 3:
+            break
+
+    if not matches:
+        for candidate in candidates[:80]:
+            if not candidate.is_file():
+                continue
+            try:
+                sample = candidate.read_text(encoding="utf-8", errors="replace")[:4096]
+            except Exception:
+                continue
+            if any(session_id in sample for session_id in wanted):
+                matches.append(candidate)
+                break
+
+    if not matches:
+        return {}
+
+    max_bytes = 48000
+    chunks = []
+    bytes_read = 0
+    for match in matches:
+        if bytes_read >= max_bytes:
+            break
+        try:
+            text = match.read_text(encoding="utf-8", errors="replace")[: max_bytes - bytes_read]
+        except Exception:
+            continue
+        chunks.append(text)
+        bytes_read += len(text.encode("utf-8", errors="ignore"))
+
+    lower = "\n".join(chunks).lower()
+    project_text = ", ".join(projects[:2]) if projects else "the selected work"
+    has_video = any(word in lower for word in ("video", "trailer", "hyperframes", "motion", "remotion"))
+    has_privacy = any(word in lower for word in ("privacy", "private", "raw transcript", "raw prompts", "leak"))
+    has_feature = any(word in lower for word in ("feature", "implemented", "added", "proof card", "profile", "feed"))
+    has_progress = any(word in lower for word in ("progress", "verified", "smoke", "passed", "shipped", "built"))
+
+    if has_video:
+        insight = f"The selected {project_text} thread reads like a video-agent research session: the builder turned messy exploration into a reusable identity trailer brief."
+    else:
+        insight = f"The selected {project_text} thread shows the builder compressing scattered agent work into a public-safe proof story."
+    if has_privacy:
+        struggle = "The hard part was keeping the story specific without leaking private prompts, raw session text, or source code."
+    else:
+        struggle = "The hard part was separating useful builder evidence from noisy chat history without making the public profile feel generic."
+    if has_feature:
+        features = "New feature evidence: proof cards now carry session anchors, project anchors, and a 30-second trailer surface."
+    else:
+        features = "New feature evidence: selected session and project anchors can now travel with the builder identity."
+    if has_progress:
+        progress = "Progress: the safe local summary now appears in proof, profile, feed, and trailer views while the raw thread stays private."
+    else:
+        progress = "Progress: TokenBar can now attach the selected session to a readable builder story instead of a bare ID."
+
+    return {
+        "story": {
+            "insight": insight,
+            "struggle": struggle,
+            "features": features,
+            "progress": progress,
+        },
+        "privacy": {
+            "userProvidedOnly": False,
+            "rawTranscriptsIncluded": False,
+            "sourceCodeIncluded": False,
+            "sessionFilesRead": True,
+            "localInference": True,
+            "storedRawExcerpts": False,
+            "maxSessionBytesRead": max_bytes,
+            "matchedSessionFiles": len(matches),
+        },
+        "storyBeats": [
+            {
+                "label": "Selected session",
+                "text": sessions[0][:96],
+            },
+            {
+                "label": "Local inference",
+                "text": "TokenBar read a bounded local session sample and stored only this safe summary.",
+            },
+        ],
+    }
+
+sessions = split_env_list("TOKENBAR_SPOTLIGHT_SESSIONS", ",", 8, 96)
+projects = split_env_list("TOKENBAR_SPOTLIGHT_PROJECTS", ",", 8, 120)
+notes = split_env_list("TOKENBAR_SPOTLIGHT_NOTES", "|", 8, 240)
+insights = split_env_list("TOKENBAR_SPOTLIGHT_INSIGHTS", "|", 4, 240)
+struggles = split_env_list("TOKENBAR_SPOTLIGHT_STRUGGLES", "|", 4, 240)
+features = split_env_list("TOKENBAR_SPOTLIGHT_FEATURES", "|", 4, 240)
+progress = split_env_list("TOKENBAR_SPOTLIGHT_PROGRESS", "|", 4, 240)
+if not (sessions or projects or notes or insights or struggles or features or progress):
+    raise SystemExit(0)
+
+project_text = ", ".join(projects[:2]) if projects else "the selected work"
+session_text = ", ".join(sessions[:2]) if sessions else "the selected session trail"
+note_text = notes[0] if notes else ""
+inferred = infer_local_spotlight_story(sessions, projects) if not (insights or struggles or features or progress) else {}
+inferred_story = inferred.get("story") if isinstance(inferred.get("story"), dict) else {}
+inferred_privacy = inferred.get("privacy") if isinstance(inferred.get("privacy"), dict) else {}
+story = {
+    "insight": insights[0] if insights else inferred_story.get("insight") or f"{project_text} is now tied to a visible proof trail instead of an unstructured chat history.",
+    "struggle": struggles[0] if struggles else inferred_story.get("struggle") or "The hard part was compressing scattered agent work into public evidence without exposing private context.",
+    "features": features[0] if features else inferred_story.get("features") or (note_text or f"Attached {session_text} as a public-safe anchor for the builder profile."),
+    "progress": progress[0] if progress else inferred_story.get("progress") or f"TokenBar can now turn {project_text} into a proof card, profile surface, social feed item, and trailer storyboard.",
+}
+identity["spotlightSources"] = {
+    "schema": "tokenbar.spotlight_sources.v1",
+    "sessions": sessions,
+    "projects": projects,
+    "notes": notes,
+    "story": story,
+    "privacy": {
+        "userProvidedOnly": inferred_privacy.get("userProvidedOnly", True),
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "sessionFilesRead": inferred_privacy.get("sessionFilesRead", False),
+        "localInference": inferred_privacy.get("localInference", False),
+        "storedRawExcerpts": False,
+        "maxSessionBytesRead": inferred_privacy.get("maxSessionBytesRead", 0),
+        "matchedSessionFiles": inferred_privacy.get("matchedSessionFiles", 0),
+    },
+}
+if inferred.get("storyBeats"):
+    identity["spotlightSources"]["storyBeats"] = inferred["storyBeats"]
+path.write_text(json.dumps(identity, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+}
+
 claim_profile() {
   local output_dir endpoint action_endpoint identity_path publish_now legacy_share previous_endpoint previous_action_endpoint
+  local spotlight_sessions spotlight_projects spotlight_notes spotlight_insights spotlight_struggles spotlight_features spotlight_progress
   local args=()
   local publish_args=()
   output_dir="$support_dir/profiles"
@@ -6277,6 +7359,13 @@ claim_profile() {
   action_endpoint="${TOKENBAR_ACTION_URL:-${TOKENBAR_ACTION_ENDPOINT:-$site_url/api/actions}}"
   publish_now=false
   legacy_share=false
+  spotlight_sessions="${TOKENBAR_SPOTLIGHT_SESSIONS:-}"
+  spotlight_projects="${TOKENBAR_SPOTLIGHT_PROJECTS:-}"
+  spotlight_notes="${TOKENBAR_SPOTLIGHT_NOTES:-}"
+  spotlight_insights="${TOKENBAR_SPOTLIGHT_INSIGHTS:-}"
+  spotlight_struggles="${TOKENBAR_SPOTLIGHT_STRUGGLES:-}"
+  spotlight_features="${TOKENBAR_SPOTLIGHT_FEATURES:-}"
+  spotlight_progress="${TOKENBAR_SPOTLIGHT_PROGRESS:-}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -6284,6 +7373,9 @@ claim_profile() {
         cat <<'EOF'
 Usage:
   tokenbar claim [--pdf] [--days N] [--focus TEXT] [--publish-proof]
+  tokenbar claim SESSION_ID
+                 [--spotlight-session ID] [--spotlight-project NAME] [--spotlight-note TEXT]
+                 [--spotlight-insight TEXT] [--spotlight-struggle TEXT] [--spotlight-feature TEXT] [--spotlight-progress TEXT]
   tokenbar prove
 
 Creates a private Builder Identity claim on this Mac. Nothing public is uploaded
@@ -6295,6 +7387,12 @@ What you get:
   - Skill.md profile
   - Share manifest
   - Optional PDF with --pdf
+  - Optional public spotlight anchors when you publish proof
+
+Shortcut:
+  tokenbar claim 019e7a08-b6d6-7863-be79-66b20c9353df
+  tokenbar prove 019e7a08-b6d6-7863-be79-66b20c9353df
+  These attach that Codex/ChatGPT session id as the story anchor.
 
 Privacy:
   Raw prompts, transcripts, source code, credentials, private diffs, and env
@@ -6308,6 +7406,48 @@ EOF
         ;;
       --public|--unlisted|--private|--hide-owner|--hide-tokens|--hide-sessions|--hide-region)
         publish_args+=("$1")
+        ;;
+      --spotlight-session|--session)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_sessions="${spotlight_sessions}${spotlight_sessions:+,}${1:-}"
+        ;;
+      --spotlight-project)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_projects="${spotlight_projects}${spotlight_projects:+,}${1:-}"
+        ;;
+      --spotlight-note)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_notes="${spotlight_notes}${spotlight_notes:+|}${1:-}"
+        ;;
+      --spotlight-insight)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_insights="${spotlight_insights}${spotlight_insights:+|}${1:-}"
+        ;;
+      --spotlight-struggle)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_struggles="${spotlight_struggles}${spotlight_struggles:+|}${1:-}"
+        ;;
+      --spotlight-feature)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_features="${spotlight_features}${spotlight_features:+|}${1:-}"
+        ;;
+      --spotlight-progress)
+        publish_args+=("$1")
+        shift
+        publish_args+=("${1:-}")
+        spotlight_progress="${spotlight_progress}${spotlight_progress:+|}${1:-}"
         ;;
       --legacy-share|--share|--upload)
         legacy_share=true
@@ -6327,7 +7467,12 @@ EOF
         action_endpoint="${1:-$action_endpoint}"
         ;;
       *)
-        args+=("$1")
+        if looks_like_session_id "$1"; then
+          publish_args+=("--spotlight-session" "$1")
+          spotlight_sessions="${spotlight_sessions}${spotlight_sessions:+,}$1"
+        else
+          args+=("$1")
+        fi
         ;;
     esac
     shift || true
@@ -6339,6 +7484,15 @@ EOF
     echo "Generated profile, but could not locate the identity JSON in $output_dir." >&2
     return 1
   fi
+
+  TOKENBAR_SPOTLIGHT_SESSIONS="$spotlight_sessions" \
+  TOKENBAR_SPOTLIGHT_PROJECTS="$spotlight_projects" \
+  TOKENBAR_SPOTLIGHT_NOTES="$spotlight_notes" \
+  TOKENBAR_SPOTLIGHT_INSIGHTS="$spotlight_insights" \
+  TOKENBAR_SPOTLIGHT_STRUGGLES="$spotlight_struggles" \
+  TOKENBAR_SPOTLIGHT_FEATURES="$spotlight_features" \
+  TOKENBAR_SPOTLIGHT_PROGRESS="$spotlight_progress" \
+  patch_identity_spotlight "$identity_path"
 
   echo
   echo "Private builder claim is ready."
@@ -6352,6 +7506,9 @@ EOF
   echo "When you choose to share safe proof only:"
   echo "  tokenbar publish-proof"
   echo "  This returns a TBAR token plus proof/profile/social/rankings links."
+  if [[ -n "$spotlight_sessions$spotlight_projects$spotlight_notes$spotlight_insights$spotlight_struggles$spotlight_features$spotlight_progress" ]]; then
+    echo "  Your spotlight story is already attached to the local identity JSON."
+  fi
   echo
   TOKENBAR_CLAIM_PROFILE_ENDPOINT="$endpoint" TOKENBAR_CLAIM_ACTION_ENDPOINT="$action_endpoint" python3 - <<'PY'
 import os
@@ -6405,6 +7562,7 @@ PY
 submit_profile() {
   local project event track repo demo tagline visibility
   local redaction_args=()
+  local spotlight_args=()
   project="${TOKENBAR_PROJECT_TITLE:-}"
   event="${TOKENBAR_HACKATHON_EVENT:-OpenAI Build Week}"
   track="${TOKENBAR_PROJECT_TRACK:-Apps for Your Life}"
@@ -6445,14 +7603,21 @@ submit_profile() {
       --hide-owner|--hide-tokens|--hide-sessions|--hide-region)
         redaction_args+=("$1")
         ;;
+      --spotlight-session|--session|--spotlight-project|--spotlight-note|--spotlight-insight|--spotlight-struggle|--spotlight-feature|--spotlight-progress)
+        spotlight_args+=("$1")
+        shift
+        spotlight_args+=("${1:-}")
+        ;;
       --help|-h)
         cat <<'EOF'
 Usage:
   tokenbar submit [--project NAME] [--event EVENT] [--track TRACK] [--repo URL] [--demo URL] [--tagline TEXT] [--public|--unlisted|--private]
+                  [--spotlight-session ID] [--spotlight-project NAME] [--spotlight-note TEXT]
 
 Examples:
   tokenbar submit --project "My Codex App" --repo https://github.com/me/app --demo https://app.example.com
   tokenbar submit --event "OpenAI Build Week" --track "Apps for Your Life" --unlisted
+  tokenbar submit --project "TokenBar" --spotlight-session 019e... --spotlight-note "Converted usage logs into a proof story"
 
 What happens:
   - TokenBar analyzes local coding-agent evidence on this machine.
@@ -6499,7 +7664,7 @@ EOF
   export TOKENBAR_PROJECT_TRACK="$track"
   export TOKENBAR_PROJECT_REPO="$repo"
   export TOKENBAR_PROJECT_DEMO="$demo"
-  claim_profile --publish-proof "$visibility" "${redaction_args[@]}"
+  claim_profile --publish-proof "$visibility" "${redaction_args[@]}" "${spotlight_args[@]}"
 }
 
 identity_card() {
@@ -7223,6 +8388,7 @@ EOF
   fi
 
   TOKENBAR_VERIFY_INPUT_PATH="$input_path" python3 - <<'PY'
+import hashlib
 import json
 import re
 import sys
@@ -7253,6 +8419,60 @@ if input_path.suffix.lower() == ".zip":
     try:
         with zipfile.ZipFile(input_path) as zf:
             names = set(zf.namelist())
+            if "tokenbar-bundle-manifest.json" in names and "tokenbar-proof-manifest.json" not in names:
+                manifest = json.loads(zf.read("tokenbar-bundle-manifest.json").decode("utf-8"))
+                if manifest.get("schema") != "tokenbar.portable-bundle.v1":
+                    errors.append("bundle schema is not tokenbar.portable-bundle.v1")
+                privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+                if privacy.get("rawTranscriptsIncluded") is not False:
+                    errors.append("bundle privacy.rawTranscriptsIncluded must be false")
+                if privacy.get("sourceCodeIncluded") is not False:
+                    errors.append("bundle privacy.sourceCodeIncluded must be false")
+                if privacy.get("localPathsIncluded") is not False:
+                    errors.append("bundle privacy.localPathsIncluded must be false")
+
+                bundle_files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
+                identity_name = bundle_files.get("identityJson")
+                if not isinstance(identity_name, str) or identity_name not in names:
+                    errors.append("bundle is missing its sanitized identity JSON")
+                    identity = {}
+                else:
+                    identity = json.loads(zf.read(identity_name).decode("utf-8"))
+                    identity_privacy = identity.get("privacy") if isinstance(identity.get("privacy"), dict) else {}
+                    if identity.get("schema") != "tokenbar.identity.v1":
+                        errors.append("bundle identity schema is not tokenbar.identity.v1")
+                    if identity_privacy.get("rawTranscriptsIncluded") is not False:
+                        errors.append("bundle identity includes raw transcripts")
+                    if identity_privacy.get("sourceCodeIncluded") is not False:
+                        errors.append("bundle identity includes source code")
+
+                local_path_pattern = re.compile(r"(?:/Users/|/home/|/private/var/|/var/folders/|/tmp/)")
+                secret_patterns = [
+                    r"(?<!\w)(?:sk|rk|whsec|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_=-]{12,}",
+                    r"(?<!\w)[A-Fa-f0-9]{48,}(?!\w)",
+                ]
+                for name in names:
+                    if not name.endswith((".json", ".html", ".md", ".txt")):
+                        continue
+                    text_payload = zf.read(name).decode("utf-8", errors="ignore")
+                    if local_path_pattern.search(text_payload):
+                        errors.append(f"bundle leaks a local filesystem path: {name}")
+                    if any(re.search(pattern, text_payload) for pattern in secret_patterns):
+                        errors.append(f"bundle appears to contain a secret-like value: {name}")
+
+                print("TokenBar portable bundle verification")
+                print(f"Artifact: {input_path}")
+                print(f"Schema: {manifest.get('schema') or 'missing'}")
+                print(f"Identity: {manifest.get('title') or 'missing'}")
+                print(f"Privacy: raw transcripts={privacy.get('rawTranscriptsIncluded')}; source code={privacy.get('sourceCodeIncluded')}; local paths={privacy.get('localPathsIncluded')}")
+                if errors:
+                    print("FAILED:")
+                    for item in errors:
+                        print(f"  - {item}")
+                    raise SystemExit(1)
+                print("PASS: portable bundle is safe to move between local tools. Public upload still requires explicit user action.")
+                raise SystemExit(0)
+
             if "tokenbar-proof-manifest.json" not in names:
                 errors.append("zip is missing tokenbar-proof-manifest.json")
                 manifest = {}
@@ -7269,9 +8489,47 @@ if input_path.suffix.lower() == ".zip":
             if privacy.get("shareRequiresUserAction") is not True:
                 warnings.append("proof shareRequiresUserAction is not explicitly true")
 
-            required_names = {"README.md", "local-rankings.txt", "compare-latest.txt", "timeline.html"}
+            required_names = {
+                "README.md",
+                "index.html",
+                "local-rankings.txt",
+                "compare-latest.txt",
+                "timeline.html",
+                "tokenbar-proof-verification.json",
+            }
             for name in sorted(required_names - names):
                 warnings.append(f"proof packet is missing {name}")
+
+            if "tokenbar-proof-verification.json" in names:
+                verification = json.loads(zf.read("tokenbar-proof-verification.json").decode("utf-8"))
+                if verification.get("schema") != "tokenbar.proof-verification.v1":
+                    errors.append("proof verification schema is not tokenbar.proof-verification.v1")
+                verified_files = verification.get("files") if isinstance(verification.get("files"), dict) else {}
+                if not verified_files:
+                    errors.append("proof verification file ledger is empty")
+                for name, expected in verified_files.items():
+                    if name not in names:
+                        errors.append(f"verified payload is missing: {name}")
+                        continue
+                    if not isinstance(expected, dict):
+                        errors.append(f"invalid verification entry: {name}")
+                        continue
+                    payload = zf.read(name)
+                    actual_hash = hashlib.sha256(payload).hexdigest()
+                    if expected.get("sha256") != actual_hash:
+                        errors.append(f"SHA-256 mismatch: {name}")
+                    if expected.get("bytes") != len(payload):
+                        errors.append(f"byte count mismatch: {name}")
+
+            text_names = [
+                name for name in names
+                if name.endswith((".json", ".html", ".md", ".txt"))
+            ]
+            local_path_pattern = re.compile(r"(?:/Users/|/home/|/private/var/|/var/folders/|/tmp/)")
+            for name in text_names:
+                text_payload = zf.read(name).decode("utf-8", errors="ignore")
+                if local_path_pattern.search(text_payload):
+                    errors.append(f"proof packet leaks a local filesystem path: {name}")
 
             identity_names = [name for name in names if name.startswith("latest/") and name.endswith(".identity.json")]
             if not identity_names:
@@ -7494,6 +8752,7 @@ EOF
   TOKENBAR_BUNDLE_INPUT_PATH="$input_path" TOKENBAR_BUNDLE_OUTPUT_PATH="$output_path" python3 - <<'PY'
 import json
 import os
+import re
 import time
 import zipfile
 from pathlib import Path
@@ -7517,14 +8776,64 @@ def sibling_files_from_identity(identity_path):
         "pdf": stem.with_suffix(".pdf"),
     }
 
+PUBLIC_IDENTITY_FIELDS = {
+    "schema", "generatedAt", "title", "subtitle", "primaryArchetype", "npcClass",
+    "identityLabel", "labelRationale", "archetypeDistribution", "modifierDistribution",
+    "stanceDistribution", "labelDistribution", "labelModel", "specificityScore",
+    "estimatedRarityPercent", "proofScore", "loopMaturity", "loopScore", "loopScale",
+    "dimensions", "signatureMoves", "curiousFacts", "growthEdge", "usage",
+    "sessionAnalysis", "shippingAnalysis", "providerAnalyses", "leaderboard",
+}
+BLOCKED_KEY_PARTS = (
+    "path", "transcript", "sourcecode", "source_code", "secret", "credential",
+    "rawcontent", "raw_content",
+)
+BLOCKED_KEYS = {
+    "email", "prompt", "prompts", "prompttext", "prompt_text", "promptcontent",
+    "prompt_content", "signaturephrases", "signature_phrases",
+}
+LOCAL_PATH_RE = re.compile(
+    r"(?:/Users/[^/\s]+|/home/[^/\s]+|/private/var|/var/folders|/tmp)(?:/[^\s\"']*)?"
+)
+SECRET_RE = re.compile(r"\b(?:sk|rk|whsec|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{8,}\b")
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+
+def sanitize_public(value, *, key="", depth=0):
+    if depth > 8:
+        return None
+    normalized = key.replace("-", "_").lower()
+    if normalized in BLOCKED_KEYS or any(part in normalized for part in BLOCKED_KEY_PARTS):
+        return None
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        text = LOCAL_PATH_RE.sub("[local path removed]", value.replace("\x00", ""))
+        text = SECRET_RE.sub("[secret removed]", text)
+        return EMAIL_RE.sub("[email removed]", text)[:1600]
+    if isinstance(value, list):
+        cleaned = [sanitize_public(item, depth=depth + 1) for item in value[:120]]
+        return [item for item in cleaned if item is not None]
+    if isinstance(value, dict):
+        cleaned = {}
+        for child_key, child_value in list(value.items())[:120]:
+            name = str(child_key)[:100]
+            safe_value = sanitize_public(child_value, key=name, depth=depth + 1)
+            if safe_value is not None:
+                cleaned[name] = safe_value
+        return cleaned
+    return str(value)[:1600]
+
 bundle_manifest = {
     "schema": "tokenbar.portable-bundle.v1",
     "createdAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-    "source": str(input_path),
+    "sourceArtifact": input_path.name,
     "files": {},
     "privacy": {
         "rawTranscriptsIncluded": False,
         "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "personalEmailsIncluded": False,
+        "secretsIncluded": False,
         "redactedExcerptsOnly": True,
     },
 }
@@ -7555,18 +8864,35 @@ if privacy.get("rawTranscriptsIncluded") or privacy.get("sourceCodeIncluded"):
     raise SystemExit("Refusing to bundle an identity file that claims to include raw transcripts or source code.")
 
 bundle_manifest["token"] = identity.get("token")
-bundle_manifest["title"] = identity.get("title")
-bundle_manifest["identityLabel"] = identity.get("identityLabel")
-bundle_manifest["labelRationale"] = identity.get("labelRationale")
+bundle_manifest["title"] = sanitize_public(identity.get("title"))
+bundle_manifest["identityLabel"] = sanitize_public(identity.get("identityLabel"))
+bundle_manifest["labelRationale"] = sanitize_public(identity.get("labelRationale"))
 bundle_manifest["privacy"].update({
     "rawTranscriptsIncluded": bool(privacy.get("rawTranscriptsIncluded")),
     "sourceCodeIncluded": bool(privacy.get("sourceCodeIncluded")),
     "redactedExcerptsOnly": bool(privacy.get("redactedExcerptsOnly", True)),
 })
 
+public_identity = {
+    key: sanitize_public(identity[key], key=key)
+    for key in PUBLIC_IDENTITY_FIELDS
+    if key in identity
+}
+public_identity["schema"] = "tokenbar.identity.v1"
+public_identity["privacy"] = {
+    "localFirst": True,
+    "rawTranscriptsIncluded": False,
+    "sourceCodeIncluded": False,
+    "localPathsIncluded": False,
+    "personalEmailsIncluded": False,
+    "secretsIncluded": False,
+    "shareRequiresUserAction": True,
+    "material": "generated identity fields and aggregate usage only",
+}
+
 existing = []
 for key, path in files.items():
-    if path and path.exists() and path.is_file():
+    if key != "manifest" and path and path.exists() and path.is_file():
         existing.append((key, path))
 
 if not existing:
@@ -7582,7 +8908,10 @@ output_path.parent.mkdir(parents=True, exist_ok=True)
 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     for key, path in existing:
         arcname = path.name
-        zf.write(path, arcname)
+        if key == "identityJson":
+            zf.writestr(arcname, json.dumps(public_identity, indent=2, sort_keys=True) + "\n")
+        else:
+            zf.write(path, arcname)
         bundle_manifest["files"][key] = arcname
     zf.writestr("tokenbar-bundle-manifest.json", json.dumps(bundle_manifest, indent=2, sort_keys=True) + "\n")
 
@@ -7591,7 +8920,7 @@ print("Included:")
 for key, path in existing:
     print(f"  {key}: {path.name}")
 print("  bundleManifest: tokenbar-bundle-manifest.json")
-print("Privacy: no raw transcripts or source code are included.")
+print("Privacy: no raw prompts, transcripts, source code, local paths, personal emails, credentials, or secrets are included.")
 PY
 }
 
@@ -7620,9 +8949,11 @@ identity_proof_packet() {
   done
 
   TOKENBAR_PROOF_DIR="$support_dir/profiles" TOKENBAR_PROOF_OUTPUT="$output_path" TOKENBAR_PROOF_LIMIT="$limit" python3 - <<'PY'
+import hashlib
 import html
 import json
 import os
+import re
 import tempfile
 import time
 import zipfile
@@ -7736,6 +9067,161 @@ if len(profiles) >= 2:
 def esc(value):
     return html.escape(str(value), quote=True)
 
+PUBLIC_IDENTITY_FIELDS = {
+    "schema",
+    "generatedAt",
+    "title",
+    "subtitle",
+    "primaryArchetype",
+    "npcClass",
+    "identityLabel",
+    "labelRationale",
+    "archetypeDistribution",
+    "modifierDistribution",
+    "stanceDistribution",
+    "labelDistribution",
+    "labelModel",
+    "specificityScore",
+    "estimatedRarityPercent",
+    "proofScore",
+    "loopMaturity",
+    "loopScore",
+    "loopScale",
+    "dimensions",
+    "signatureMoves",
+    "curiousFacts",
+    "growthEdge",
+    "usage",
+    "sessionAnalysis",
+    "shippingAnalysis",
+    "providerAnalyses",
+    "leaderboard",
+}
+BLOCKED_KEY_PARTS = (
+    "path",
+    "transcript",
+    "sourcecode",
+    "source_code",
+    "secret",
+    "credential",
+    "rawcontent",
+    "raw_content",
+)
+BLOCKED_KEYS = {
+    "email",
+    "prompt",
+    "prompts",
+    "prompttext",
+    "prompt_text",
+    "promptcontent",
+    "prompt_content",
+    "signaturephrases",
+    "signature_phrases",
+}
+LOCAL_PATH_RE = re.compile(
+    r"(?:/Users/[^/\s]+|/home/[^/\s]+|/private/var|/var/folders|/tmp)(?:/[^\s\"']*)?"
+)
+SECRET_RE = re.compile(r"\b(?:sk|rk|whsec|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{8,}\b")
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+
+def sanitize_public(value, *, key="", depth=0):
+    if depth > 8:
+        return None
+    normalized = key.replace("-", "_").lower()
+    if normalized in BLOCKED_KEYS or any(part in normalized for part in BLOCKED_KEY_PARTS):
+        return None
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        text = value.replace("\x00", "")
+        text = LOCAL_PATH_RE.sub("[local path removed]", text)
+        text = SECRET_RE.sub("[secret removed]", text)
+        text = EMAIL_RE.sub("[email removed]", text)
+        return text[:1600]
+    if isinstance(value, list):
+        cleaned = [sanitize_public(item, depth=depth + 1) for item in value[:120]]
+        return [item for item in cleaned if item is not None]
+    if isinstance(value, dict):
+        cleaned = {}
+        for child_key, child_value in list(value.items())[:120]:
+            name = str(child_key)[:100]
+            safe_value = sanitize_public(child_value, key=name, depth=depth + 1)
+            if safe_value is not None:
+                cleaned[name] = safe_value
+        return cleaned
+    return str(value)[:1600]
+
+public_identity = {
+    key: sanitize_public(latest["data"][key], key=key)
+    for key in PUBLIC_IDENTITY_FIELDS
+    if key in latest["data"]
+}
+public_identity["schema"] = "tokenbar.identity.v1"
+public_identity["privacy"] = {
+    "localFirst": True,
+    "rawTranscriptsIncluded": False,
+    "sourceCodeIncluded": False,
+    "localPathsIncluded": False,
+    "personalEmailsIncluded": False,
+    "secretsIncluded": False,
+    "shareRequiresUserAction": True,
+    "material": "generated identity fields and aggregate usage only",
+}
+
+identity_label = public_identity.get("identityLabel") if isinstance(public_identity.get("identityLabel"), dict) else {}
+usage = public_identity.get("usage") if isinstance(public_identity.get("usage"), dict) else {}
+dimensions = public_identity.get("dimensions") if isinstance(public_identity.get("dimensions"), list) else []
+signature_moves = public_identity.get("signatureMoves") if isinstance(public_identity.get("signatureMoves"), list) else []
+
+dimension_rows = []
+for dimension in dimensions[:8]:
+    if not isinstance(dimension, dict):
+        continue
+    try:
+        score = max(0, min(100, int(float(dimension.get("score") or 0))))
+    except (TypeError, ValueError):
+        score = 0
+    dimension_rows.append(f"""
+      <div class="signal-row">
+        <div><strong>{esc(dimension.get('name') or 'Signal')}</strong><span>{esc(dimension.get('note') or '')}</span></div>
+        <div class="track" aria-label="{esc(dimension.get('name') or 'Signal')} {score} out of 100"><i style="width:{score}%"></i></div>
+        <b>{score}</b>
+      </div>
+    """)
+
+evidence_rows = "".join(
+    f"<li><span>{index:02d}</span><p>{esc(item)}</p></li>"
+    for index, item in enumerate(signature_moves[:4], start=1)
+    if isinstance(item, str) and item.strip()
+)
+if not evidence_rows:
+    evidence_rows = "<li><span>01</span><p>No share-safe evidence summary was generated for this snapshot.</p></li>"
+
+index_html = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{esc(public_identity.get('title') or 'TokenBar Builder Identity')}</title><link rel="icon" href="data:,">
+<style>
+:root{{--ink:#f4f4f1;--muted:#9a9b98;--panel:#191a1a;--line:#2c2e2d;--amber:#f2ad57;--cyan:#63aec0;--green:#65b88a;--bg:#111212}}
+*{{box-sizing:border-box}}html{{color-scheme:dark}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+body:before{{content:"";position:fixed;inset:0;pointer-events:none;opacity:.035;background-image:repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 4px)}}
+main{{width:min(1100px,calc(100% - 40px));margin:0 auto;padding:28px 0 56px}}header{{display:flex;align-items:center;justify-content:space-between;padding:0 0 22px;border-bottom:1px solid var(--line)}}
+.brand{{display:flex;align-items:center;gap:10px;font-weight:700}}.mark{{display:grid;place-items:center;width:30px;height:30px;border:1px solid #555;border-radius:8px;background:#202121;color:var(--green);font-size:11px;letter-spacing:.08em}}.privacy{{color:var(--muted);font-size:12px}}
+.hero{{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:48px;padding:48px 0 38px;border-bottom:1px solid var(--line)}}.eyebrow,.section-label{{margin:0 0 13px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}}
+h1{{max-width:790px;margin:0;font-size:clamp(34px,5vw,58px);line-height:1.02;letter-spacing:0;font-weight:680}}.subtitle{{max-width:760px;margin:18px 0 0;color:#b9bab7;font-size:18px;line-height:1.55}}.pills{{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}}.pill{{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:#c8c9c6;font-size:12px}}
+.scoreboard{{align-self:end;border-left:1px solid var(--line);padding-left:28px}}.scoreboard dl{{display:grid;grid-template-columns:1fr auto;gap:12px;margin:0}}.scoreboard dt{{color:var(--muted);font-size:12px}}.scoreboard dd{{margin:0;font:650 20px/1 ui-monospace,SFMono-Regular,Menlo,monospace}}.scoreboard dd:first-of-type{{color:var(--amber)}}
+.section{{padding:34px 0;border-bottom:1px solid var(--line)}}.signal-row{{display:grid;grid-template-columns:270px minmax(160px,1fr) 42px;gap:18px;align-items:center;min-width:0;padding:12px 0}}.signal-row>div{{min-width:0}}.signal-row strong{{display:block;font-size:14px}}.signal-row span{{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px;margin-top:2px}}.signal-row b{{text-align:right;font:650 14px ui-monospace,SFMono-Regular,Menlo,monospace}}.track{{height:7px;min-width:0;background:#202222;border-radius:5px;overflow:hidden}}.track i{{display:block;height:100%;background:var(--cyan);border-radius:5px}}.signal-row:first-of-type .track i{{background:var(--amber)}}
+.story-grid{{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:18px}}.evidence,.frontier{{border:1px solid var(--line);background:var(--panel);padding:22px;border-radius:8px}}.evidence ol{{list-style:none;padding:0;margin:0}}.evidence li{{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:13px 0;border-top:1px solid var(--line)}}.evidence li:first-child{{border-top:0;padding-top:0}}.evidence li span{{color:var(--amber);font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace}}.evidence li p{{margin:0;color:#c4c5c2}}.frontier h2{{margin:0;font-size:23px;line-height:1.15}}.frontier p{{color:#c4c5c2;margin:14px 0 0}}.frontier:before{{content:"NEXT FRONTIER";display:block;margin-bottom:14px;color:var(--green);font-size:10px;font-weight:800;letter-spacing:.14em}}
+footer{{display:flex;justify-content:space-between;gap:24px;padding-top:24px;color:var(--muted);font-size:12px}}footer strong{{color:#d0d1ce}}@media(max-width:760px){{main{{width:min(100% - 28px,1100px)}}.hero,.story-grid{{grid-template-columns:1fr}}.hero{{gap:28px;padding-top:34px}}.scoreboard{{border-left:0;border-top:1px solid var(--line);padding:22px 0 0}}.signal-row{{grid-template-columns:minmax(0,1fr) 42px}}.signal-row .track{{grid-column:1/-1;grid-row:2}}footer{{display:block}}}}
+@media print{{body{{background:#fff;color:#111}}body:before{{display:none}}:root{{--ink:#111;--muted:#555;--panel:#fff;--line:#ddd;--bg:#fff}}main{{width:100%;padding:0}}}}
+</style></head><body><main>
+<header><div class="brand"><span class="mark">TB</span>TokenBar</div><div class="privacy">Verified local proof · no raw sessions</div></header>
+<section class="hero"><div><p class="eyebrow">Private builder intelligence</p><h1>{esc(public_identity.get('title') or 'Builder Identity')}</h1><p class="subtitle">{esc(public_identity.get('subtitle') or 'A generated account of how this builder directs, ships, and improves with coding agents.')}</p><div class="pills"><span class="pill">{esc(public_identity.get('primaryArchetype') or 'Builder')}</span><span class="pill">{esc(identity_label.get('stance') or public_identity.get('npcClass') or 'Developing')}</span><span class="pill">Generated {esc(public_identity.get('generatedAt') or 'locally')}</span></div></div>
+<aside class="scoreboard"><p class="section-label">Evidence board</p><dl><dt>Proof</dt><dd>{esc(public_identity.get('proofScore') or 0)}</dd><dt>Loop maturity</dt><dd>{esc(public_identity.get('loopScore') or 0)}</dd><dt>Rarity</dt><dd>top {esc(public_identity.get('estimatedRarityPercent') or 0)}%</dd><dt>Analyzed sessions</dt><dd>{esc(usage.get('sessionsIndexed') or 0)}</dd><dt>Last 7 days</dt><dd>{esc(usage.get('last7') or '0')}</dd></dl></aside></section>
+<section class="section"><p class="section-label">Signal profile</p>{''.join(dimension_rows)}</section>
+<section class="section story-grid"><div class="evidence"><p class="section-label">What the evidence says</p><ol>{evidence_rows}</ol></div><div class="frontier"><h2>One move that changes the next report.</h2><p>{esc(public_identity.get('growthEdge') or 'Run another focused build loop and verify the result with a concrete artifact.')}</p></div></section>
+<footer><p><strong>Proof boundary:</strong> generated identity fields and aggregate usage only. Raw prompts, transcripts, source code, paths, personal emails, and secrets are excluded.</p><p>Verify this packet with <strong>tokenbar verify &lt;proof.zip&gt;</strong></p></footer>
+</main></body></html>"""
+
 timeline_cards = []
 for item in reversed(profiles):
     timeline_cards.append(f"""
@@ -7768,17 +9254,25 @@ readme = "\n".join([
     f"Token: {latest['data'].get('token') or 'unknown'}",
     f"Created: {time.strftime('%Y-%m-%dT%H:%M:%S%z')}",
     "",
+    "Open `index.html` first. It is a self-contained, offline overview of the Builder Identity.",
+    "",
     "## What is included",
     "",
-    "- Latest identity JSON, HTML report, Skill.md, manifest, and PDF when present.",
+    "- index.html: share-safe Builder Identity overview in TokenBar's native visual language.",
+    "- Latest sanitized identity JSON, HTML report, Skill.md, and PDF when present.",
     "- local-rankings.txt: offline archetype/NPC/bucket rankings from local snapshots.",
     "- compare-latest.txt: newest-vs-previous identity comparison when available.",
     "- timeline.html: local profile evolution view.",
     "- tokenbar-proof-manifest.json: packet metadata and privacy boundary.",
+    "- tokenbar-proof-verification.json: SHA-256 and byte counts for every packaged payload.",
     "",
     "## Privacy",
     "",
-    "This packet is generated locally from TokenBar identity artifacts. It does not include raw transcripts or source code. Public sharing remains opt-in.",
+    "This packet is generated locally from TokenBar identity artifacts. It does not include raw prompts, transcripts, source code, local paths, personal emails, credentials, or secrets. TokenBar's public support contact may appear in report footers. Public sharing remains opt-in.",
+    "",
+    "Verify it before sharing:",
+    "",
+    "    tokenbar verify /path/to/proof.zip",
 ]) + "\n"
 
 manifest = {
@@ -7787,9 +9281,14 @@ manifest = {
     "latestToken": latest["data"].get("token"),
     "latestTitle": latest["title"],
     "snapshotCount": len(profiles),
+    "entrypoint": "index.html",
+    "verification": "tokenbar-proof-verification.json",
     "privacy": {
         "rawTranscriptsIncluded": False,
         "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "personalEmailsIncluded": False,
+        "secretsIncluded": False,
         "redactedExcerptsOnly": True,
         "shareRequiresUserAction": True,
     },
@@ -7801,26 +9300,66 @@ candidate_files = {
     "identityJson": latest["path"],
     "html": latest_stem.with_suffix(".html"),
     "skillMd": latest_stem.with_suffix(".skill.md"),
-    "manifest": latest_stem.with_suffix(".manifest.json"),
     "pdf": latest_stem.with_suffix(".pdf"),
 }
 
+payloads = {
+    "index.html": index_html.encode("utf-8"),
+    "README.md": readme.encode("utf-8"),
+    "local-rankings.txt": rankings_text.encode("utf-8"),
+    "compare-latest.txt": compare_text.encode("utf-8"),
+    "timeline.html": timeline_html.encode("utf-8"),
+}
+
+for key, path in candidate_files.items():
+    if not path.exists() or not path.is_file():
+        continue
+    archive_path = f"latest/{path.name}"
+    if key == "identityJson":
+        payloads[archive_path] = (json.dumps(public_identity, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    else:
+        payloads[archive_path] = path.read_bytes()
+    manifest["included"].append({"key": key, "path": archive_path})
+
+for key, name in (
+    ("entrypoint", "index.html"),
+    ("readme", "README.md"),
+    ("rankings", "local-rankings.txt"),
+    ("comparison", "compare-latest.txt"),
+    ("timeline", "timeline.html"),
+):
+    manifest["included"].append({"key": key, "path": name})
+
+verification = {
+    "schema": "tokenbar.proof-verification.v1",
+    "createdAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    "algorithm": "SHA-256",
+    "scope": "packaged payloads; integrity evidence, not an identity signature",
+    "files": {
+        name: {
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "bytes": len(payload),
+        }
+        for name, payload in sorted(payloads.items())
+    },
+    "privacy": manifest["privacy"],
+}
+verification_bytes = (json.dumps(verification, indent=2, sort_keys=True) + "\n").encode("utf-8")
+manifest["included"].append({"key": "verification", "path": "tokenbar-proof-verification.json"})
+manifest_bytes = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-    for key, path in candidate_files.items():
-        if path.exists() and path.is_file():
-            zf.write(path, f"latest/{path.name}")
-            manifest["included"].append({"key": key, "path": f"latest/{path.name}"})
-    zf.writestr("README.md", readme)
-    zf.writestr("local-rankings.txt", rankings_text)
-    zf.writestr("compare-latest.txt", compare_text)
-    zf.writestr("timeline.html", timeline_html)
-    zf.writestr("tokenbar-proof-manifest.json", json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    for name, payload in payloads.items():
+        zf.writestr(name, payload)
+    zf.writestr("tokenbar-proof-verification.json", verification_bytes)
+    zf.writestr("tokenbar-proof-manifest.json", manifest_bytes)
 
 print(f"Proof packet: {output_path}")
 print(f"Latest profile: {latest['title']}")
 print(f"Snapshots summarized: {len(profiles)}")
-print("Included: latest artifacts, local-rankings.txt, compare-latest.txt, timeline.html, README.md, tokenbar-proof-manifest.json")
-print("Privacy: no raw transcripts or source code are included.")
+print("Open first: index.html")
+print("Included: sanitized identity, latest report artifacts, local rankings, comparison, timeline, privacy manifest, SHA-256 receipt")
+print("Privacy: no raw prompts, transcripts, source code, local paths, personal emails, credentials, or secrets are included.")
 PY
 }
 
@@ -7935,7 +9474,7 @@ PY
 video_brief() {
   local context format
   format="${1:-}"
-  context="$(usage_context_json 2>/dev/null || printf '{}')"
+  context="$(quick_usage_context_json 2>/dev/null || usage_context_json 2>/dev/null || printf '{}')"
 
   TOKENBAR_VIDEO_CONTEXT="$context" TOKENBAR_VIDEO_FORMAT="$format" python3 - <<'PY'
 import json
@@ -8491,6 +10030,12 @@ print("Private review path")
 print("1. Claim your private builder identity")
 print("   tokenbar claim")
 print("   Creates local HTML/PDF-ready report files, identity JSON, Skill.md, and a TBAR token.")
+print()
+print("Specific session/project story")
+print("   tokenbar claim 019e...")
+print("   Optional: tokenbar claim 019e... --spotlight-project \"AI video editor\"")
+print("   Optional: add --spotlight-struggle, --spotlight-feature, and --spotlight-progress.")
+print("   This names the session/project in your report, feed, proof card, and trailer without reading or uploading the raw thread.")
 print()
 print("2. Inspect before sharing")
 print("   tokenbar card")
@@ -9872,6 +11417,117 @@ for index, item in enumerate(items[:limit], start=1):
 PY
 }
 
+threads_report() {
+  local state_path="${TOKENBAR_CODEX_STATE_PATH:-$HOME/.codex/state_5.sqlite}"
+  local goals_path="${TOKENBAR_CODEX_GOALS_PATH:-$HOME/.codex/goals_1.sqlite}"
+  local goal_join=""
+  local goal_status="''"
+  local sql=""
+
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    printf 'TokenBar Threads needs sqlite3, which is included with macOS.\n' >&2
+    return 1
+  fi
+  if [[ ! -f "$state_path" ]]; then
+    printf 'Codex thread state was not found at %s\nOpen Codex once, then run tokenbar threads again.\n' "$state_path" >&2
+    return 1
+  fi
+  if [[ -f "$goals_path" ]]; then
+    goal_join="LEFT JOIN goals_db.thread_goals g ON g.thread_id = t.id"
+    goal_status="COALESCE(g.status, '')"
+    sql="ATTACH DATABASE '$goals_path' AS goals_db;"
+  fi
+
+  sql+="
+    SELECT
+      CASE
+        WHEN COALESCE(t.archived, 0) = 1 OR $goal_status = 'complete' THEN 'DONE'
+        WHEN $goal_status = 'active' THEN 'ACTIVE'
+        WHEN $goal_status IN ('blocked', 'usage_limited', 'budget_limited') THEN 'ATTENTION'
+        WHEN $goal_status = 'paused' THEN 'PAUSED'
+        WHEN COALESCE(t.recency_at_ms, t.updated_at_ms, t.updated_at * 1000) >= (strftime('%s','now') - 259200) * 1000 THEN 'RECENT'
+        ELSE 'PAUSED'
+      END,
+      datetime(COALESCE(t.recency_at_ms, t.updated_at_ms, t.updated_at * 1000) / 1000, 'unixepoch', 'localtime'),
+      COALESCE(t.tokens_used, 0),
+      COALESCE(t.cwd, ''),
+      substr(replace(replace(t.title, char(10), ' '), char(9), ' '), 1, 78)
+    FROM threads t
+    $goal_join
+    WHERE COALESCE(t.title, '') != ''
+    ORDER BY
+      CASE
+        WHEN $goal_status = 'active' THEN 0
+        WHEN $goal_status IN ('blocked', 'usage_limited', 'budget_limited') THEN 1
+        WHEN $goal_status = 'paused' THEN 2
+        WHEN COALESCE(t.archived, 0) = 0 THEN 3
+        ELSE 4
+      END,
+      COALESCE(t.recency_at_ms, t.updated_at_ms, t.updated_at * 1000) DESC
+    LIMIT 30;"
+
+  printf '\nTokenBar Threads\n'
+  printf 'Read only: Codex task state + goals. No transcripts, source code, or full paths.\n\n'
+  printf '%-11s  %-16s  %12s  %-18s  %s\n' 'LANE' 'UPDATED' 'TOKENS' 'PROJECT' 'THREAD'
+  printf '%-11s  %-16s  %12s  %-18s  %s\n' '-----------' '----------------' '------------' '------------------' '------'
+  sqlite3 -noheader -separator $'\t' "$state_path" "$sql" | while IFS=$'\t' read -r lane updated tokens cwd title; do
+    local project="${cwd%/}"
+    local path_prefix=""
+    project="${project##*/}"
+    [[ -n "$project" ]] || project="No project"
+    for path_prefix in /Users/ /home/ /private/ /var/ /tmp/ /Volumes/; do
+      if [[ "$title" == *"$path_prefix"* ]]; then
+        title="${title%%"$path_prefix"*}[local path]"
+      fi
+    done
+    printf '%-11s  %-16s  %12s  %-18.18s  %s\n' "$lane" "${updated:0:16}" "$tokens" "$project" "$title"
+  done
+  cat <<'EOF'
+
+Lanes: ACTIVE is being pursued; ATTENTION is blocked or usage-limited; PAUSED is backlog; RECENT has no goal yet; DONE is complete or archived.
+Web board: python3 scripts/tokenbar_local_server.py --port 8768
+Then open: http://127.0.0.1:8768/threads
+EOF
+}
+
+identity_api() {
+  local script_dir api_script
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  api_script=""
+  for candidate in \
+    "$script_dir/identity_api.py" \
+    "$script_dir/../src/tokenbar/identity_api.py"; do
+    if [[ -f "$candidate" ]]; then
+      api_script="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$api_script" ]]; then
+    echo "TokenBar identity API module is missing. Reinstall or update TokenBar." >&2
+    return 1
+  fi
+  python3 "$api_script" "$@"
+}
+
+identity_mcp() {
+  local script_dir mcp_script
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  mcp_script=""
+  for candidate in \
+    "$script_dir/identity_mcp.py" \
+    "$script_dir/../src/tokenbar/identity_mcp.py"; do
+    if [[ -f "$candidate" ]]; then
+      mcp_script="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$mcp_script" ]]; then
+    echo "TokenBar identity MCP module is missing. Reinstall or update TokenBar." >&2
+    return 1
+  fi
+  python3 "$mcp_script" "$@"
+}
+
 quiet=false
 animate=true
 force_animation=false
@@ -9979,7 +11635,16 @@ case "$command" in
     status_report
     ;;
   usage|summary|usage-summary)
-    usage_report
+    usage_report "${command_args[@]}"
+    ;;
+  threads|tasks|kanban|workboard)
+    threads_report
+    ;;
+  api|identity-api|local-api|serve-api)
+    identity_api "${command_args[@]}"
+    ;;
+  mcp|identity-mcp|codex-mcp)
+    identity_mcp "${command_args[@]}"
     ;;
   forecast)
     forecast_report
@@ -10000,7 +11665,10 @@ case "$command" in
     profile_report --pdf "${command_args[@]}"
     ;;
   profile|builder-profile|report|analyze|analyse)
-    profile_report "${command_args[@]}"
+    case "${command_args[0]:-}" in
+      latest|--latest|TBAR-*) open_proof_surface profile "${command_args[@]}" ;;
+      *) profile_report "${command_args[@]}" ;;
+    esac
     ;;
   quickstart|identity-quickstart|profile-quickstart|start)
     identity_quickstart
@@ -10020,11 +11688,24 @@ case "$command" in
   proof-latest|latest-proof|proof-status)
     proof_latest "${command_args[@]}"
     ;;
+  revoke|unpublish|withdraw-proof)
+    revoke_proof "${command_args[@]}"
+    ;;
   claim|builder-token|profile-token)
     claim_profile "${command_args[@]}"
     ;;
   share|upload-profile|publish-profile)
-    share_profile "${command_args[0]:-}"
+    case "${command_args[0]:-}" in
+      latest|status|receipt)
+        proof_latest "${command_args[@]:1}"
+        ;;
+      latest-public|public)
+        proof_latest --public "${command_args[@]:1}"
+        ;;
+      *)
+        share_profile "${command_args[0]:-}"
+        ;;
+    esac
     ;;
   publish-proof|activate|activate-profile|proof-share|proof-card)
     if [[ ${#command_args[@]} -gt 0 ]]; then
@@ -10056,7 +11737,10 @@ case "$command" in
     identity_history "${command_args[0]:-8}"
     ;;
   rankings|ranking|local-rankings|identity-rankings|profile-rankings)
-    identity_rankings "${command_args[0]:-25}"
+    case "${command_args[0]:-}" in
+      latest|--latest|TBAR-*) open_proof_surface rankings "${command_args[@]}" ;;
+      *) identity_rankings "${command_args[0]:-25}" ;;
+    esac
     ;;
   timeline|profile-timeline|identity-timeline)
     identity_timeline "${command_args[@]}"
@@ -10081,7 +11765,19 @@ case "$command" in
     profile_stats
     ;;
   social|profiles|network|leaderboard)
-    open_social_layer
+    if [[ ${#command_args[@]} -gt 0 ]]; then
+      open_proof_surface social "${command_args[@]}"
+    else
+      open_social_layer
+    fi
+    ;;
+  open-proof|proof-open|open-surface)
+    if [[ "${command_args[0]:-}" == "--help" || "${command_args[0]:-}" == "-h" ]]; then
+      open_proof_surface profile --help
+    else
+      proof_surface="${command_args[0]:-profile}"
+      open_proof_surface "$proof_surface" "${command_args[@]:1}"
+    fi
     ;;
   save|bookmark|capture|signal)
     builder_signal_save "${command_args[@]}"

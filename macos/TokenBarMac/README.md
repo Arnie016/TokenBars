@@ -1,18 +1,31 @@
 # TokenBar for macOS
 
 TokenBar is a native, local-first Builder Intelligence app. It reads the safe
-aggregate artifacts produced by the TokenBar CLI and presents five focused
+aggregate artifacts produced by the TokenBar CLI and presents six focused
 surfaces:
 
 - **Builder Story**: a compact six-axis identity card, strongest signal, next frontier, proof, and loop maturity.
 - **Threads**: a read-only board backed by Codex's local thread and goal index,
   with active goals, forks, automation sources, Git review state, session IDs,
-  workspace paths, native Codex deep links, and persistent local follow-up drafts.
-- **Usage**: local token pace with proof-aware commentary.
-- **Proof**: private report and opt-in share surfaces with explicit privacy boundaries.
-- **Opportunities**: import a local project brief and prepare a bounded Codex kickoff.
+  workspace paths, native Codex deep links, persistent local follow-up drafts,
+  unlimited saved boards, and an installable Thread Store.
+- **Profile**: one adjustable local token total, daily motion, cost, and
+  evidence-aware commentary.
+- **Storage**: a bounded local map of generated build/cache weight with
+  per-folder review and recoverable Move to Trash actions.
+- **Report**: private report and opt-in share surfaces with explicit privacy boundaries.
+- **Thread Store**: browse installable thread workflows, import a project brief,
+  and prepare a bounded Codex kickoff without claiming live multiplayer sync.
 
-Published proofs can be removed from the native **Proof** view. The action calls
+The native **Report** view first renders a privacy-safe unlisted preview. Publishing
+requires a second confirmation, then calls `tokenbar publish-proof --unlisted
+--hide-owner --hide-region` and reloads the persisted receipt with its TBAR token
+and server action run ID. The same receipt is restored after an app restart.
+The published view also renders the six completed server stages, the exact safe
+material sent, the data classes that stayed local, and the device-bound ownership
+state. **Copy receipt** produces a compact, inspectable handoff for judges or peers.
+
+Published proofs can be removed from the native **Report** view. The action calls
 the owner-bound `tokenbar revoke` lifecycle: public card/profile/feed/ranking
 surfaces are removed while private local reports and usage history are retained.
 
@@ -31,6 +44,17 @@ Follow-up drafts are stored at:
 ~/Library/Application Support/CodexLimitBar/thread-follow-up-drafts.json
 ```
 
+Custom boards and installed Thread Store kits are stored at:
+
+```text
+~/Library/Application Support/CodexLimitBar/thread-boards.json
+```
+
+Thread Store kits install real local boards with named lanes. The ten-seat Crew
+Room is an ownership and handoff layout today. Live collaborators, invitations,
+and presence require the future signed-in workspace backend; the preview does
+not claim that local board persistence is real-time multi-user sync.
+
 The **Copy /side and open Codex** action copies an explicit side-chat prompt and
 opens the original task through `codex://threads/<thread-id>`. It does not write
 to Codex's database or interrupt the main task.
@@ -39,7 +63,7 @@ to Codex's database or interrupt the main task.
 
 The current downloadable preview targets Apple silicon and macOS 14 or newer:
 
-[Download TokenBar-macOS.zip](https://github.com/Arnie016/TokenBars/releases/download/macos-app-preview-v0.1.1/TokenBar-macOS.zip)
+[Download TokenBar-macOS.zip](https://github.com/Arnie016/TokenBars/releases/download/macos-app-preview-v0.1.2/TokenBar-macOS.zip)
 
 1. Unzip `TokenBar-macOS.zip`.
 2. Move `TokenBar.app` into Applications.
@@ -79,10 +103,34 @@ Create or refresh a Builder Story from the app's **Analyze this week** button,
 or run:
 
 ```bash
-tokenbar claim --days 7
+tokenbar report
 ```
 
 The app invokes the installed `tokenbar` CLI only after the user presses the
 analysis button. Importing or accepting a project brief does not clone a repo,
 run code, or post externally. It stores the brief locally and copies a structured
 kickoff prompt for Codex.
+
+Builder Story now reads the same `tokenbar.builder_bundle.v1` contract exposed by
+`tokenbar api`. It tries the read-only localhost endpoint first, then the packaged
+`tokenbar api --snapshot` command, and finally the newest private local identity
+file. The active evidence source is visible on the Builder Story card. The app
+bundle includes the CLI snapshot module, so this path does not depend on a newer
+global TokenBar installation.
+
+The **Connect Codex** action copies a `codex mcp add` command that points to the CLI
+inside the currently running app. That MCP server is read-only and returns the same
+sanitized Builder Identity, aggregate usage, and privacy receipt as the local API;
+it has no publish action and cannot expose raw prompts, transcripts, source code,
+local paths, or secrets.
+
+The Report page's **Download report** action opens a native save panel, runs the
+bundled `tokenbar proof` exporter, verifies the resulting ZIP with `tokenbar verify`,
+and reveals the verified artifact in Finder. The packet stays local until the user
+separately chooses to share it.
+
+The Storage surface scans only a fixed allowlist of generated dependency, build,
+coverage, and cache directory names under indexed Codex workspaces. Source
+folders, Codex sessions/logs, Builder Identity reports, and share receipts are
+inspect-only. TokenBar never empties Trash and asks before moving one recognized
+generated folder.

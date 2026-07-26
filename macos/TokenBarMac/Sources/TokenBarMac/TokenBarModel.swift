@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 struct BuilderDimension: Identifiable, Hashable {
     var id: String { name }
@@ -23,17 +24,44 @@ struct UsageSnapshot: Hashable {
     var sessions = 0
     var activeDays = 0
     var model = "Local"
+    var days: [UsageDaySnapshot] = []
 }
 
-struct CCUsageSnapshot: Hashable, Sendable {
+struct UsageDaySnapshot: Identifiable, Hashable {
+    var id: String { date }
+    let date: String
+    let tokens: Int64
+}
+
+struct StorageItemSnapshot: Identifiable, Hashable, Sendable {
+    var id: String { path }
+    let name: String
+    let workspace: String
+    let path: String
+    let bytes: Int64
+    let fileCount: Int
+    let kind: String
+    let isTrashable: Bool
+}
+
+struct CCUsageSnapshot: Codable, Hashable, Sendable {
     var period = "Not loaded"
     var latestCost = "--"
     var codexCost = "--"
     var latestTokens = "--"
     var observedCost = "--"
+    var recentDays: [CCUsageDaySnapshot] = []
+}
+
+struct CCUsageDaySnapshot: Codable, Identifiable, Hashable, Sendable {
+    var id: String { period }
+    let period: String
+    let totalCost: String
+    let codexCost: String
 }
 
 struct BuilderProfile: Hashable {
+    var reportToken = ""
     var identityTitle = "Identity not analyzed"
     var archetype = "Builder"
     var stance = "Local-first"
@@ -48,14 +76,133 @@ struct BuilderProfile: Hashable {
     var facts: [BuilderFact] = []
     var growthEdge = "Generate an identity to reveal the next useful frontier."
     var usage = UsageSnapshot()
+    var evidenceSessions = 0
+    var evidenceActiveDays = 0
     var reportURL: URL?
     var sourceURL: URL?
+}
+
+enum IdentityBridgeSource: String, Sendable {
+    case checking
+    case liveAPI
+    case safeSnapshot
+    case localFile
+    case unavailable
+
+    var label: String {
+        switch self {
+        case .checking: "Checking safe bundle"
+        case .liveAPI: "Safe API live"
+        case .safeSnapshot: "Safe CLI snapshot"
+        case .localFile: "Local report fallback"
+        case .unavailable: "No identity evidence"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .checking: "arrow.triangle.2.circlepath"
+        case .liveAPI: "bolt.horizontal.circle.fill"
+        case .safeSnapshot: "shippingbox.fill"
+        case .localFile: "doc.text.fill"
+        case .unavailable: "exclamationmark.triangle"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .checking: "Looking for the read-only TokenBar identity contract."
+        case .liveAPI: "Loaded from 127.0.0.1 using generated identity fields and aggregate usage only."
+        case .safeSnapshot: "Loaded from the packaged tokenbar.builder_bundle.v1 CLI snapshot."
+        case .localFile: "The safe bridge is unavailable, so TokenBar is showing the newest private local report."
+        case .unavailable: "Run Analyze this week to create a private Builder Identity report."
+        }
+    }
+}
+
+private struct SafeIdentityBundle: Decodable, Sendable {
+    let ok: Bool
+    let schema: String
+    let identity: SafeIdentity?
+    let stats: SafeIdentityStats
+    let privacy: SafeIdentityPrivacy
+}
+
+private struct SafeIdentity: Decodable, Sendable {
+    let title: String?
+    let subtitle: String?
+    let primaryArchetype: String?
+    let identityLabel: SafeIdentityLabel?
+    let proofScore: Int?
+    let loopScore: Int?
+    let loopMaturity: Int?
+    let specificityScore: Int?
+    let estimatedRarityPercent: Double?
+    let generatedAt: String?
+    let dimensions: [SafeBuilderDimension]?
+    let signatureMoves: [String]?
+    let curiousFacts: [SafeBuilderFact]?
+    let growthEdge: String?
+    let usage: SafeIdentityUsage?
+}
+
+private struct SafeIdentityLabel: Decodable, Sendable {
+    let title: String?
+    let stance: String?
+}
+
+private struct SafeBuilderDimension: Decodable, Sendable {
+    let name: String
+    let score: Int
+    let note: String?
+}
+
+private struct SafeBuilderFact: Decodable, Sendable {
+    let label: String
+    let value: String
+    let copy: String?
+}
+
+private struct SafeIdentityUsage: Decodable, Sendable {
+    let sessionsIndexed: Int?
+    let activeDaysLast30: Int?
+}
+
+private struct SafeIdentityStats: Decodable, Sendable {
+    let updatedAt: Double?
+    let totalTokens: Int64
+    let sessionCount: Int
+    let activeDayCount: Int
+    let activeFolderCount: Int
+    let dayTokens: [String: Int64]
+    let modelTokens: [String: Int64]
+}
+
+private struct SafeIdentityPrivacy: Decodable, Sendable {
+    let rawTranscriptsIncluded: Bool
+    let sourceCodeIncluded: Bool
+    let localPathsIncluded: Bool
+    let secretsIncluded: Bool
+}
+
+private struct SafeBridgeResult: Sendable {
+    let bundle: SafeIdentityBundle?
+    let source: IdentityBridgeSource
+    let error: String?
 }
 
 struct ProofReceipt: Hashable {
     var token = "Not published"
     var runID = ""
     var shareMode = "private"
+    var generatedAt = ""
+    var completedStages: [String] = []
+    var publicMaterial = ""
+    var uploadedMaterial = ""
+    var neverPublic: [String] = []
+    var redactedFields: [String] = []
+    var ownerBound = false
+    var privacyVerified = false
     var publicProfileURL: URL?
     var proofCardURL: URL?
     var socialURL: URL?
@@ -64,6 +211,11 @@ struct ProofReceipt: Hashable {
     var hasShareSurface: Bool { publicProfileURL != nil || proofCardURL != nil }
     var isLocalPreview: Bool {
         [publicProfileURL, proofCardURL].compactMap { $0?.host }.contains { $0 == "127.0.0.1" || $0 == "localhost" }
+    }
+    var verificationSummary: String {
+        let stages = completedStages.isEmpty ? "not recorded" : completedStages.joined(separator: ", ")
+        let privacy = privacyVerified ? "raw transcripts and source code excluded" : "privacy receipt unavailable"
+        return "TokenBar proof \(token); run \(runID); mode \(shareMode); stages: \(stages); \(privacy)."
     }
 }
 
@@ -78,21 +230,118 @@ struct ProjectInvitation: Codable, Identifiable, Hashable {
 }
 
 enum CodexThreadLane: String, CaseIterable, Identifiable {
+    case queued = "Queued"
     case focus = "Focus"
     case recent = "Recent"
     case review = "Review"
+    case done = "Done"
 
     var id: String { rawValue }
     var subtitle: String {
         switch self {
+        case .queued: "Ready to start"
         case .focus: "Active goal"
         case .recent: "Touched in 24h"
         case .review: "Paused or older"
+        case .done: "Completed goal"
         }
     }
 }
 
-struct CodexThread: Decodable, Identifiable, Hashable {
+struct ThreadBoardConfiguration: Codable, Identifiable, Hashable {
+    static let starterID = UUID(uuidString: "67483EEA-73DA-4A50-920C-84267EF25A68")!
+    static let starter = ThreadBoardConfiguration(
+        id: starterID,
+        name: "My work",
+        queuedTitle: "Queue",
+        focusTitle: "Now",
+        recentTitle: "Fresh",
+        reviewTitle: "Revisit",
+        doneTitle: "Done",
+        workspaceFilter: "",
+        includeAutomations: true,
+        accentName: "green"
+    )
+
+    let id: UUID
+    var name: String
+    var queuedTitle: String
+    var focusTitle: String
+    var recentTitle: String
+    var reviewTitle: String
+    var doneTitle: String
+    var workspaceFilter: String
+    var includeAutomations: Bool
+    var accentName: String
+
+    init(
+        id: UUID,
+        name: String,
+        queuedTitle: String = "Queue",
+        focusTitle: String,
+        recentTitle: String,
+        reviewTitle: String,
+        doneTitle: String = "Done",
+        workspaceFilter: String,
+        includeAutomations: Bool,
+        accentName: String = "green"
+    ) {
+        self.id = id
+        self.name = name
+        self.queuedTitle = queuedTitle
+        self.focusTitle = focusTitle
+        self.recentTitle = recentTitle
+        self.reviewTitle = reviewTitle
+        self.doneTitle = doneTitle
+        self.workspaceFilter = workspaceFilter
+        self.includeAutomations = includeAutomations
+        self.accentName = accentName
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, queuedTitle, focusTitle, recentTitle, reviewTitle, doneTitle
+        case workspaceFilter, includeAutomations, accentName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        queuedTitle = try container.decodeIfPresent(String.self, forKey: .queuedTitle) ?? "Queue"
+        focusTitle = try container.decode(String.self, forKey: .focusTitle)
+        recentTitle = try container.decode(String.self, forKey: .recentTitle)
+        reviewTitle = try container.decode(String.self, forKey: .reviewTitle)
+        doneTitle = try container.decodeIfPresent(String.self, forKey: .doneTitle) ?? "Done"
+        workspaceFilter = try container.decodeIfPresent(String.self, forKey: .workspaceFilter) ?? ""
+        includeAutomations = try container.decodeIfPresent(Bool.self, forKey: .includeAutomations) ?? true
+        accentName = try container.decodeIfPresent(String.self, forKey: .accentName) ?? "green"
+    }
+
+    func title(for lane: CodexThreadLane) -> String {
+        switch lane {
+        case .queued: queuedTitle
+        case .focus: focusTitle
+        case .recent: recentTitle
+        case .review: reviewTitle
+        case .done: doneTitle
+        }
+    }
+}
+
+private struct ThreadBoardStore: Codable {
+    var selectedBoardID: UUID
+    var boards: [ThreadBoardConfiguration]
+}
+
+private struct LocalCostUsageCache: Codable {
+    static let schema = "tokenbar.local_cost_usage.v1"
+
+    let schema: String
+    let savedAt: Date
+    let snapshot: CCUsageSnapshot
+}
+
+struct CodexThread: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     let cwd: String
@@ -153,12 +402,15 @@ struct CodexThread: Decodable, Identifiable, Hashable {
     }
 
     func lane(now: Date = Date()) -> CodexThreadLane {
+        if goalStatus == "complete" || goalStatus == "completed" { return .done }
         if goalStatus == "active" { return .focus }
         let age = now.timeIntervalSince(updatedAt)
         if goalStatus == "paused" || goalStatus == "blocked" || goalStatus == "usage_limited" || goalStatus == "budget_limited" {
             return .review
         }
-        return age <= 86_400 ? .recent : .review
+        if age <= 86_400 { return .recent }
+        if age <= 604_800 { return .queued }
+        return .review
     }
 }
 
@@ -171,22 +423,41 @@ final class TokenBarModel: ObservableObject {
     @Published var invitations: [ProjectInvitation] = []
     @Published var codexThreads: [CodexThread] = []
     @Published var threadDrafts: [String: String] = [:]
+    @Published var threadBoards: [ThreadBoardConfiguration] = [.starter]
+    @Published var selectedThreadBoardID = ThreadBoardConfiguration.starterID
     @Published var costUsage = CCUsageSnapshot()
+    @Published var storageItems: [StorageItemSnapshot] = []
     @Published var isAnalyzing = false
+    @Published var isPublishingProof = false
+    @Published var isExportingProof = false
     @Published var isLoadingCosts = false
     @Published var isRevoking = false
     @Published var isLoadingThreads = false
+    @Published var isScanningStorage = false
+    @Published var isLoadingIdentityBridge = false
+    @Published var identityBridgeSource = IdentityBridgeSource.checking
     @Published var activityMessage = "Local data loaded"
     @Published var lastError: String?
 
     private let fileManager = FileManager.default
     private let supportDirectory: URL
 
-    init() {
-        supportDirectory = fileManager.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/CodexLimitBar", isDirectory: true)
+    init(supportDirectory overrideDirectory: URL? = nil) {
+        if let overrideDirectory {
+            supportDirectory = overrideDirectory
+        } else if let override = ProcessInfo.processInfo.environment["TOKENBAR_SUPPORT_DIR"], !override.isEmpty {
+            supportDirectory = URL(fileURLWithPath: override, isDirectory: true)
+        } else {
+            supportDirectory = fileManager.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support/CodexLimitBar", isDirectory: true)
+        }
+        let boardStore = loadThreadBoardStore()
+        threadBoards = boardStore.boards
+        selectedThreadBoardID = boardStore.selectedBoardID
         threadDrafts = loadThreadDrafts()
+        costUsage = loadCostUsageSnapshot()
         reload()
+        refreshIdentityBridge()
         refreshThreads()
     }
 
@@ -194,27 +465,124 @@ final class TokenBarModel: ObservableObject {
         profile = loadLatestProfile()
         receipt = loadLatestReceipt()
         invitations = loadInvitations()
+        identityBridgeSource = profile.sourceURL == nil ? .unavailable : .localFile
         activityMessage = profile.sourceURL == nil ? "Ready for a private local analysis" : "Updated from local evidence"
     }
 
-    func refreshIdentity() {
+    func refreshIdentityBridge() {
+        guard !isLoadingIdentityBridge else { return }
+        isLoadingIdentityBridge = true
+        identityBridgeSource = .checking
+
+        Task {
+            let result = await Task.detached(priority: .utility) {
+                await Self.loadSafeIdentityBridge()
+            }.value
+            isLoadingIdentityBridge = false
+            if let bundle = result.bundle {
+                profile = profileFromSafeBundle(bundle, preserving: profile)
+                identityBridgeSource = result.source
+                activityMessage = result.source == .liveAPI
+                    ? "Builder Story synced from the safe local API"
+                    : "Builder Story loaded from the safe CLI bundle"
+            } else {
+                identityBridgeSource = profile.sourceURL == nil ? .unavailable : .localFile
+                if profile.sourceURL == nil, let error = result.error {
+                    lastError = error
+                }
+            }
+        }
+    }
+
+    func refreshIdentity(days: Int = 7) {
         guard !isAnalyzing else { return }
         isAnalyzing = true
         lastError = nil
-        activityMessage = "Reading local Codex evidence…"
+        let boundedDays = min(max(days, 1), 90)
+        activityMessage = "Reading \(boundedDays) day\(boundedDays == 1 ? "" : "s") of local Codex evidence…"
 
         Task {
             let result = await Task.detached(priority: .userInitiated) {
-                Self.runTokenBar(arguments: ["claim", "--days", "7"])
+                Self.runTokenBar(arguments: ["claim", "--days", "\(boundedDays)"])
             }.value
             isAnalyzing = false
             if result.status == 0 {
                 reload()
-                activityMessage = "Builder Story refreshed"
+                refreshIdentityBridge()
+                activityMessage = "\(boundedDays)-day Builder Story ready"
             } else {
                 lastError = result.output.isEmpty ? "TokenBar could not refresh the identity." : result.output
                 activityMessage = "Analysis needs attention"
             }
+        }
+    }
+
+    func publishCurrentProof() {
+        guard !isPublishingProof, !receipt.hasShareSurface else { return }
+        isPublishingProof = true
+        lastError = nil
+        activityMessage = "Publishing an unlisted safe proof…"
+
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Self.runTokenBar(arguments: ["publish-proof", "--unlisted", "--hide-owner", "--hide-region"])
+            }.value
+            isPublishingProof = false
+            if result.status == 0 {
+                reload()
+                refreshIdentityBridge()
+                if receipt.hasShareSurface {
+                    activityMessage = "Unlisted proof ready · receipt saved locally"
+                } else {
+                    lastError = "The proof action completed but no reloadable share receipt was found."
+                    activityMessage = "Proof receipt needs attention"
+                }
+            } else {
+                lastError = result.output.isEmpty ? "TokenBar could not publish the unlisted proof." : result.output
+                activityMessage = "Proof publication needs attention"
+            }
+        }
+    }
+
+    func exportProofPacket() {
+        guard !isExportingProof, profile.sourceURL != nil else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Download Builder Identity report"
+        panel.prompt = "Download"
+        panel.allowedContentTypes = [.zip]
+        panel.canCreateDirectories = true
+        let safeToken = profile.reportToken.hasPrefix("TBAR-") ? profile.reportToken.lowercased() : "tokenbar-builder"
+        panel.nameFieldStringValue = "\(safeToken)-report.zip"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        isExportingProof = true
+        lastError = nil
+        activityMessage = "Preparing your Builder Identity report…"
+
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Self.runTokenBar(arguments: ["proof", "--output", destination.path])
+            }.value
+            guard result.status == 0 else {
+                isExportingProof = false
+                lastError = result.output.isEmpty ? "TokenBar could not download the report." : result.output
+                activityMessage = "Report download needs attention"
+                return
+            }
+
+            let verification = await Task.detached(priority: .utility) {
+                Self.runTokenBar(arguments: ["verify", destination.path])
+            }.value
+            isExportingProof = false
+            guard verification.status == 0 else {
+                lastError = verification.output.isEmpty ? "The report was created but failed its safety check." : verification.output
+                activityMessage = "Report safety check failed"
+                return
+            }
+
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+            activityMessage = "Report downloaded and safety-checked"
         }
     }
 
@@ -225,17 +593,51 @@ final class TokenBarModel: ObservableObject {
         activityMessage = "Reading ccusage locally…"
 
         Task {
+            defer { isLoadingCosts = false }
             let result = await Task.detached(priority: .userInitiated) {
                 Self.runCCUsage(timeZone: TimeZone.current.identifier)
             }.value
-            isLoadingCosts = false
             if result.status == 0, let snapshot = result.snapshot {
                 costUsage = snapshot
-                activityMessage = "Cost snapshot loaded locally"
+                if saveCostUsageSnapshot(snapshot) {
+                    activityMessage = "Cost snapshot loaded and cached locally"
+                } else {
+                    activityMessage = "Cost snapshot loaded locally"
+                    lastError = "TokenBar loaded costs but could not save its private local cache."
+                }
             } else {
                 lastError = result.output.isEmpty ? "TokenBar could not read ccusage." : result.output
                 activityMessage = "Cost snapshot needs attention"
             }
+        }
+    }
+
+    private func loadCostUsageSnapshot() -> CCUsageSnapshot {
+        let url = supportDirectory.appendingPathComponent("cost-usage-snapshot.json")
+        guard
+            let data = try? Data(contentsOf: url),
+            let cache = try? JSONDecoder().decode(LocalCostUsageCache.self, from: data),
+            cache.schema == LocalCostUsageCache.schema
+        else {
+            return CCUsageSnapshot()
+        }
+        return cache.snapshot
+    }
+
+    private func saveCostUsageSnapshot(_ snapshot: CCUsageSnapshot) -> Bool {
+        let url = supportDirectory.appendingPathComponent("cost-usage-snapshot.json")
+        let cache = LocalCostUsageCache(
+            schema: LocalCostUsageCache.schema,
+            savedAt: Date(),
+            snapshot: snapshot
+        )
+        do {
+            try fileManager.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(cache)
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -258,6 +660,83 @@ final class TokenBarModel: ObservableObject {
                 activityMessage = "Thread index needs attention"
             }
         }
+    }
+
+    func refreshStorage() {
+        guard !isScanningStorage else { return }
+        isScanningStorage = true
+        lastError = nil
+        activityMessage = "Mapping generated storage locally…"
+        let threads = codexThreads
+        let support = supportDirectory
+
+        Task {
+            let items = await Task.detached(priority: .utility) {
+                let resolvedThreads = threads.isEmpty ? Self.readCodexThreads().threads : threads
+                return Self.scanStorage(supportDirectory: support, threads: resolvedThreads)
+            }.value
+            storageItems = items
+            isScanningStorage = false
+            activityMessage = "\(items.count) storage areas mapped"
+        }
+    }
+
+    func revealStorageItem(_ item: StorageItemSnapshot) {
+        NSWorkspace.shared.selectFile(item.path, inFileViewerRootedAtPath: "")
+    }
+
+    func moveStorageItemToTrash(_ item: StorageItemSnapshot) {
+        guard item.isTrashable else { return }
+        do {
+            var resultingURL: NSURL?
+            try fileManager.trashItem(at: URL(fileURLWithPath: item.path), resultingItemURL: &resultingURL)
+            storageItems.removeAll { $0.id == item.id }
+            activityMessage = "\(item.name) moved to Trash"
+        } catch {
+            lastError = "Could not move \(item.name) to Trash: \(error.localizedDescription)"
+        }
+    }
+
+    var selectedThreadBoard: ThreadBoardConfiguration {
+        threadBoards.first { $0.id == selectedThreadBoardID } ?? threadBoards.first ?? .starter
+    }
+
+    func selectThreadBoard(_ id: UUID) {
+        guard threadBoards.contains(where: { $0.id == id }) else { return }
+        selectedThreadBoardID = id
+        saveThreadBoardStore()
+    }
+
+    func saveThreadBoard(_ board: ThreadBoardConfiguration) {
+        var clean = board
+        clean.name = clean.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        clean.focusTitle = clean.focusTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        clean.recentTitle = clean.recentTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        clean.reviewTitle = clean.reviewTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        clean.workspaceFilter = clean.workspaceFilter.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.name.isEmpty { clean.name = "Untitled board" }
+        if clean.focusTitle.isEmpty { clean.focusTitle = "Now" }
+        if clean.recentTitle.isEmpty { clean.recentTitle = "Fresh" }
+        if clean.reviewTitle.isEmpty { clean.reviewTitle = "Revisit" }
+
+        if let index = threadBoards.firstIndex(where: { $0.id == clean.id }) {
+            threadBoards[index] = clean
+        } else {
+            threadBoards.append(clean)
+        }
+        selectedThreadBoardID = clean.id
+        saveThreadBoardStore()
+        activityMessage = "Thread board saved locally"
+    }
+
+    func deleteThreadBoard(_ id: UUID) {
+        guard threadBoards.count > 1 else { return }
+        threadBoards.removeAll { $0.id == id }
+        if selectedThreadBoardID == id {
+            selectedThreadBoardID = threadBoards[0].id
+        }
+        saveThreadBoardStore()
+        activityMessage = "Thread board removed"
     }
 
     func revokeCurrentProof() {
@@ -289,10 +768,44 @@ final class TokenBarModel: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    func openCodex() {
+        for bundleID in ["com.openai.codex", "com.openai.chatgpt"] {
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
+                return
+            }
+        }
+        lastError = "Codex is not installed on this Mac. The handoff is still on your clipboard."
+    }
+
     func copy(_ value: String, confirmation: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
         activityMessage = confirmation
+    }
+
+    func copyCodexMCPSetup() {
+        let bundled = Bundle.main.resourceURL?.appendingPathComponent("tokenbar/tokenbar").path
+        let executable = bundled.flatMap { fileManager.isExecutableFile(atPath: $0) ? $0 : nil } ?? "tokenbar"
+        let quoted = "'" + executable.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+        copy(
+            "codex mcp add tokenbar -- \(quoted) mcp",
+            confirmation: "Codex MCP setup copied · paste it in Terminal"
+        )
+    }
+
+    func copyClaimCommand() {
+        copy(
+            "tokenbar report",
+            confirmation: "Report command copied · paste it in Terminal"
+        )
+    }
+
+    func copyUsageCommand() {
+        copy(
+            "tokenbar usage",
+            confirmation: "Usage command copied · paste it in Terminal"
+        )
     }
 
     func threadDraft(for threadID: String) -> String {
@@ -321,6 +834,32 @@ final class TokenBarModel: ObservableObject {
         guard let data = try? Data(contentsOf: url),
               let drafts = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
         return drafts
+    }
+
+    private func loadThreadBoardStore() -> ThreadBoardStore {
+        let url = supportDirectory.appendingPathComponent("thread-boards.json")
+        guard let data = try? Data(contentsOf: url),
+              let store = try? JSONDecoder().decode(ThreadBoardStore.self, from: data),
+              !store.boards.isEmpty else {
+            return ThreadBoardStore(selectedBoardID: ThreadBoardConfiguration.starterID, boards: [.starter])
+        }
+        let selected = store.boards.contains(where: { $0.id == store.selectedBoardID })
+            ? store.selectedBoardID
+            : store.boards[0].id
+        return ThreadBoardStore(selectedBoardID: selected, boards: store.boards)
+    }
+
+    private func saveThreadBoardStore() {
+        do {
+            try fileManager.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
+            let store = ThreadBoardStore(selectedBoardID: selectedThreadBoardID, boards: threadBoards)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(store)
+            try data.write(to: supportDirectory.appendingPathComponent("thread-boards.json"), options: .atomic)
+        } catch {
+            lastError = "Could not save thread boards: \(error.localizedDescription)"
+        }
     }
 
     func importBrief(from url: URL) {
@@ -376,12 +915,7 @@ final class TokenBarModel: ObservableObject {
         try? saveInvitations()
         copy(kickoffPrompt(for: invitations[index]), confirmation: "Codex kickoff copied")
 
-        for bundleID in ["com.openai.codex", "com.openai.chatgpt"] {
-            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-                NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
-                break
-            }
-        }
+        openCodex()
     }
 
     func kickoffPrompt(for invitation: ProjectInvitation) -> String {
@@ -445,6 +979,7 @@ final class TokenBarModel: ObservableObject {
         let reportURL = URL(fileURLWithPath: url.path.replacingOccurrences(of: ".identity.json", with: ".html"))
 
         return BuilderProfile(
+            reportToken: string(object["token"]),
             identityTitle: title.isEmpty ? string(object["title"]) : title,
             archetype: string(object["primaryArchetype"], fallback: "Builder"),
             stance: string(identityLabel["stance"], fallback: "Local-first"),
@@ -465,10 +1000,59 @@ final class TokenBarModel: ObservableObject {
                 projectedNext7: string(usage["projectedNext7"], fallback: "--"),
                 sessions: integer(usage["sessionsIndexed"]),
                 activeDays: integer(usage["activeDaysLast30"]),
-                model: string(usage["topLocalModel"], fallback: "Local")
+                model: string(usage["topLocalModel"], fallback: "Local"),
+                days: []
             ),
+            evidenceSessions: integer(usage["sessionsIndexed"]),
+            evidenceActiveDays: integer(usage["activeDaysLast30"]),
             reportURL: fileManager.fileExists(atPath: reportURL.path) ? reportURL : nil,
             sourceURL: url
+        )
+    }
+
+    private func profileFromSafeBundle(_ bundle: SafeIdentityBundle, preserving local: BuilderProfile) -> BuilderProfile {
+        guard let identity = bundle.identity else { return local }
+        let days = bundle.stats.dayTokens.sorted { $0.key < $1.key }
+        let last7 = days.suffix(7).reduce(Int64(0)) { $0 + $1.value }
+        let last30 = days.suffix(30).reduce(Int64(0)) { $0 + $1.value }
+        let today = days.last?.value ?? 0
+        let topModel = bundle.stats.modelTokens.max { $0.value < $1.value }?.key
+        let dimensions = (identity.dimensions ?? []).map {
+            BuilderDimension(name: $0.name, score: $0.score, note: $0.note ?? "Safe aggregate evidence from the current Builder Identity bundle.")
+        }
+        let facts = (identity.curiousFacts ?? []).map {
+            BuilderFact(label: $0.label, value: $0.value, copy: $0.copy ?? "Generated from privacy-safe local aggregates.")
+        }
+
+        return BuilderProfile(
+            reportToken: local.reportToken,
+            identityTitle: identity.identityLabel?.title ?? identity.title ?? local.identityTitle,
+            archetype: identity.primaryArchetype ?? local.archetype,
+            stance: identity.identityLabel?.stance ?? local.stance,
+            subtitle: identity.subtitle ?? local.subtitle,
+            proofScore: identity.proofScore ?? local.proofScore,
+            loopScore: identity.loopScore ?? identity.loopMaturity ?? local.loopScore,
+            specificityScore: identity.specificityScore ?? local.specificityScore,
+            rarity: identity.estimatedRarityPercent ?? local.rarity,
+            generatedAt: identity.generatedAt ?? local.generatedAt,
+            dimensions: dimensions.isEmpty ? local.dimensions : dimensions,
+            signatureMoves: identity.signatureMoves ?? local.signatureMoves,
+            facts: facts.isEmpty ? local.facts : facts,
+            growthEdge: identity.growthEdge ?? local.growthEdge,
+            usage: UsageSnapshot(
+                today: today > 0 ? Self.compactCount(today) : local.usage.today,
+                last7: last7 > 0 ? Self.compactCount(last7) : local.usage.last7,
+                last30: last30 > 0 ? Self.compactCount(last30) : local.usage.last30,
+                projectedNext7: local.usage.projectedNext7,
+                sessions: bundle.stats.sessionCount,
+                activeDays: bundle.stats.activeDayCount,
+                model: topModel ?? local.usage.model,
+                days: days.map { UsageDaySnapshot(date: $0.key, tokens: $0.value) }
+            ),
+            evidenceSessions: identity.usage?.sessionsIndexed ?? local.evidenceSessions,
+            evidenceActiveDays: identity.usage?.activeDaysLast30 ?? local.evidenceActiveDays,
+            reportURL: local.reportURL,
+            sourceURL: local.sourceURL
         )
     }
 
@@ -483,10 +1067,25 @@ final class TokenBarModel: ObservableObject {
         for url in candidates {
             guard let object = jsonObject(at: url), bool(object["revoked"]) == false else { continue }
             let surfaces = dictionary(object["surfaces"])
+            let shareReceipt = dictionary(object["shareReceipt"])
+            let privacy = dictionary(object["privacy"])
+            let completedStages = strings(shareReceipt["completedStages"])
+            let hasPrivacyAssertions = privacy.keys.contains("rawTranscriptsUploaded")
+                && privacy.keys.contains("sourceCodeUploaded")
             let receipt = ProofReceipt(
                 token: string(object["token"], fallback: url.deletingPathExtension().lastPathComponent),
                 runID: string(object["runId"]),
                 shareMode: string(object["shareMode"], fallback: "unlisted"),
+                generatedAt: string(object["generatedAt"]),
+                completedStages: completedStages,
+                publicMaterial: string(shareReceipt["publicMaterial"]),
+                uploadedMaterial: string(privacy["uploaded"]),
+                neverPublic: strings(shareReceipt["neverPublic"]),
+                redactedFields: strings(shareReceipt["redactedFields"]),
+                ownerBound: bool(object["ownerBound"]),
+                privacyVerified: hasPrivacyAssertions
+                    && bool(privacy["rawTranscriptsUploaded"]) == false
+                    && bool(privacy["sourceCodeUploaded"]) == false,
                 publicProfileURL: webURL(surfaces["publicProfile"]),
                 proofCardURL: webURL(surfaces["proofCard"]),
                 socialURL: webURL(surfaces["socialFeed"]),
@@ -533,6 +1132,12 @@ final class TokenBarModel: ObservableObject {
 
     private func dictionary(_ value: Any?) -> [String: Any] { value as? [String: Any] ?? [:] }
     private func array(_ value: Any?) -> [Any] { value as? [Any] ?? [] }
+    private func strings(_ value: Any?) -> [String] {
+        array(value).compactMap { item in
+            guard let string = item as? String, !string.isEmpty else { return nil }
+            return string
+        }
+    }
     private func string(_ value: Any?, fallback: String = "") -> String {
         if let string = value as? String, !string.isEmpty { return string }
         return fallback
@@ -555,11 +1160,18 @@ final class TokenBarModel: ObservableObject {
     }
 
     nonisolated private static func runTokenBar(arguments: [String]) -> (status: Int32, output: String) {
-        let candidates = [
+        var candidates = [String]()
+        if let override = ProcessInfo.processInfo.environment["TOKENBAR_CLI_PATH"], !override.isEmpty {
+            candidates.append(override)
+        }
+        if let bundled = Bundle.main.resourceURL?.appendingPathComponent("tokenbar/tokenbar").path {
+            candidates.append(bundled)
+        }
+        candidates.append(contentsOf: [
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/tokenbar").path,
             "/usr/local/bin/tokenbar",
             "/opt/homebrew/bin/tokenbar"
-        ]
+        ])
         guard let executable = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return (127, "Install the TokenBar CLI before refreshing the native profile.")
         }
@@ -577,6 +1189,58 @@ final class TokenBarModel: ObservableObject {
         } catch {
             return (1, error.localizedDescription)
         }
+    }
+
+    nonisolated private static func loadSafeIdentityBridge() async -> SafeBridgeResult {
+        let endpoint = ProcessInfo.processInfo.environment["TOKENBAR_IDENTITY_API_URL"]
+            ?? "http://127.0.0.1:8769/v1/bundle"
+        if let url = URL(string: endpoint) {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 1.25
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, http.statusCode == 200,
+                   let bundle = decodeSafeBundle(data), bundleIsSafe(bundle) {
+                    return SafeBridgeResult(bundle: bundle, source: .liveAPI, error: nil)
+                }
+            } catch {
+                // The packaged snapshot below is the normal offline fallback.
+            }
+        }
+
+        let snapshot = runTokenBar(arguments: ["api", "--snapshot"])
+        if snapshot.status == 0,
+           let data = snapshot.output.data(using: .utf8),
+           let bundle = decodeSafeBundle(data), bundleIsSafe(bundle) {
+            return SafeBridgeResult(bundle: bundle, source: .safeSnapshot, error: nil)
+        }
+        let error = snapshot.output.isEmpty
+            ? "TokenBar could not load a safe identity bundle. Run tokenbar claim, then reload."
+            : snapshot.output
+        return SafeBridgeResult(bundle: nil, source: .unavailable, error: error)
+    }
+
+    nonisolated private static func decodeSafeBundle(_ data: Data) -> SafeIdentityBundle? {
+        try? JSONDecoder().decode(SafeIdentityBundle.self, from: data)
+    }
+
+    nonisolated private static func bundleIsSafe(_ bundle: SafeIdentityBundle) -> Bool {
+        bundle.ok
+            && bundle.schema == "tokenbar.builder_bundle.v1"
+            && bundle.identity != nil
+            && !bundle.privacy.rawTranscriptsIncluded
+            && !bundle.privacy.sourceCodeIncluded
+            && !bundle.privacy.localPathsIncluded
+            && !bundle.privacy.secretsIncluded
+    }
+
+    nonisolated private static func compactCount(_ value: Int64) -> String {
+        let number = Double(value)
+        if number >= 1_000_000_000 { return String(format: "%.2fB", number / 1_000_000_000).replacingOccurrences(of: ".00B", with: "B") }
+        if number >= 1_000_000 { return String(format: "%.1fM", number / 1_000_000).replacingOccurrences(of: ".0M", with: "M") }
+        if number >= 1_000 { return String(format: "%.1fK", number / 1_000).replacingOccurrences(of: ".0K", with: "K") }
+        return String(value)
     }
 
     nonisolated private static func runCCUsage(timeZone: String) -> (status: Int32, snapshot: CCUsageSnapshot?, output: String) {
@@ -617,7 +1281,14 @@ final class TokenBarModel: ObservableObject {
                 latestCost: currency(latest.totalCost),
                 codexCost: currency(codexCost),
                 latestTokens: count(latest.totalTokens),
-                observedCost: currency(report.totals.totalCost)
+                observedCost: currency(report.totals.totalCost),
+                recentDays: report.daily.suffix(7).map { day in
+                    CCUsageDaySnapshot(
+                        period: day.period,
+                        totalCost: currency(day.totalCost),
+                        codexCost: currency(day.agents?.first(where: { $0.agent.lowercased() == "codex" })?.totalCost ?? 0)
+                    )
+                }
             )
             return (0, snapshot, "")
         } catch {
@@ -694,6 +1365,157 @@ final class TokenBarModel: ObservableObject {
         } catch {
             return (1, [], "Could not decode the Codex thread index: \(error.localizedDescription)")
         }
+    }
+
+    nonisolated private static func scanStorage(
+        supportDirectory: URL,
+        threads: [CodexThread]
+    ) -> [StorageItemSnapshot] {
+        struct Candidate {
+            let name: String
+            let workspace: String
+            let url: URL
+            let kind: String
+            let isTrashable: Bool
+        }
+
+        let fileManager = FileManager.default
+        let home = fileManager.homeDirectoryForCurrentUser
+        var candidates = [
+            Candidate(
+                name: "Builder Identity reports",
+                workspace: "TokenBar",
+                url: supportDirectory.appendingPathComponent("profiles", isDirectory: true),
+                kind: "Reports",
+                isTrashable: false
+            ),
+            Candidate(
+                name: "Share receipts",
+                workspace: "TokenBar",
+                url: supportDirectory.appendingPathComponent("proof-receipts", isDirectory: true),
+                kind: "Receipts",
+                isTrashable: false
+            ),
+            Candidate(
+                name: "Codex sessions",
+                workspace: "Codex",
+                url: home.appendingPathComponent(".codex/sessions", isDirectory: true),
+                kind: "Session history",
+                isTrashable: false
+            ),
+            Candidate(
+                name: "Codex logs",
+                workspace: "Codex",
+                url: home.appendingPathComponent(".codex/logs", isDirectory: true),
+                kind: "Logs",
+                isTrashable: false
+            ),
+        ]
+
+        let generatedNames: Set<String> = [
+            "node_modules", ".build", "build", "dist", ".next", ".nuxt",
+            "coverage", ".turbo", ".pytest_cache", "__pycache__", ".venv",
+            "venv", "DerivedData", ".gradle", "target", "Pods"
+        ]
+        var seenWorkspaces = Set<String>()
+        for thread in threads {
+            let cwd = thread.cwd
+            guard !cwd.isEmpty, seenWorkspaces.insert(cwd).inserted else { continue }
+            let root = URL(fileURLWithPath: cwd, isDirectory: true)
+            let rootPath = root.standardizedFileURL.path
+            guard rootPath.hasPrefix(home.path + "/"),
+                  rootPath != home.path else { continue }
+            for url in generatedDirectories(
+                under: root,
+                matching: generatedNames,
+                maximumDepth: 4
+            ) {
+                candidates.append(
+                    Candidate(
+                        name: url.lastPathComponent,
+                        workspace: thread.workspace,
+                        url: url,
+                        kind: "Generated",
+                        isTrashable: true
+                    )
+                )
+            }
+            if seenWorkspaces.count >= 40 { break }
+        }
+
+        var seenPaths = Set<String>()
+        return candidates.compactMap { candidate in
+            let path = candidate.url.standardizedFileURL.path
+            guard seenPaths.insert(path).inserted,
+                  fileManager.fileExists(atPath: path) else { return nil }
+            let stats = directoryStats(at: candidate.url)
+            return StorageItemSnapshot(
+                name: candidate.name,
+                workspace: candidate.workspace,
+                path: path,
+                bytes: stats.bytes,
+                fileCount: stats.files,
+                kind: candidate.kind,
+                isTrashable: candidate.isTrashable
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.bytes == rhs.bytes { return lhs.path < rhs.path }
+            return lhs.bytes > rhs.bytes
+        }
+    }
+
+    nonisolated private static func generatedDirectories(
+        under root: URL,
+        matching names: Set<String>,
+        maximumDepth: Int
+    ) -> [URL] {
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: keys,
+            options: [.skipsPackageDescendants],
+            errorHandler: { _, _ in true }
+        ) else { return [] }
+
+        let rootDepth = root.standardizedFileURL.pathComponents.count
+        var matches: [URL] = []
+        for case let url as URL in enumerator {
+            let depth = url.standardizedFileURL.pathComponents.count - rootDepth
+            guard depth <= maximumDepth else {
+                enumerator.skipDescendants()
+                continue
+            }
+            guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                  values.isSymbolicLink != true,
+                  values.isDirectory == true else { continue }
+            guard names.contains(url.lastPathComponent) else { continue }
+            matches.append(url)
+            enumerator.skipDescendants()
+        }
+        return matches
+    }
+
+    nonisolated private static func directoryStats(at url: URL) -> (bytes: Int64, files: Int) {
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]
+        guard let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: keys,
+            options: [.skipsPackageDescendants],
+            errorHandler: { _, _ in true }
+        ) else { return (0, 0) }
+
+        var bytes: Int64 = 0
+        var files = 0
+        for case let fileURL as URL in enumerator {
+            guard files < 250_000,
+                  let values = try? fileURL.resourceValues(forKeys: Set(keys)),
+                  values.isSymbolicLink != true,
+                  values.isRegularFile == true else { continue }
+            bytes += Int64(values.fileSize ?? 0)
+            files += 1
+        }
+        return (bytes, files)
     }
 
     nonisolated private static func readGitReviewState(at path: String) -> (state: String, changedFiles: Int) {
