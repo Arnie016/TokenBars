@@ -10,19 +10,23 @@
     <title>TokenBar · AI Coding Usage From Your Menu Bar</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1020'/%3E%3Crect x='12' y='10' width='14' height='44' rx='7' fill='%232f81f7'/%3E%3Crect x='26' y='10' width='12' height='44' fill='%235ed34f'/%3E%3Crect x='38' y='10' width='14' height='44' rx='7' fill='%23ff7a18'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./tokenbar-codex.css" />
   </head>
-  <body class="home-page">
+  <body class="page-body home-page tokenbar-codex">
     <header class="topbar">
       <a class="brand" href="/" aria-label="TokenBar home">
         <span class="brand-mark" aria-hidden="true">tb</span>
         <span>TokenBar</span>
       </a>
       <nav aria-label="Primary navigation">
-        <a href="/docs">How it works</a>
-        <a href="/social">Social</a>
-        <a href="/profile">Profile</a>
-        <a href="/archetypes">Archetypes</a>
+        <a href="/#usage">Usage</a>
+        <a href="/threads">Threads</a>
+        <a href="/profile">Identity</a>
+        <a href="/social">For You</a>
         <a href="/rankings">Rankings</a>
+        <a href="/playbooks">Playbooks</a>
+        <a href="/#ecosystem">Ecosystem</a>
+        <a href="/#runway">Launch</a>
         <a href="/docs">Docs</a>
       </nav>
       <div class="top-actions">
@@ -37,9 +41,9 @@
           <div class="hero-pill"><span></span> Local-first. Identity-first.</div>
           <h1>Own your builder identity.</h1>
           <p>
-            TokenBar runs as a local identity layer for Codex, Claude Code, Gemini,
-            and Cursor: it reads your sessions, shows how you plan, steer, ship, and
-            turns agent work into proof you can share.
+            TokenBar runs as a local identity layer for Codex, Claude Code, Cursor,
+            Antigravity, and OpenCode: it reads your sessions, shows how you plan,
+            steer, ship, and turns agent work into proof you can share.
           </p>
           <div class="hero-actions">
             <a class="button primary" href="/#download">Download for macOS</a>
@@ -56,8 +60,9 @@
           <div class="connector-cloud" aria-label="Supported coding agent surfaces">
             <span><b>cx</b>Codex</span>
             <span><b>cl</b>Claude Code</span>
-            <span><b>gm</b>Gemini</span>
             <span><b>cu</b>Cursor</span>
+            <span><b>ag</b>Antigravity</span>
+            <span><b>oc</b>OpenCode</span>
           </div>
           <div class="install-line" aria-label="Terminal install command">
             <code>curl -fsSL .../install.sh | bash</code>
@@ -70,6 +75,14 @@
             <span></span><span>312M</span><span>30°C</span><span>Sat 7 Jun · 10:17 PM</span>
           </div>
           <figure class="hero-shot" data-product-rig>
+            <div class="hero-provider-strip" aria-label="Current TokenBar provider lanes">
+              <span>Overview</span>
+              <span>Codex</span>
+              <span>Claude Code</span>
+              <span>Cursor</span>
+              <span>Antigravity</span>
+              <span>OpenCode</span>
+            </div>
             <img src="./assets/tokenbar-overview.png" alt="TokenBar macOS menu bar overview showing token history, forecast, and runout cards" />
             <figcaption>
               <span>Live menu bar surface</span>
@@ -79,8 +92,9 @@
           <div class="tool-orbit" aria-label="TokenBar coding tool coverage">
             <span class="tool-chip tool-codex"><i>cx</i><b>Codex</b><small>terminal sessions</small></span>
             <span class="tool-chip tool-claude"><i>cl</i><b>Claude Code</b><small>project traces</small></span>
-            <span class="tool-chip tool-gemini"><i>gm</i><b>Gemini</b><small>agent notes</small></span>
             <span class="tool-chip tool-cursor"><i>cu</i><b>Cursor</b><small>workspace runs</small></span>
+            <span class="tool-chip tool-antigravity"><i>ag</i><b>Antigravity</b><small>preview lane</small></span>
+            <span class="tool-chip tool-opencode"><i>oc</i><b>OpenCode</b><small>open-source IDE</small></span>
           </div>
           <div class="surface-depth" aria-hidden="true">
             <span></span><span></span><span></span>
@@ -112,7 +126,669 @@
         <div>
           <span>Connectors</span>
           <strong>Codex+</strong>
-          <small>Claude, Cursor, Gemini-ready</small>
+          <small>Claude, Cursor, Antigravity, OpenCode</small>
+        </div>
+      </section>
+
+      <section class="ecosystem-band" id="ecosystem" data-reveal>
+        <div class="ecosystem-copy">
+          <p class="eyebrow">Product system</p>
+          <h2>One signal layer across every AI coding surface.</h2>
+          <p>
+            TokenBar is not just a graph in the menu bar. It is a local evidence
+            layer that connects the icon-bar cockpit, CLI, Mac identity studio,
+            and public web app without moving raw work unless you explicitly publish
+            a generated safe artifact.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar ecosystem</code>
+            <button type="button" data-copy-command="tokenbar ecosystem">Copy</button>
+          </div>
+        </div>
+
+        <div class="ecosystem-map" aria-label="TokenBar product ecosystem">
+          <article class="ecosystem-node node-menu">
+            <span>Menu bar</span>
+            <h3>Always-on usage cockpit</h3>
+            <p>Account, provider lanes, costs, budgets, reminders, forecast, and memory pressure.</p>
+          </article>
+          <article class="ecosystem-node node-cli">
+            <span>CLI</span>
+            <h3>Private evidence engine</h3>
+            <p>Local usage, cost passports, proof packets, playbooks, and launch drafts.</p>
+          </article>
+          <article class="ecosystem-node node-mac">
+            <span>Mac app</span>
+            <h3>Builder identity studio</h3>
+            <p>Story, Timeline, Threads, Profile, Reports, and Storage from aggregate Codex evidence.</p>
+          </article>
+          <article class="ecosystem-node node-web">
+            <span>Web app</span>
+            <h3>Proof and marketplace</h3>
+            <p>Opt-in profiles, rankings, playbooks, install handoff, and launch storytelling.</p>
+          </article>
+          <article class="ecosystem-lane lane-browser">
+            <span>Local prototype</span>
+            <h3>Browser Companion</h3>
+            <p>Show active account, budgets, reminders, and playbook prompts from TokenBar's localhost bundle beside Codex, GitHub, Product Hunt, and provider work.</p>
+            <small>Run <code>tokenbar browser-companion</code>. No content scripts, remote hosts, or private prompt scraping.</small>
+          </article>
+          <article class="ecosystem-lane lane-relay">
+            <span>Next technology</span>
+            <h3>Local Automation Relay</h3>
+            <p>Explain Chrome, Codex, and IDE memory pressure, then propose cleanup or restore actions for approval.</p>
+            <small>No process closing, browser restore, webhook, or external action without approval.</small>
+          </article>
+        </div>
+      </section>
+
+      <section class="assembly-band" id="assembly" data-reveal>
+        <div class="assembly-copy">
+          <p class="eyebrow">Data-story assembly</p>
+          <h2>Tokens gather into a decision, not a pile of stats.</h2>
+          <p>
+            The icon bar watches local usage, asks one short interpretation question,
+            then assembles budget pressure, reminders, prompt playbooks, and proof into
+            one guided surface before a long run burns the wrong tokens.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar ecosystem json</code>
+            <button type="button" data-copy-command="tokenbar ecosystem json">Copy</button>
+          </div>
+        </div>
+        <div class="assembly-stage" aria-label="TokenBar token assembly rail">
+          <div class="token-shower" aria-hidden="true">
+            <i style="--x: 8%; --d: 0ms"></i>
+            <i style="--x: 19%; --d: 220ms"></i>
+            <i style="--x: 31%; --d: 80ms"></i>
+            <i style="--x: 44%; --d: 320ms"></i>
+            <i style="--x: 58%; --d: 120ms"></i>
+            <i style="--x: 71%; --d: 280ms"></i>
+            <i style="--x: 84%; --d: 40ms"></i>
+          </div>
+          <div class="assembly-rail">
+            <article>
+              <span>01</span>
+              <strong>Account</strong>
+              <p>Show which local account and provider lane is active before reading the graph.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <strong>Analyze</strong>
+              <p>Build a private aggregate bundle from usage, costs, cadence, and memory pressure.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <strong>MCQ</strong>
+              <p>Ask a quick confirmation question before assigning a story or builder form.</p>
+            </article>
+            <article>
+              <span>04</span>
+              <strong>Budget</strong>
+              <p>Convert daily, weekly, monthly, or yearly caps into visible run pressure.</p>
+            </article>
+            <article>
+              <span>05</span>
+              <strong>Reminder</strong>
+              <p>Suggest a nudge or cooldown while keeping scheduling behind approval.</p>
+            </article>
+            <article>
+              <span>06</span>
+              <strong>Playbook</strong>
+              <p>Offer the exact prompt template that can reduce waste on the next run.</p>
+            </article>
+            <article>
+              <span>07</span>
+              <strong>Proof</strong>
+              <p>Export a safe cost passport, report, or profile only after review.</p>
+            </article>
+          </div>
+          <div class="assembly-output" aria-label="TokenBar ecosystem output layers">
+            <span>Free menu-bar usage</span>
+            <span>Pro identity report</span>
+            <span>Premium prompt library</span>
+            <span>Opt-in public proof</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="matrix-lab-band" id="token-matrix-lab" data-reveal data-matrix-lab>
+        <div class="matrix-lab-copy">
+          <p class="eyebrow">Token Matrix Lab</p>
+          <h2>Watch usage assemble into the next decision.</h2>
+          <p>
+            TokenBar's best surface is not a table of counts. It is a live
+            matrix where tokens, cost, budget pressure, reminder timing, and
+            proof line up into one practical choice before the next agent run.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar reminders json</code>
+            <button type="button" data-copy-command="tokenbar reminders json">Copy</button>
+          </div>
+        </div>
+
+        <div class="matrix-lab-stage" data-matrix-state="budget" aria-label="Interactive TokenBar token matrix lab">
+          <div class="matrix-truth-rail" aria-label="Matrix evidence gates">
+            <span><b>Account</b><small>visible before totals</small></span>
+            <span><b>Measured lanes</b><small>Codex, OpenCode when local tokens exist</small></span>
+            <span><b>Setup lanes</b><small>Claude Code, Cursor, Antigravity until connected</small></span>
+          </div>
+
+          <div class="matrix-mode-switch" role="tablist" aria-label="Token matrix views">
+            <button type="button" class="is-active" aria-selected="true" role="tab" data-matrix-mode="tokens">Tokens</button>
+            <button type="button" aria-selected="false" role="tab" data-matrix-mode="budget">Budget</button>
+            <button type="button" aria-selected="false" role="tab" data-matrix-mode="reminder">Reminder</button>
+            <button type="button" aria-selected="false" role="tab" data-matrix-mode="cost">Cost</button>
+            <button type="button" aria-selected="false" role="tab" data-matrix-mode="proof">Proof</button>
+          </div>
+
+          <div class="matrix-orbit" aria-hidden="true">
+            <span data-matrix-node="input">input</span>
+            <span data-matrix-node="output">output</span>
+            <span data-matrix-node="waste">waste</span>
+            <span data-matrix-node="budget">budget</span>
+            <span data-matrix-node="cost">cost</span>
+            <span data-matrix-node="reminder">reminder</span>
+            <span data-matrix-node="proof">proof</span>
+            <b data-matrix-core>Runway Brief</b>
+          </div>
+
+          <div class="matrix-signal-stream" aria-label="TokenBar signal stream">
+            <span data-matrix-stream="input">input tokens</span>
+            <span data-matrix-stream="output">output tokens</span>
+            <span data-matrix-stream="waste">waste lens</span>
+            <span data-matrix-stream="decision">decision brief</span>
+          </div>
+
+          <article class="matrix-decision-card">
+            <span data-matrix-kicker>Budget mode</span>
+            <strong data-matrix-title>Turn the cap into a pre-run brief.</strong>
+            <p data-matrix-copy>
+              Weekly pressure shapes the prompt before the next run starts:
+              budget, route, context cap, verifier, and stop condition.
+            </p>
+            <div class="matrix-proof-row">
+              <span><b data-matrix-primary>72%</b><small data-matrix-primary-label>focus threshold</small></span>
+              <span><b data-matrix-secondary>0</b><small>scheduled actions</small></span>
+              <span><b data-matrix-tertiary>5</b><small>free playbooks</small></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="story-os" id="usage" data-reveal>
+        <div class="story-os-copy">
+          <p class="eyebrow">Menu-bar data storytelling</p>
+          <h2>Usage becomes a living story engine.</h2>
+          <p>
+            TokenBar turns local agent activity into a launch-ready operating surface:
+            who used the tokens, which account is connected, where the week is going,
+            when to slow down, what the work cost, and which playbook prevents waste
+            before the next run starts.
+          </p>
+          <div class="story-os-actions">
+            <a class="button primary" href="/#download">Download the Mac app</a>
+            <a class="button secondary" href="/playbooks">Open playbooks</a>
+            <div class="copy-command">
+              <code>tokenbar cost-passport</code>
+              <button type="button" data-copy-command="tokenbar cost-passport">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-os-stage" data-story-console data-active-story="composition" aria-label="TokenBar usage storytelling surfaces">
+          <div class="story-console-meta" aria-label="Connected account and token scope">
+            <span><b>Account</b> arnz · local preview</span>
+            <span><b>Scope</b> today tokens · click to cycle week, month, year</span>
+            <span><b>Guard</b> reminders before budget pressure</span>
+          </div>
+          <div class="story-os-tabs" role="tablist" aria-label="TokenBar usage views">
+            <button type="button" class="is-active" id="story-tab-composition" role="tab" aria-controls="story-panel-composition" aria-selected="true" data-story-tab="0">Composition</button>
+            <button type="button" id="story-tab-cadence" role="tab" aria-controls="story-panel-cadence" aria-selected="false" data-story-tab="1">Cadence</button>
+            <button type="button" id="story-tab-forecast" role="tab" aria-controls="story-panel-forecast" aria-selected="false" data-story-tab="2">Forecast</button>
+            <button type="button" id="story-tab-budget" role="tab" aria-controls="story-panel-budget" aria-selected="false" data-story-tab="3">Budget</button>
+            <button type="button" id="story-tab-costs" role="tab" aria-controls="story-panel-costs" aria-selected="false" data-story-tab="4">Costs</button>
+            <button type="button" id="story-tab-playbooks" role="tab" aria-controls="story-panel-playbooks" aria-selected="false" data-story-tab="5">Playbooks</button>
+            <button type="button" id="story-tab-memory" role="tab" aria-controls="story-panel-memory" aria-selected="false" data-story-tab="6">Memory</button>
+          </div>
+
+          <div class="token-matrix" aria-label="TokenBar operating matrix">
+            <span>Input</span><span>Output</span><span>Waste</span><span>Budget</span><span>Reminder</span><span>Proof</span>
+          </div>
+
+          <div class="signal-field" aria-label="TokenBar liquid signal field">
+            <span class="signal-field-label">live matrix</span>
+            <i data-signal="tokens">tokens</i>
+            <i data-signal="cost">cost</i>
+            <i data-signal="budget">budget</i>
+            <i data-signal="reminder">reminder</i>
+            <i data-signal="proof">proof</i>
+            <i data-signal="memory">memory</i>
+            <b data-signal-story>Composition aligns measured provider lanes before the chart speaks.</b>
+          </div>
+
+          <div class="story-slide-controls" aria-label="Usage story slideshow controls">
+            <button type="button" data-story-prev aria-label="Previous usage story layer">Prev</button>
+            <div class="story-slide-progress" data-story-dots aria-label="Usage story progress">
+              <button type="button" class="is-active" data-story-dot="0" aria-label="Show Composition story"></button>
+              <button type="button" data-story-dot="1" aria-label="Show Cadence story"></button>
+              <button type="button" data-story-dot="2" aria-label="Show Forecast story"></button>
+              <button type="button" data-story-dot="3" aria-label="Show Budget story"></button>
+              <button type="button" data-story-dot="4" aria-label="Show Cost Passport story"></button>
+              <button type="button" data-story-dot="5" aria-label="Show Playbooks story"></button>
+              <button type="button" data-story-dot="6" aria-label="Show Memory story"></button>
+            </div>
+            <button type="button" data-story-next aria-label="Next usage story layer">Next</button>
+          </div>
+
+          <div class="story-card is-active" id="story-panel-composition" role="tabpanel" aria-labelledby="story-tab-composition" data-story-panel data-story-layer="composition">
+            <div class="liquid-donut" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+              <strong>1.07B</strong>
+              <small>30-day weight</small>
+            </div>
+            <div class="story-card-copy">
+              <span>01 / Composition</span>
+              <h3>See the account and agent mix without pretending every connector is live.</h3>
+              <p>Measured providers stay separated from setup lanes, so Codex proof never pretends Claude, Cursor, Antigravity, or OpenCode data exists before a connector is configured. The active account is visible before the graph starts.</p>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-cadence" role="tabpanel" aria-labelledby="story-tab-cadence" data-story-panel data-story-layer="cadence" hidden>
+            <div class="cadence-score" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="story-card-copy">
+              <span>02 / Cadence</span>
+              <h3>Work days and quiet days become rhythm.</h3>
+              <p>Rest is not scored as failure. TokenBar shows streaks, pauses, and restart patterns so you know when an agent run is actually carrying momentum.</p>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-forecast" role="tabpanel" aria-labelledby="story-tab-forecast" data-story-panel data-story-layer="forecast" hidden>
+            <div class="forecast-ribbon" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <b></b><b></b><b></b><b></b><b></b>
+            </div>
+            <div class="story-card-copy">
+              <span>03 / Forecast</span>
+              <h3>Projection with error bars, not prophecy.</h3>
+              <p>The forecast view frames best case, expected pace, and danger range, so budget reminders can fire before a rate limit or monthly bill becomes the story.</p>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-budget" role="tabpanel" aria-labelledby="story-tab-budget" data-story-panel data-story-layer="budget" hidden>
+            <div class="budget-reservoir" aria-hidden="true">
+              <span></span><b>68%</b><small>weekly budget left</small>
+            </div>
+            <div class="story-card-copy">
+              <span>04 / Budget</span>
+              <h3>Budgets turn into reminders at the moment of use.</h3>
+              <p>Set daily, weekly, monthly, or yearly caps. TokenBar can nudge you from the menu bar before a long agent loop spends tokens you meant to save.</p>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-costs" role="tabpanel" aria-labelledby="story-tab-costs" data-story-panel data-story-layer="costs" hidden>
+            <div class="cost-passport" aria-hidden="true">
+              <em>Jun 2</em><strong>$42.00</strong><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="story-card-copy">
+              <span>05 / Cost Passport</span>
+              <h3>Drag a date range and get the bill as a story.</h3>
+              <p>Cost breakdowns can become shareable local passports: observed spend, provider lane, peak days, waste flags, and the command that generated the evidence.</p>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-playbooks" role="tabpanel" aria-labelledby="story-tab-playbooks" data-story-panel data-story-layer="playbooks" hidden>
+            <div class="playbook-shelf" aria-hidden="true">
+              <span>Scope Guard</span><span>Cost Saver</span><span>Thread Handoff</span><span>System Prompt</span>
+            </div>
+            <div class="story-card-copy">
+              <span>06 / Playbooks</span>
+              <h3>Prompt templates become operating gear.</h3>
+              <p>Freemium templates teach budget headers, stop conditions, verification-first prompts, skill creation, and offloading one task into the next without burning context.</p>
+              <a class="inline-story-link" href="/playbooks">Browse 100 prompt playbooks</a>
+            </div>
+          </div>
+
+          <div class="story-card" id="story-panel-memory" role="tabpanel" aria-labelledby="story-tab-memory" data-story-panel data-story-layer="memory" hidden>
+            <div class="memory-surface" aria-hidden="true">
+              <span class="memory-cluster memory-hot"></span>
+              <span class="memory-cluster memory-cool"></span>
+              <span class="memory-cluster memory-idle"></span>
+              <b>Chrome + Codex</b>
+              <small>memory pressure explained before any approved cleanup</small>
+            </div>
+            <div class="story-card-copy">
+              <span>07 / Memory</span>
+              <h3>Overload becomes an explanation, not a force-quit hunt.</h3>
+              <p>TokenBar can surface when Chrome, Codex, and local agents combine into memory pressure, explain the likely cause, then request approval before closing, reopening, or restoring any work surface.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-stack-strip" aria-label="TokenBar connected product surfaces">
+          <article>
+            <span>Menu bar</span>
+            <strong>Live cockpit</strong>
+            <p>Provider, account, today/week/month/year tokens, reminders, and budget pressure.</p>
+          </article>
+          <article>
+            <span>CLI</span>
+            <strong>Evidence engine</strong>
+            <p>Cost passports, launch kits, playbooks, and local JSON without opening raw work.</p>
+          </article>
+          <article>
+            <span>Mac app</span>
+            <strong>Builder studio</strong>
+            <p>Story, Profile, Threads, Report, and Storage as a private native review layer.</p>
+          </article>
+          <article>
+            <span>Web app</span>
+            <strong>Proof market</strong>
+            <p>Opt-in public profiles, rankings, paid playbooks, and install handoff.</p>
+          </article>
+          <article>
+            <span>Companion</span>
+            <strong>Context rail</strong>
+            <p>Local browser panel beside Codex, GitHub, Product Hunt, and provider dashboards.</p>
+          </article>
+        </div>
+
+        <div class="operating-sequence" aria-label="How TokenBar turns usage into a guided decision">
+          <article>
+            <span>01</span>
+            <strong>Analyze</strong>
+            <p>A large menu-bar action reads local aggregate usage and builds a private bundle.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>Question</strong>
+            <p>A short MCQ confirms the interpretation before the app assigns a story or profile.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Budget</strong>
+            <p>Daily, weekly, monthly, and yearly limits become visible before a long run starts.</p>
+          </article>
+          <article>
+            <span>04</span>
+            <strong>Reminder</strong>
+            <p>TokenBar suggests a nudge, but never schedules or sends it without approval.</p>
+          </article>
+          <article>
+            <span>05</span>
+            <strong>Playbook</strong>
+            <p>Choose a prompt template that reduces waste, scopes the next task, or hands off a thread.</p>
+          </article>
+          <article>
+            <span>06</span>
+            <strong>Proof</strong>
+            <p>Export the safe report, cost passport, or profile only after reviewing what will publish.</p>
+          </article>
+        </div>
+
+        <div class="operating-deck" data-operating-deck aria-label="TokenBar operating deck">
+          <div class="operating-deck-head">
+            <p class="eyebrow">Operating deck</p>
+            <h3>One click changes the layer, not the truth.</h3>
+            <p>Each surface keeps measured data, setup lanes, paid playbooks, and approval gates separate so the product feels useful without inventing proof.</p>
+          </div>
+          <div class="operating-deck-tabs" role="tablist" aria-label="TokenBar operating layers">
+            <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="op-panel-measure" id="op-tab-measure" data-operating-tab="measure">Measure</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="op-panel-budget" id="op-tab-budget" data-operating-tab="budget">Budget</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="op-panel-guide" id="op-tab-guide" data-operating-tab="guide">Guide</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="op-panel-memory" id="op-tab-memory" data-operating-tab="memory">Memory</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="op-panel-compare" id="op-tab-compare" data-operating-tab="compare">Compare</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="op-panel-publish" id="op-tab-publish" data-operating-tab="publish">Publish</button>
+          </div>
+          <div class="operating-deck-panels">
+            <article class="is-active" id="op-panel-measure" role="tabpanel" aria-labelledby="op-tab-measure" data-operating-panel="measure">
+              <span>Free menu bar</span>
+              <strong>Active account, measured providers, real token scope.</strong>
+              <p>Codex can be measured from local evidence. Claude, Cursor, Antigravity, and OpenCode stay labeled as setup until their connector is real.</p>
+              <code>tokenbar usage json</code>
+            </article>
+            <article id="op-panel-budget" role="tabpanel" aria-labelledby="op-tab-budget" data-operating-panel="budget" hidden>
+              <span>Budget coach</span>
+              <strong>Daily, weekly, monthly, yearly pressure before the run gets expensive.</strong>
+              <p>Warnings are suggested locally. Scheduling, provider refreshes, memory cleanup, and external actions require approval.</p>
+              <code>tokenbar reminders json</code>
+            </article>
+            <article id="op-panel-guide" role="tabpanel" aria-labelledby="op-tab-guide" data-operating-panel="guide" hidden>
+              <span>Freemium playbooks</span>
+              <strong>Prompt templates for cheaper, tighter Codex sessions.</strong>
+              <p>Free templates cover scope and proof. Pro unlocks system-prompt hardening, thread handoff, launch kits, and monthly drops.</p>
+              <code>tokenbar playbooks json</code>
+            </article>
+            <article id="op-panel-memory" role="tabpanel" aria-labelledby="op-tab-memory" data-operating-panel="memory" hidden>
+              <span>Local automation relay</span>
+              <strong>Explain pressure before closing anything.</strong>
+              <p>Chrome, Codex, IDEs, and dev servers group into lanes. TokenBar can recommend a recovery path, then waits for approval.</p>
+              <code>tokenbar memory-pressure json</code>
+            </article>
+            <article id="op-panel-compare" role="tabpanel" aria-labelledby="op-tab-compare" data-operating-panel="compare" hidden>
+              <span>Comparison lens</span>
+              <strong>Rank the pattern, not the person.</strong>
+              <p>TokenBar compares cadence, cost control, scope discipline, and verification from safe aggregate windows. Population percentiles unlock only after opt-in proof cohorts exist.</p>
+              <code>tokenbar comparison-lens json</code>
+            </article>
+            <article id="op-panel-publish" role="tabpanel" aria-labelledby="op-tab-publish" data-operating-panel="publish" hidden>
+              <span>Pro report layer</span>
+              <strong>Review the share surface before anything becomes public.</strong>
+              <p>Public profiles, rankings, Macapp Supply drafts, and Product Hunt copy stay opt-in. Raw logs and source never become launch collateral.</p>
+              <code>tokenbar launch-kit</code>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="cost-passport-surface" id="cost-passport" data-reveal data-cost-passport-demo>
+        <div class="cost-passport-copy">
+          <p class="eyebrow">Cost passport</p>
+          <h2>Drag a range. Get a receipt you can act on.</h2>
+          <p>
+            TokenBar turns terminal cost output into a compact passport: selected
+            dates, estimated spend, provider mix, peak day, budget pressure,
+            reminder timing, and the next prompt that should make the following
+            run cheaper.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar cost-passport --from 2026-06-02 --to 2026-08-02 json</code>
+            <button type="button" data-copy-command="tokenbar cost-passport --from 2026-06-02 --to 2026-08-02 json">Copy range</button>
+          </div>
+        </div>
+
+        <div class="cost-passport-stage" aria-label="Interactive TokenBar cost passport preview">
+          <div class="cost-passport-range">
+            <div>
+              <span>Selected range</span>
+              <strong><b data-cost-range-start>Jun 2</b> to <b data-cost-range-end>Aug 2</b></strong>
+            </div>
+            <label>
+              <span>Start day</span>
+              <input type="range" min="0" max="61" value="0" data-cost-range-control="start" aria-label="Cost passport start day" />
+            </label>
+            <label>
+              <span>End day</span>
+              <input type="range" min="0" max="61" value="61" data-cost-range-control="end" aria-label="Cost passport end day" />
+            </label>
+          </div>
+
+          <div class="passport-spread">
+            <article class="passport-cover" style="--passport-heat: 72%" aria-label="TokenBar estimated cost passport">
+              <span>TokenBar Cost Passport</span>
+              <strong data-cost-total>$128.40</strong>
+              <p data-cost-story>62-day local estimate. Peak burn came from agent-lab, but the next run can start with a cheaper verifier-first prompt.</p>
+              <div class="passport-material" aria-hidden="true">
+                <i></i><i></i><i></i><i></i>
+              </div>
+              <small>local estimate · no provider invoice claim</small>
+            </article>
+
+            <div class="passport-stamps" aria-label="Cost passport provider stamps">
+              <article data-cost-provider-stamp="codex">
+                <span>Codex</span>
+                <strong data-cost-provider-share>62%</strong>
+                <p data-cost-provider-note>measured local sessions</p>
+              </article>
+              <article data-cost-provider-stamp="opencode">
+                <span>OpenCode</span>
+                <strong data-cost-provider-share>18%</strong>
+                <p data-cost-provider-note>open IDE lane</p>
+              </article>
+              <article data-cost-provider-stamp="antigravity">
+                <span>Antigravity</span>
+                <strong data-cost-provider-share>12%</strong>
+                <p data-cost-provider-note>preview connector</p>
+              </article>
+              <article data-cost-provider-stamp="cursor">
+                <span>Cursor</span>
+                <strong data-cost-provider-share>8%</strong>
+                <p data-cost-provider-note>setup lane</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="passport-decision-grid">
+            <article class="passport-forecast">
+              <span>Forecast band</span>
+              <strong data-cost-forecast>$74 to $191</strong>
+              <div aria-hidden="true" data-cost-forecast-band><i></i><b></b><i></i></div>
+              <p data-cost-forecast-copy>Error bars stay visible so a budget reminder can trigger before the danger range crosses the cap.</p>
+            </article>
+            <article class="passport-reminder">
+              <span>Reminder draft</span>
+              <strong data-cost-reminder>Warn at 80%</strong>
+              <p data-cost-reminder-copy>Suggested only. TokenBar does not schedule, notify, or contact anything until you approve the reminder.</p>
+            </article>
+            <article class="passport-playbook">
+              <span>Cheaper next prompt</span>
+              <strong data-cost-playbook>Verifier First</strong>
+              <p data-cost-playbook-copy>Start the next run with budget, context cap, stop condition, and one named proof command.</p>
+            </article>
+          </div>
+
+          <p class="passport-boundary">
+            Passport exports include safe aggregate totals only. Raw prompts, transcripts,
+            source code, local paths, credentials, and private diffs stay out.
+          </p>
+        </div>
+      </section>
+
+      <section class="reminder-composer-surface" id="reminder-composer" data-reveal data-reminder-composer>
+        <div class="reminder-composer-copy">
+          <p class="eyebrow">Reminder composer</p>
+          <h2>Set the guardrail before the run starts.</h2>
+          <p>
+            TokenBar should feel like a guide, not a settings hunt. Pick the
+            tone of the next session and it drafts the budget warning, reset
+            window, hard-stop question, and prompt shape without scheduling
+            anything by itself.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar reminders json</code>
+            <button type="button" data-copy-command="tokenbar reminders json">Copy</button>
+          </div>
+        </div>
+
+        <div class="reminder-composer-stage" aria-label="TokenBar guided reminder composer preview">
+          <div class="reminder-mode-switch" aria-label="Reminder strictness">
+            <button type="button" class="is-active" aria-pressed="true" data-reminder-mode="steady">Steady</button>
+            <button type="button" aria-pressed="false" data-reminder-mode="focus">Focus</button>
+            <button type="button" aria-pressed="false" data-reminder-mode="strict">Strict</button>
+          </div>
+
+          <article class="reminder-plan-card">
+            <span>Suggested reminder</span>
+            <strong data-reminder-preview-title>Warn before the weekly cap bends.</strong>
+            <p data-reminder-preview-copy>
+              At 80% of the weekly token budget, draft a warning and a cheaper
+              verifier-first prompt. No notification is scheduled until you approve it.
+            </p>
+            <div class="reminder-threshold-meter" style="--threshold: 80%" data-reminder-preview-threshold>
+              <i></i>
+              <b>80% warning threshold</b>
+            </div>
+          </article>
+
+          <div class="reminder-question-grid">
+            <article>
+              <span>Budget</span>
+              <strong>Token and cost cap</strong>
+              <p>Daily, weekly, monthly, or custom range. Today/week/month/year can still cycle from the menu bar.</p>
+            </article>
+            <article>
+              <span>Reset window</span>
+              <strong>When does pressure clear?</strong>
+              <p>TokenBar shows the next reset instead of turning quiet days into guilt.</p>
+            </article>
+            <article>
+              <span>Hard stop</span>
+              <strong>Ask before action</strong>
+              <p>Closing apps, refreshing sessions, or changing providers always needs a fresh approval.</p>
+            </article>
+            <article>
+              <span>Feel</span>
+              <strong>Sound and haptics off by default</strong>
+              <p>Local cues can be enabled later, but the first-run path stays calm and silent.</p>
+            </article>
+          </div>
+
+          <p class="reminder-boundary">
+            Suggested-only. Requires approval. TokenBar does not schedule notifications,
+            contact providers, close apps, upload reports, or expose raw prompts, source code,
+            local paths, credentials, or private diffs from this surface.
+          </p>
+        </div>
+      </section>
+
+      <section class="memory-pressure-surface" id="memory-pressure" data-reveal>
+        <div class="memory-pressure-stage" aria-label="TokenBar memory pressure explanation preview">
+          <div class="memory-orbit" aria-hidden="true">
+            <span class="memory-dot dot-browser"></span>
+            <span class="memory-dot dot-agent"></span>
+            <span class="memory-dot dot-runtime"></span>
+            <span class="memory-dot dot-other"></span>
+            <strong>WATCH</strong>
+            <small>5.1 GB browser + agent lane</small>
+          </div>
+          <div class="memory-lane-stack">
+            <article>
+              <span>Local runtimes</span>
+              <strong>7.2 GB</strong>
+              <p>Node, dev servers, and render workers grouped before any stop suggestion.</p>
+            </article>
+            <article>
+              <span>Agent workspace</span>
+              <strong>4.4 GB</strong>
+              <p>Codex, ChatGPT, Cursor, Claude, Antigravity, and OpenCode stay readable as one lane.</p>
+            </article>
+            <article>
+              <span>Browser</span>
+              <strong>732 MB</strong>
+              <p>Chrome or Safari pressure is explained without reading private tabs.</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="memory-pressure-copy">
+          <p class="eyebrow">Local Automation Relay</p>
+          <h2>Explain overload before asking to clean anything.</h2>
+          <p>
+            TokenBar can turn Chrome, Codex, IDEs, and local dev servers into a
+            memory story: what lane is heavy, why it matters, and which recovery
+            action would need your approval.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar memory-pressure json</code>
+            <button type="button" data-copy-command="tokenbar memory-pressure json">Copy</button>
+          </div>
+          <p class="memory-pressure-boundary">
+            Read-only. No apps closed, no browser windows restored, no process
+            arguments, no browser tabs, no prompts, no source code, no credentials,
+            and no external actions.
+          </p>
         </div>
       </section>
 
@@ -294,7 +970,7 @@
             </div>
             <div class="scanner-window">
               <div class="scanner-menu">
-                <span>Overview</span><span>Codex</span><span>Claude Code</span><span>Gemini</span><span>Cursor</span>
+                <span>Overview</span><span>Codex</span><span>Claude Code</span><span>Cursor</span><span>OpenCode</span>
               </div>
               <div class="scanner-signal">
                 <i></i><i></i><i></i><i></i>
@@ -507,22 +1183,287 @@
         </div>
       </section>
 
-      <section class="download-band" id="download" data-reveal>
-        <div>
-          <h2>Download TokenBar.</h2>
-          <p>Install the macOS menu bar app, then run the identity command from any repo that has Codex, Claude Code, Gemini, or Cursor session history.</p>
+      <section class="launch-kit-band" id="launch-kit" data-reveal>
+        <div class="launch-kit-copy">
+          <p class="eyebrow">Launch kit</p>
+          <h2>Draft the launch without posting anything.</h2>
+          <p>
+            TokenBar now has a no-submit launch kit for Product Hunt, Macapp Supply,
+            demo video beats, and the approval checklist. It prepares the story,
+            but never publishes, buys, uploads private data, or changes accounts.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar launch-kit</code>
+            <button type="button" data-copy-command="tokenbar launch-kit">Copy</button>
+          </div>
+          <div class="copy-command">
+            <code>tokenbar cost-passport</code>
+            <button type="button" data-copy-command="tokenbar cost-passport">Copy</button>
+          </div>
+          <div class="copy-command">
+            <code>tokenbar reminders</code>
+            <button type="button" data-copy-command="tokenbar reminders">Copy</button>
+          </div>
+          <div class="copy-command">
+            <code>tokenbar memory-pressure</code>
+            <button type="button" data-copy-command="tokenbar memory-pressure">Copy</button>
+          </div>
         </div>
-        <ol class="download-steps" aria-label="TokenBar download steps">
-          <li><strong>Download</strong><span>Get the ZIP and open the app.</span></li>
-          <li><strong>Move to Applications</strong><span>Keep TokenBar where macOS expects it.</span></li>
-          <li><strong>Run identity</strong><span>Use <code>tokenbar identity</code> for your first report.</span></li>
-        </ol>
-        <div class="download-actions">
-          <a class="button primary" href="https://github.com/Arnie016/codex-goated-skills/releases/download/v0.1.0/CodexLimitBar-macOS-arm64-2026-05-20.zip">
-            Download ZIP
-          </a>
-          <a class="button secondary" href="https://github.com/Arnie016/TokenBar">GitHub repo</a>
-          <a class="button secondary" href="https://github.com/Arnie016/codex-goated-skills">Codex skills</a>
+        <div class="launch-kit-grid" aria-label="TokenBar launch kit surfaces">
+          <article>
+            <span>Product Hunt</span>
+            <h3>The menu bar for AI coding-agent tokens, budgets, and builder proof.</h3>
+            <p>One-liner, topics, first comment, and demo angle stay ready for review.</p>
+          </article>
+          <article>
+            <span>Macapp Supply</span>
+            <h3>Menu-bar usage intelligence for AI coding agents.</h3>
+            <p>Short app-directory copy explains the Mac app without overclaiming live connectors.</p>
+          </article>
+          <article>
+            <span>Demo video</span>
+            <h3>Account, composition, cadence, forecast, budget, playbooks, proof.</h3>
+            <p>A 60-second arc shows how data storytelling works before asking anyone to install.</p>
+          </article>
+          <article>
+            <span>Approval gates</span>
+            <h3>No auto-submit. No raw logs. No surprise billing.</h3>
+            <p>The kit keeps publishing, payment, and private-data actions behind explicit approval.</p>
+          </article>
+        </div>
+        <div class="launch-demo-reel" aria-label="TokenBar 60-second demo storyboard">
+          <div class="launch-demo-head">
+            <span>60-second demo arc</span>
+            <strong>Your AI work becomes a proof story.</strong>
+            <p>Seven shots for Product Hunt, Macapp Supply, and the launch video. The storyboard is generated from the same no-submit kit as <code>tokenbar launch-kit json</code>.</p>
+          </div>
+          <div class="launch-demo-strip">
+            <article>
+              <span>0-6s</span>
+              <strong>Menu-bar opens over Codex</strong>
+              <p>Your AI coding work has a cost, a rhythm, and a story.</p>
+            </article>
+            <article>
+              <span>6-14s</span>
+              <strong>Account and provider lanes</strong>
+              <p>See which account is active and which providers are measured versus still needing setup.</p>
+            </article>
+            <article>
+              <span>14-24s</span>
+              <strong>Composition and cadence tabs</strong>
+              <p>Tokens become composition, quiet days, active days, and work rhythm.</p>
+            </article>
+            <article>
+              <span>24-34s</span>
+              <strong>Forecast with error bars</strong>
+              <p>Forecast the next run before the budget, rate limit, or bill surprises you.</p>
+            </article>
+            <article>
+              <span>34-44s</span>
+              <strong>Cost passport and reminders</strong>
+              <p>Turn spend, limits, waste flags, and the next cheaper prompt into one local passport.</p>
+            </article>
+            <article>
+              <span>44-52s</span>
+              <strong>Playbooks</strong>
+              <p>Open prompt templates that reduce wasted input and output tokens.</p>
+            </article>
+            <article>
+              <span>52-60s</span>
+              <strong>Proof card</strong>
+              <p>Share the generated proof, not your private work.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="runway-band" id="runway" data-reveal>
+        <div class="runway-copy">
+          <p class="eyebrow">Launch map</p>
+          <h2>See what you can demo, what needs your review, and what still needs polish.</h2>
+          <p>
+            TokenBar keeps launch work honest. The menu bar, CLI, playbooks, and
+            website can be demoed from local proof; submissions, billing, public
+            proof, and automation stay behind explicit approval.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar coach</code>
+            <button type="button" data-copy-command="tokenbar coach">Copy</button>
+          </div>
+        </div>
+        <div class="runway-board" aria-label="TokenBar launch map status">
+          <article class="runway-ring ready">
+            <span>Demo-ready</span>
+            <strong>Website story</strong>
+            <strong>Menu-bar contract</strong>
+            <strong>Prompt playbooks</strong>
+            <strong>Launch copy</strong>
+          </article>
+          <article class="runway-ring approval">
+            <span>Needs your review</span>
+            <strong>Product Hunt</strong>
+            <strong>Macapp Supply</strong>
+            <strong>Public proof</strong>
+            <strong>Stripe activation</strong>
+          </article>
+          <article class="runway-ring pending">
+            <span>Polish before launch</span>
+            <strong>Signed release ZIP</strong>
+            <strong>Demo video export</strong>
+            <strong>Browser Companion prototype</strong>
+            <strong>Local Automation Relay</strong>
+          </article>
+          <div class="runway-command-strip" aria-label="TokenBar launch commands">
+            <code>tokenbar coach</code>
+            <code>tokenbar runway</code>
+            <code>tokenbar launch-kit</code>
+            <code>tokenbar ecosystem</code>
+            <code>tokenbar browser-companion</code>
+            <code>tokenbar playbooks</code>
+            <code>tokenbar readiness</code>
+          </div>
+          <p class="runway-boundary">
+            No posting, billing, account switching, cleanup, credential use, or
+            private-data upload happens from this board.
+          </p>
+        </div>
+      </section>
+
+      <section class="proof-packet-band" id="proof-packet" data-reveal>
+        <div class="proof-packet-copy">
+          <p class="eyebrow">Launch proof packet</p>
+          <h2>One safe packet for demos, directories, and investor updates.</h2>
+          <p>
+            TokenBar can assemble usage scope, cost passport, waste lens,
+            comparison status, playbooks, and approval gates into one
+            privacy-safe launch packet. It proves what the product can show
+            without moving raw prompts, transcripts, source code, credentials,
+            provider cookies, or local paths.
+          </p>
+          <div class="copy-command">
+            <code>tokenbar proof-packet json</code>
+            <button type="button" data-copy-command="tokenbar proof-packet json">Copy</button>
+          </div>
+        </div>
+        <div class="proof-packet-card" aria-label="TokenBar launch proof packet">
+          <div class="proof-packet-seal" aria-hidden="true">
+            <span>TB</span>
+          </div>
+          <div class="proof-packet-grid">
+            <span><b>Usage evidence</b><small>aggregate tokens</small></span>
+            <span><b>Cost passport</b><small>estimate-only</small></span>
+            <span><b>Waste lens</b><small>saver command</small></span>
+            <span><b>Comparison</b><small>cohort locked</small></span>
+            <span><b>Playbooks</b><small>free + pro preview</small></span>
+            <span><b>Approval gates</b><small>no-submit</small></span>
+          </div>
+          <p>
+            Public proof still needs explicit review. The packet never posts,
+            charges, changes accounts, calls providers, or claims a percentile
+            without an opt-in cohort.
+          </p>
+        </div>
+      </section>
+
+      <section class="download-band launch-handoff-band" id="download" data-reveal>
+        <div class="launch-handoff-copy">
+          <p class="eyebrow">Install handoff</p>
+          <h2>Start in the menu bar. Expand into the studio.</h2>
+          <p>
+            TokenBar launches as a lightweight macOS icon-bar cockpit first:
+            install the CLI and menu-bar app, open Codex, start the local API
+            only when you need the browser rail, then move into the Mac app
+            when you want reports, threads, profiles, and proof packets.
+          </p>
+          <div class="launch-command-card">
+            <span>One-line CLI + app installer</span>
+            <code>curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash</code>
+            <button type="button" data-copy-install>Copy install command</button>
+          </div>
+          <p class="launch-handoff-boundary">
+            Install does not sign into providers, scrape accounts, submit to Product Hunt,
+            enable Stripe, upload private work, or schedule reminders.
+          </p>
+        </div>
+
+        <div class="launch-handoff-stage" data-surface-relay data-active-surface="menu" aria-label="TokenBar install handoff from CLI to menu bar to Mac app">
+          <div class="surface-relay-panel">
+            <div class="surface-relay-head">
+              <span>Surface relay</span>
+              <strong data-surface-title>Menu-bar cockpit</strong>
+              <p data-surface-copy>Open the icon bar while Codex is running. See active account, measured providers, today/week/month/year tokens, budget pressure, and the next suggested action.</p>
+            </div>
+            <div class="surface-relay-meter" aria-hidden="true">
+              <span data-surface-pulse="cli"></span>
+              <span data-surface-pulse="menu" class="is-active"></span>
+              <span data-surface-pulse="companion"></span>
+              <span data-surface-pulse="studio"></span>
+              <span data-surface-pulse="pro"></span>
+            </div>
+            <div class="surface-relay-facts">
+              <span><b data-surface-command>tokenbar status</b><small>command</small></span>
+              <span><b data-surface-tier>Free</b><small>access</small></span>
+              <span><b data-surface-gate>No provider sign-in</b><small>approval gate</small></span>
+            </div>
+          </div>
+
+          <div class="surface-relay-tabs" role="tablist" aria-label="TokenBar product surfaces">
+            <button type="button" role="tab" aria-selected="false" data-surface-tab="cli">CLI</button>
+            <button type="button" role="tab" aria-selected="true" class="is-active" data-surface-tab="menu">Menu bar</button>
+            <button type="button" role="tab" aria-selected="false" data-surface-tab="companion">Companion</button>
+            <button type="button" role="tab" aria-selected="false" data-surface-tab="studio">Mac studio</button>
+            <button type="button" role="tab" aria-selected="false" data-surface-tab="pro">Pro layer</button>
+          </div>
+
+          <ol class="handoff-flow">
+            <li data-surface-step="cli">
+              <span>01</span>
+              <strong>Install</strong>
+              <p>Run the live repo script or copy it from the hero.</p>
+              <code>tokenbar install</code>
+            </li>
+            <li data-surface-step="menu" class="is-active">
+              <span>02</span>
+              <strong>Open icon bar</strong>
+              <p>Use the menu-bar cockpit for account, provider, tokens, budget, and cost.</p>
+              <code>tokenbar status</code>
+            </li>
+            <li data-surface-step="companion">
+              <span>03</span>
+              <strong>Start local API</strong>
+              <p>Power the browser companion from 127.0.0.1 only when you want the side rail.</p>
+              <code>tokenbar api</code>
+            </li>
+            <li data-surface-step="studio">
+              <span>04</span>
+              <strong>Open Mac studio</strong>
+              <p>Build Story, Timeline, Threads, Profile, Report, Storage, and proof packets.</p>
+              <code>tokenbar proof-packet</code>
+            </li>
+            <li data-surface-step="pro">
+              <span>05</span>
+              <strong>Unlock Pro</strong>
+              <p>Paid playbooks, report sharing, and cohort comparison stay account-gated.</p>
+              <code>tokenbar playbooks</code>
+            </li>
+          </ol>
+
+          <div class="handoff-orbit" aria-hidden="true">
+            <span class="orbit-cli">CLI</span>
+            <span class="orbit-menu">Menu bar</span>
+            <span class="orbit-companion">Companion</span>
+            <span class="orbit-studio">Mac studio</span>
+            <span class="orbit-pro">Pro</span>
+            <b>TokenBar</b>
+          </div>
+
+          <div class="download-actions">
+            <a class="button primary" href="https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh">
+              Install script
+            </a>
+            <a class="button secondary" href="https://github.com/Arnie016/TokenBar">GitHub repo</a>
+            <a class="button secondary" href="/playbooks">Prompt playbooks</a>
+          </div>
         </div>
       </section>
     </main>

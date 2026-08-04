@@ -4,7 +4,7 @@ This is the default production brief for a 30-second TokenBar Builder Identity t
 
 ## Creative Position
 
-TokenBar is a local-first Builder Identity app for Codex, Claude Code, Gemini, Cursor, and other agent workflows. The video should make the viewer feel: "My AI work has evidence, rhythm, taste, and a public proof layer."
+TokenBar is a local-first Builder Identity app for Codex, Claude Code, Cursor, Antigravity, OpenCode, and other agent workflows. The video should make the viewer feel: "My AI work has evidence, rhythm, taste, and a public proof layer."
 
 Style: premium product film, dark glass app surface, white editorial report paper, subtle grain, thin measurement lines, archetype-driven accent color, no generic SaaS blobs.
 
@@ -32,7 +32,7 @@ Never show:
 ## 30-Second Micro-Storyboard
 
 1. `0-3s` Scattered work becomes a dossier
-   Floating fragments labelled Codex, Claude Code, Gemini, and Cursor collapse into one clean identity passport. One-word card: `SEEN`.
+   Floating fragments labelled Codex, Claude Code, Cursor, Antigravity, and OpenCode collapse into one clean identity passport. One-word card: `SEEN`.
 
 2. `3-8s` Live menu-bar proof
    The macOS menu-bar surface opens. Forecast, provider tabs, cost, selected day marker, and quick insights are readable.

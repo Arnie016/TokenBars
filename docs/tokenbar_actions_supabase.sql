@@ -10,6 +10,7 @@
 create table if not exists public.tokenbar_action_runs (
   run_id text primary key,
   token text not null,
+  owner_id text,
   action text not null default 'builder_identity.proof_card.v1',
   status text not null default 'complete',
   run jsonb not null,
@@ -21,6 +22,9 @@ create table if not exists public.tokenbar_action_runs (
 
 create index if not exists tokenbar_action_runs_token_idx
   on public.tokenbar_action_runs (token);
+
+create index if not exists tokenbar_action_runs_owner_idx
+  on public.tokenbar_action_runs (owner_id);
 
 create index if not exists tokenbar_action_runs_created_at_idx
   on public.tokenbar_action_runs (created_at_epoch desc);

@@ -1,5 +1,19 @@
 # TokenBar Implementation Notes
 
+## Design signal ledger
+
+### 2026-08-03: Interactive material surfaces
+
+- `source_url`: https://x.com/blazejkustra_/status/2083939832481431573
+- `canonical_url`: https://github.com/blazejkustra/react-native-effects
+- `source_type`: X post plus open-source repository
+- `claim`: WebGPU-powered React Native effects can make app surfaces feel more natural when the materials respond to interaction instead of sitting as static decoration.
+- `evidence_label`: DISCOVERY_ONLY. The post and repository were read as design inspiration; TokenBar has not adopted the dependency.
+- `reusable_pattern`: Apply liquid or paper-like motion only to stateful data surfaces: token composition, cost passport ranges, forecast uncertainty, reminder pressure, and memory-pressure clusters. Keep reduced-motion and static fallbacks.
+- `recommended_action`: BOUNDED_EXPERIMENT. Prototype one native/menu-bar interaction where dragging a date range changes the cost-passport material field and updates the aggregate-only story in place.
+- `status`: CATALOG_UPDATE
+- `date_seen`: 2026-08-03
+
 ## PDF export
 
 `tokenbar profile --pdf` renders the local HTML builder profile to PDF using Chrome or Chromium headless. On macOS, TokenBar auto-detects:
@@ -168,8 +182,9 @@ tokenbar stats
 
 Use `claim` for the simple local-first path: it generates fresh local HTML/JSON/Skill.md
 artifacts and prints the share token. Use `claim --publish` or `publish` when the user
-explicitly wants hosted activation. Use `share latest` when you already generated the local
-memorandum and only want to activate the website profile.
+explicitly wants hosted activation. Use `proof latest` or the friendlier `share latest`
+when you already generated a safe proof and only want to recover the copy-ready token,
+links, share receipt, and privacy boundary without rerunning analysis or uploading anything.
 Use `card` for a terminal-readable identity summary without opening the HTML/PDF report.
 Use `bundle` to produce a portable zip that can be attached to applications, sent to reviewers,
 or handed to another coding agent without exposing raw transcripts or source code.

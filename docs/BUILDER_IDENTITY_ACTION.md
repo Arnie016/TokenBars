@@ -32,6 +32,30 @@ The server returns:
 - `proof` with safe aggregate facts
 - `proof.builderStory` with evidence-backed identity axes
 
+The CLI also sends `X-TokenBar-Owner-Key` when publishing. The raw key stays on
+the device with `0600` permissions; the server stores only its SHA-256 owner
+identifier. This binds later unpublishing to the device that created the proof.
+
+The same owner binding protects `POST /api/profiles`. A public `TBAR-...` token
+is a read-only proof pointer: anyone may use it to view the profile, For You
+entry, or rankings placement, but it cannot authorize edits. Profile creation
+and project-metadata updates require the private `X-TokenBar-Owner-Key` header,
+and the server stores only its SHA-256 device identifier. Legacy unbound
+profiles must be republished from the CLI before they can be edited.
+
+To remove a public proof:
+
+```json
+{
+  "action": "builder_identity.revoke.v1",
+  "token": "TBAR-..."
+}
+```
+
+The same owner-key header is required. A successful revocation scrubs the stored
+proof payload and removes token, profile, feed, and ranking lookups. It does not
+delete local identity JSON, HTML, PDF, Skill.md, or usage history.
+
 `GET /api/actions` also returns a safe social payload built only from persisted proof cards:
 
 - `feed`: public proof-card summaries for the For You surface
@@ -44,8 +68,11 @@ or `/tmp/tokenbar-action-store.json`. For production proof-action persistence:
 1. Run `docs/tokenbar_actions_supabase.sql` in Supabase.
 2. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 3. Set `TOKENBAR_ACTION_STORE=supabase`.
-4. Check `GET /api/actions?health=1`.
-5. Check `GET /api/profiles?health=1` and confirm `actionProofFallbackDurable = true`.
+4. (Optional hardening) set `TOKENBAR_ACTION_WRITE_TOKEN=<random-32+ chars>` to require
+   `Authorization: Bearer <token>` (or `X-TokenBar-Owner-Token`) on `POST /api/actions`.
+5. Current TokenBar clients automatically bind each publish to a private device key. `TOKENBAR_ACTION_OWNER_ID=<stable-owner-id>` remains an optional server-managed fallback for legacy clients.
+6. Check `GET /api/actions?health=1`.
+7. Check `GET /api/profiles?health=1` and confirm `actionProofFallbackDurable = true`.
 
 This explicit switch prevents a production profile database from accidentally
 breaking proof actions before the proof-action table exists.
@@ -92,6 +119,30 @@ The action rejects payloads that do not declare:
 - `sessionAnalysis.rawTranscriptsIncluded = false` when session analysis is present
 - `shippingAnalysis.sourceCodeIncluded = false` and `shippingAnalysis.rawDiffsIncluded = false` when shipping analysis is present
 
+## Portable Proof Packet
+
+`tokenbar proof` is the offline handoff for a Builder Identity. It does not call the
+proof action or upload anything. The generated ZIP contains:
+
+- `index.html`: self-contained, responsive Builder Identity overview
+- `latest/*.identity.json`: sanitized generated identity and aggregate evidence only
+- latest HTML report, Skill.md, and PDF when present
+- `local-rankings.txt`, `compare-latest.txt`, and `timeline.html`
+- `tokenbar-proof-manifest.json`: privacy boundary and package inventory
+- `tokenbar-proof-verification.json`: SHA-256 and byte count for every payload
+
+The original profile manifest is intentionally excluded because it contains local artifact
+paths. The shareable identity copy removes raw prompt fields, transcript/source-code fields,
+local paths, personal emails, credentials, and secret-like values.
+
+```bash
+tokenbar proof --output ~/Desktop/tokenbar-builder-proof.zip
+tokenbar verify ~/Desktop/tokenbar-builder-proof.zip
+```
+
+Verification fails when a payload changes after packaging or a text payload exposes a local
+filesystem path. The hash ledger proves packet integrity, not the human identity of its owner.
+
 ## Local Smoke
 
 Fast one-command verifier using the latest local identity JSON:
@@ -118,6 +169,10 @@ tokenbar claim
 TOKENBAR_ACTION_URL=http://127.0.0.1:8768/api/actions \
 TOKENBAR_PROFILE_UPLOAD_URL=http://127.0.0.1:8768/api/profiles \
   tokenbar publish-proof
+
+# Remove the newest proof published by this device; local reports remain.
+TOKENBAR_ACTION_URL=http://127.0.0.1:8768/api/actions \
+  tokenbar revoke latest
 
 curl -fsS 'http://127.0.0.1:8768/api/actions?run=run_...'
 curl -fsS -H 'Accept: application/json' 'http://127.0.0.1:8768/api/actions?token=TBAR-...'
@@ -249,8 +304,8 @@ Observed ranking-transparency verifier on July 15:
 - run id: `run_ae6abf1d7e35dbaa`
 - token: `TBAR-7BF3DFF8FCFD`
 - `/rankings` includes the `Proof beats spend` ranking contract and visible formula weights
-- `/api/actions` feed cards include `rankingBreakdown` with proof, loop, specificity, range, and capped token components
-- token volume is capped at 6% of the composite ranking score
+- `/api/actions` feed cards include `rankingBreakdown` with proof, loop, specificity, verified outcomes, range, and capped token safety components
+- token volume is capped at 2% of the composite ranking score, and verified outcomes are given primary weight
 - privacy: raw transcripts false, source code false
 
 Observed self-over-time verifier on July 15:
@@ -801,3 +856,41 @@ Judge flow:
 ## Judge Framing
 
 Primary Build Week framing: Apps for Your Life. TokenBar is a personal reflection and growth product for AI builders. The CLI, API, and server action are implementation surfaces for the identity loop, not the category itself.
+
+## Post-July-13 Codex Threads Workboard
+
+Implemented July 20, 2026 as a bounded local-first slice:
+
+- `tokenbar threads` reads Codex's local thread state and goal ledger without changing either database
+- `/threads` renders five lanes: in progress, needs attention, paused/backlog, recent, and done
+- task cards show safe operational fields only: title, project basename, goal status, recency, and token weight
+- `api/local_threads.py` is the single read-only snapshot contract and explicitly reports raw transcripts, source code, full paths, and uploads as excluded
+- the hosted `/threads` page cannot read local state; it displays the exact localhost bridge command instead of fake data
+- primary navigation now exposes the product as four clear surfaces: Usage, Threads, Identity, and For You
+
+Judge test:
+
+```bash
+tokenbar threads
+python3 scripts/tokenbar_local_server.py --port 8768
+open http://127.0.0.1:8768/threads
+```
+
+Observed July 20 proof: local API returned `tokenbar.local_threads.v1`, five lanes, no full paths, no raw transcript/source payloads, and zero upload. Desktop rendered without page overflow; mobile kept the kanban in an intentional horizontal scroller.
+
+## Device-Owned Proof Revocation
+
+Implemented and verified July 23, 2026:
+
+- command: `python3 scripts/smoke_builder_identity_flow.py --port 8838`
+- public run: `run_854b0cf5923242c3`
+- public token: `TBAR-F680B4FB98AC`
+- revoked token: `TBAR-C07AAA5894A8`
+- `tokenbar publish-proof` creates one private `0600` device key and sends it only as an ownership header
+- the server persists only a SHA-256 owner identifier and omits it from public run responses
+- a wrong device key receives HTTP `403` and leaves the proof intact
+- `tokenbar revoke latest` or `tokenbar revoke TBAR-...` removes proof, profile, For You, rankings, and public-run surfaces
+- the revoked server run stays inspectable with `status: revoked`, an empty proof payload, and `localArtifactsDeleted: false`
+- local receipts are marked revoked and all open/latest commands skip them
+- the private identity artifact remained byte-for-byte unchanged
+- privacy: raw transcripts false, source code false; owner-bound revocation, unlisted redactions, and private-token boundaries verified

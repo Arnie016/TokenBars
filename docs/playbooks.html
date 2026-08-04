@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="TokenBar Playbooks is a freemium prompt library for AI coding-agent budgets, handoffs, verification, launch prep, and token waste reduction."
+    />
+    <title>TokenBar Playbooks · Prompt Templates That Save Tokens</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./tokenbar-codex.css" />
+  </head>
+  <body class="page-body playbooks-page tokenbar-codex">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="/#usage">Usage</a><a href="/threads">Threads</a><a href="/profile">Identity</a><a href="/social">For You</a><a href="/rankings">Rankings</a><a href="/playbooks" aria-current="page">Playbooks</a><a href="/docs">Docs</a>
+      </nav>
+      <div class="top-actions"><a class="signin-link" href="/profile#sign-in">Sign in</a><a class="download-pill" href="/#download">Download for macOS</a></div>
+    </header>
+
+    <main class="playbooks-main">
+      <section class="playbooks-hero">
+        <div class="playbooks-hero-copy">
+          <p class="eyebrow">Prompt operating system</p>
+          <h1>Stop paying for vague prompts twice.</h1>
+          <p>
+            TokenBar Playbooks turns the best operating prompts into a freemium library:
+            budget headers, stop rules, system-prompt hardening, handoffs, launch gates,
+            and cost passports you can copy before the next agent run starts.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#free">Use free playbooks</a>
+            <a class="button secondary" href="#pro">Preview Pro library</a>
+          </div>
+          <div class="install-line playbook-command-line" aria-label="TokenBar playbooks command">
+            <code>tokenbar playbooks</code>
+            <button type="button" data-copy-command="tokenbar playbooks">Copy</button>
+          </div>
+        </div>
+        <div class="playbooks-stage" aria-label="TokenBar playbook matrix preview">
+          <div class="prompt-matrix" aria-hidden="true">
+            <span>Budget</span><span>Route</span><span>Stop</span><span>Proof</span>
+            <span>Handoff</span><span>Cost</span><span>Launch</span><span>System</span>
+            <span>Scope</span><span>Verify</span><span>Memory</span><span>Report</span>
+          </div>
+          <article class="featured-template">
+            <span>Free / Copy first</span>
+            <h2>Mission Lock</h2>
+            <p>Budget, route, context cap, stop condition, and verifier in the first line.</p>
+            <code>Budget: Medium | Route: smallest useful implementation | Stop: destructive scope...</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="playbook-stats" aria-label="Playbook library stats">
+        <article><strong>100</strong><span>templates in the source catalog</span></article>
+        <article><strong>30</strong><span>cost and verification controls</span></article>
+        <article><strong>0</strong><span>raw transcripts required</span></article>
+        <article><strong>2</strong><span>tiers: Free and Pro</span></article>
+      </section>
+
+      <section class="playbook-diagnosis" data-playbook-diagnosis aria-label="TokenBar playbook chooser">
+        <div class="section-heading">
+          <p class="eyebrow">Choose by leak</p>
+          <h2>What is wasting the next run?</h2>
+          <p>
+            Pick the failure mode before copying a prompt. TokenBar recommends a
+            free starter first, then shows which Pro system becomes relevant when
+            the same leak repeats across reports.
+          </p>
+        </div>
+        <div class="diagnosis-stage">
+          <div class="diagnosis-options" role="tablist" aria-label="Prompt waste modes">
+            <button type="button" class="is-active" role="tab" aria-selected="true" data-diagnosis-mode="scope">
+              <span>01</span><b>Vague scope</b><small>The agent reads too much before the finish line is clear.</small>
+            </button>
+            <button type="button" role="tab" aria-selected="false" data-diagnosis-mode="verify">
+              <span>02</span><b>No verifier</b><small>The output looks done but no proof command ran.</small>
+            </button>
+            <button type="button" role="tab" aria-selected="false" data-diagnosis-mode="connector">
+              <span>03</span><b>Provider fog</b><small>Measured, connected, and setup lanes get mixed together.</small>
+            </button>
+            <button type="button" role="tab" aria-selected="false" data-diagnosis-mode="launch">
+              <span>04</span><b>Launch drift</b><small>The public story grows before proof and approval gates are clear.</small>
+            </button>
+          </div>
+          <article class="diagnosis-result" data-diagnosis-result>
+            <div class="diagnosis-orbit" aria-hidden="true" data-diagnosis-orbit>
+              <i></i><i></i><i></i><i></i>
+              <strong data-diagnosis-score>38%</strong>
+              <span>avoidable burn</span>
+            </div>
+            <div class="diagnosis-copy">
+              <span data-diagnosis-tier>Free starter</span>
+              <h3 data-diagnosis-title>Mission Lock</h3>
+              <p data-diagnosis-copy>Use this when the work is real but the boundary is not. It forces budget, route, context cap, stop condition, and verifier into the first line.</p>
+              <div class="diagnosis-command">
+                <code data-diagnosis-command>tokenbar playbooks copy mission-lock</code>
+                <button type="button" data-diagnosis-copy-button data-copy-command="tokenbar playbooks copy mission-lock">Copy</button>
+              </div>
+              <small data-diagnosis-boundary>Copy-only. No subscription, account change, provider call, or payment action happens here.</small>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="playbook-lanes" id="free">
+        <div class="section-heading">
+          <p class="eyebrow">Free starters</p>
+          <h2>Four prompts every agent run should earn.</h2>
+          <p>These are the defaults that make TokenBar useful even before a subscription exists.</p>
+        </div>
+        <div class="playbook-grid">
+          <article class="playbook-card free">
+            <span>001 / Free</span>
+            <h3>Mission Lock</h3>
+            <p>Locks budget, route, context cap, stop condition, and one verifier before edits begin.</p>
+            <button type="button" data-copy-command="Budget: Medium | Route: smallest useful implementation | Context cap: only directly affected files | Stop: destructive scope, credentials, paid services, or unclear ownership.">Copy prompt</button>
+          </article>
+          <article class="playbook-card free">
+            <span>016 / Free</span>
+            <h3>Cost Saver Header</h3>
+            <p>Starts cheap, limits context, and forces the agent to stop on secrets, paid services, or broad refactor.</p>
+            <button type="button" data-copy-command="Budget: Low unless blocked | Route: inspect first, edit second | Context cap: 6 files max | Stop: secrets, paid services, or broad refactor.">Copy prompt</button>
+          </article>
+          <article class="playbook-card free">
+            <span>061 / Free</span>
+            <h3>Verifier First</h3>
+            <p>Makes the agent name and run the proof instead of styling around an untested feature.</p>
+            <button type="button" data-copy-command="Before editing, identify the verifier. After editing, run it. If it is too slow, run the closest narrow check and state the limitation.">Copy prompt</button>
+          </article>
+          <article class="playbook-card free">
+            <span>090 / Free</span>
+            <h3>Connector Truth Table</h3>
+            <p>Separates measured providers from setup lanes so dashboards do not fake usage certainty.</p>
+            <button type="button" data-copy-command="For each connector, label measured, connected, demo, setup needed, or unsupported. Never draw usage from unmeasured providers.">Copy prompt</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="pro-library" id="pro">
+        <div class="section-heading">
+          <p class="eyebrow">Pro library</p>
+          <h2>Premium prompts for serious agent operators.</h2>
+          <p>Pro is the business layer: deeper prompt systems, team benchmarks, report exports, reminders, and comparison surfaces.</p>
+        </div>
+        <div class="pro-stack">
+          <article>
+            <span>System prompt</span>
+            <h3>System Prompt Hardener</h3>
+            <p>Finds unsafe authority, weak stop conditions, credential exposure, and evidence-boundary regressions.</p>
+          </article>
+          <article>
+            <span>Launch</span>
+            <h3>No-Submit Launch Draft</h3>
+            <p>Drafts Product Hunt and Macapp Supply fields from verified product evidence without posting or uploading.</p>
+          </article>
+          <article>
+            <span>Costs</span>
+            <h3>Cost Passport</h3>
+            <p>Turns a selected date range into observed spend, peak days, waste flags, and a next-run savings prompt.</p>
+          </article>
+          <article>
+            <span>Team</span>
+            <h3>Comparison Engine</h3>
+            <p>Benchmarks people by specific metrics, not identity rank: cost control, verification rate, cadence, and scope discipline.</p>
+          </article>
+        </div>
+        <div class="pro-cta">
+          <div>
+            <h3>Free stays local. Pro unlocks the operating library.</h3>
+            <p>Payment wiring is intentionally separate from this preview. The product boundary is clear: local tracking is free; advanced playbooks, public profiles, reminders, and team comparison belong to Pro.</p>
+          </div>
+          <a class="button primary" href="./prompt-playbooks.md">Read the 100-template catalog</a>
+        </div>
+      </section>
+
+      <section class="savings-lab" aria-label="TokenBar prompt savings lab">
+        <div class="section-heading">
+          <p class="eyebrow">Savings lab</p>
+          <h2>Prompt quality becomes a measurable budget loop.</h2>
+          <p>TokenBar does not just sell templates. It shows where vague prompts turn into waste, then recommends the exact playbook that should run before the next agent session.</p>
+        </div>
+        <div class="savings-stage">
+          <article class="savings-meter">
+            <span>Input waste</span>
+            <strong>38%</strong>
+            <p>Repeated scope resets, oversized context, and unclear stop conditions.</p>
+            <i style="--level: 38%"></i>
+          </article>
+          <article class="savings-meter is-improved">
+            <span>Playbook run</span>
+            <strong>-22%</strong>
+            <p>Mission Lock, Cost Saver Header, and Verifier First reduce the next-run burn.</p>
+            <i style="--level: 22%"></i>
+          </article>
+          <article class="savings-meter">
+            <span>Proof lift</span>
+            <strong>+17</strong>
+            <p>Verification, budget receipts, and outcome review make reports more trustworthy.</p>
+            <i style="--level: 64%"></i>
+          </article>
+        </div>
+        <div class="pro-comparison-strip" aria-label="TokenBar Pro comparison surfaces">
+          <article>
+            <span>Free</span>
+            <strong>Personal usage cockpit</strong>
+            <p>Menu-bar tokens, local playbooks, cost passport, and privacy-safe analysis.</p>
+          </article>
+          <article>
+            <span>Pro</span>
+            <strong>Prompt marketplace</strong>
+            <p>Premium system prompts, launch kits, reminders, reports, and monthly drops.</p>
+          </article>
+          <article>
+            <span>Team</span>
+            <strong>Comparison engine</strong>
+            <p>Benchmarks cost control, verification rate, cadence, and scope discipline without ranking identities as better or worse.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="playbook-flow" aria-label="How TokenBar playbooks reduce waste">
+        <div class="section-heading">
+          <p class="eyebrow">Why it works</p>
+          <h2>Every template closes one leak.</h2>
+        </div>
+        <ol>
+          <li><strong>Budget first</strong><span>TokenBar makes cost and effort visible before the agent starts.</span></li>
+          <li><strong>Context cap</strong><span>The prompt limits file reads and stops runaway exploration.</span></li>
+          <li><strong>Approval gate</strong><span>External actions, paid services, credentials, and account changes remain blocked until approved.</span></li>
+          <li><strong>Evidence receipt</strong><span>The final answer names proof, blocker, and one next action.</span></li>
+        </ol>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

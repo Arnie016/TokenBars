@@ -20,11 +20,8 @@
       <section class="page-hero profile-hero profile-command-center">
         <div>
           <p class="eyebrow">Private analysis, public proof</p>
-          <h1>Turn a messy agent history into a builder identity.</h1>
-          <p>TokenBar reads safe local aggregates, builds a private identity report, and publishes only the proof fields you choose. Judges should understand your taste, execution, ambition, and uncertainty in under 60 seconds.</p>
-          <p>Each builder gets a shareable profile.</p>
-          <p>The profile also states what remains uncertain so judges can read limits as well as strengths.</p>
-          <p>It shares the safe evidence without reading or uploading the raw thread.</p>
+          <h1>Know how you build. Prove what you shipped.</h1>
+          <p>TokenBar turns safe local aggregates into a private identity report and a selective proof card. Each builder gets a shareable profile that states what remains uncertain and shares safe evidence without reading or uploading the raw thread. A judge sees your taste, execution, and ambition in under 60 seconds.</p>
           <div class="profile-hero-actions">
             <a class="button primary" href="#token-dock">Open a builder token</a>
             <a class="button secondary" href="/#download">Download macOS app</a>
@@ -49,6 +46,34 @@
         <article><span>Private</span><strong>Raw logs stay local</strong><p>Prompts, transcripts, source code, secrets, and repo contents do not become public profile data.</p></article>
         <article><span>Selective</span><strong>You choose the proof</strong><p>Share the headline, axes, safe facts, uncertainty, action stages, and links that are useful.</p></article>
         <article><span>Public</span><strong>A reloadable identity token</strong><p>The <code>TBAR-...</code> token opens a proof card, profile, For You feed entry, and ranking evidence.</p></article>
+      </section>
+
+      <section class="profile-identity-chronicle" data-profile-chronicle aria-labelledby="identity-chronicle-title">
+        <div class="identity-chronicle-copy">
+          <p class="eyebrow">Profile chronicle</p>
+          <h2 id="identity-chronicle-title" data-profile-chronicle-title>Your identity is assigned by the evidence, then changes as your work changes.</h2>
+          <p data-profile-chronicle-copy>No form is better than another. TokenBar reads safe aggregate patterns and explains why this month looks like a Revenue Engine Pilot while an earlier month looked like a Prototype Cartographer or Launch Trialsmith.</p>
+          <button class="identity-help" type="button" aria-label="Explain TokenBar identity categories">?</button>
+        </div>
+        <div class="identity-heatmap-card" aria-label="Example builder proof heat map">
+          <div class="identity-heatmap-top">
+            <span>Last 12 weeks</span>
+            <strong data-profile-chronicle-proof-days>72 proof days</strong>
+            <small data-profile-chronicle-boundary>local aggregate evidence only</small>
+          </div>
+          <div class="identity-heatmap-grid" data-profile-chronicle-heatmap aria-label="Relative proof density from safe aggregate profile fields">
+            <i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="1"></i><i data-level="4"></i><i data-level="2"></i><i data-level="5"></i><i data-level="1"></i><i data-level="3"></i><i data-level="4"></i><i data-level="2"></i><i data-level="5"></i>
+            <i data-level="2"></i><i data-level="1"></i><i data-level="4"></i><i data-level="3"></i><i data-level="2"></i><i data-level="5"></i><i data-level="3"></i><i data-level="1"></i><i data-level="4"></i><i data-level="2"></i><i data-level="5"></i><i data-level="3"></i>
+            <i data-level="1"></i><i data-level="3"></i><i data-level="2"></i><i data-level="5"></i><i data-level="4"></i><i data-level="2"></i><i data-level="1"></i><i data-level="3"></i><i data-level="5"></i><i data-level="4"></i><i data-level="2"></i><i data-level="1"></i>
+            <i data-level="3"></i><i data-level="4"></i><i data-level="1"></i><i data-level="2"></i><i data-level="5"></i><i data-level="3"></i><i data-level="4"></i><i data-level="2"></i><i data-level="1"></i><i data-level="5"></i><i data-level="3"></i><i data-level="4"></i>
+            <i data-level="2"></i><i data-level="5"></i><i data-level="3"></i><i data-level="4"></i><i data-level="1"></i><i data-level="2"></i><i data-level="5"></i><i data-level="3"></i><i data-level="4"></i><i data-level="1"></i><i data-level="2"></i><i data-level="5"></i>
+          </div>
+          <ol class="identity-era-strip" data-profile-chronicle-eras aria-label="Example identity eras">
+            <li><span>April</span><strong>Prototype Cartographer</strong><small>mapped rough systems</small></li>
+            <li><span>June</span><strong>Launch Trialsmith</strong><small>tested public proof</small></li>
+            <li><span>Now</span><strong>Revenue Engine Pilot</strong><small>turns usage into decisions</small></li>
+          </ol>
+        </div>
       </section>
 
       <section class="token-dock" id="token-dock" aria-labelledby="token-dock-title">

@@ -1,0 +1,1261 @@
+/* Codex-style visual shell for TokenBar surfaces that opt-in with body.tokenbar-codex */
+body.tokenbar-codex {
+  color-scheme: dark;
+  background: #050d1a;
+  color: #e8f0fc;
+  font-family: Inter, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+body.tokenbar-codex .page-body {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(97, 166, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 84% 76%, rgba(55, 207, 155, 0.12), transparent 38%),
+    linear-gradient(180deg, #080f1b 0%, #050c18 46%, #080f1b 100%);
+  border-top: 1px solid rgba(145, 166, 196, 0.24);
+}
+
+body.tokenbar-codex .topbar {
+  background: rgba(10, 18, 32, 0.72);
+  border-bottom: 1px solid rgba(141, 168, 207, 0.28);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+
+body.tokenbar-codex .brand,
+body.tokenbar-codex nav,
+body.tokenbar-codex .top-actions {
+  color: #e6eefc;
+}
+
+body.tokenbar-codex .download-pill,
+body.tokenbar-codex .button.primary,
+body.tokenbar-codex .profile-command-copy,
+body.tokenbar-codex .identity-create-form .button,
+body.tokenbar-codex .proof-receipt-actions button {
+  background: linear-gradient(135deg, #1f3f7d, #2d67d8);
+  border-color: rgba(146, 177, 255, 0.36);
+  color: #f8fbff;
+  border-radius: 12px;
+}
+
+body.tokenbar-codex .button.secondary,
+body.tokenbar-codex .download-pill.secondary,
+body.tokenbar-codex .proof-receipt-actions .button,
+body.tokenbar-codex .identity-create-form .button.secondary,
+body.tokenbar-codex .token-lookup button {
+  background: rgba(22, 34, 54, 0.78);
+  border-color: rgba(146, 177, 247, 0.34);
+  color: #d7e5fa;
+}
+
+body.tokenbar-codex .button,
+body.tokenbar-codex button {
+  letter-spacing: 0.005em;
+  min-height: 40px;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.tokenbar-codex .button:hover,
+body.tokenbar-codex button:hover,
+body.tokenbar-codex .feed-card:hover,
+body.tokenbar-codex .collectible-card:hover,
+body.tokenbar-codex .social-scoreboard:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06) saturate(1.12);
+  box-shadow:
+    0 0 0 1px rgba(109, 163, 255, 0.28),
+    0 20px 38px rgba(2, 8, 22, 0.56);
+}
+
+body.tokenbar-codex h1,
+body.tokenbar-codex h2,
+body.tokenbar-codex h3 {
+  color: #f3f7ff;
+}
+
+body.tokenbar-codex h1 {
+  font-size: clamp(2.25rem, 5vw, 4.1rem);
+  line-height: 1.04;
+}
+
+body.tokenbar-codex h2 {
+  font-size: clamp(1.45rem, 3vw, 2.3rem);
+  line-height: 1.08;
+}
+
+body.tokenbar-codex .story-os-copy h2 {
+  color: #101624;
+}
+
+body.tokenbar-codex .assembly-copy h2 {
+  color: #101624;
+}
+
+body.tokenbar-codex .assembly-copy > p:not(.eyebrow) {
+  color: #526071;
+}
+
+body.tokenbar-codex p,
+body.tokenbar-codex li,
+body.tokenbar-codex small {
+  color: #d8e5fb;
+  line-height: 1.55;
+}
+
+body.tokenbar-codex .eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #96b3dd;
+}
+
+body.tokenbar-codex .page-main,
+body.tokenbar-codex .page-hero,
+body.tokenbar-codex .identity-hero,
+body.tokenbar-codex .social-hero,
+body.tokenbar-codex .thread-workspace,
+body.tokenbar-codex .social-layout,
+body.tokenbar-codex .leaderboard-shell {
+  border-radius: 16px;
+}
+
+body.tokenbar-codex .command-row,
+body.tokenbar-codex .rankings-grid article,
+body.tokenbar-codex .collectible-card,
+body.tokenbar-codex .feed-card,
+body.tokenbar-codex .social-scoreboard,
+body.tokenbar-codex .scoreboard-row,
+body.tokenbar-codex .thread-item,
+body.tokenbar-codex .token-dock,
+body.tokenbar-codex .identity-create-preview,
+body.tokenbar-codex .repo-passport-card,
+body.tokenbar-codex .submission-update-preview,
+body.tokenbar-codex .profile-proof-strip article,
+body.tokenbar-codex .activation-station,
+body.tokenbar-codex .profile-panel {
+  border-radius: 14px;
+  border-color: rgba(134, 167, 224, 0.34);
+  background: linear-gradient(180deg, #0f1831 0%, #0d152a 100%);
+}
+
+body.tokenbar-codex .command-row {
+  gap: 10px;
+}
+
+body.tokenbar-codex code,
+body.tokenbar-codex pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #e8f0ff;
+  background: rgba(6, 12, 27, 0.9);
+  border: 1px solid rgba(138, 166, 214, 0.35);
+}
+
+body.tokenbar-codex input,
+body.tokenbar-codex textarea,
+body.tokenbar-codex select {
+  border-radius: 11px;
+  background: #0d1628;
+  border-color: rgba(126, 157, 219, 0.42);
+  color: #f5f8ff;
+}
+
+body.tokenbar-codex .token-dock-intro {
+  position: relative;
+  overflow: hidden;
+}
+
+body.tokenbar-codex .token-dock-intro::before,
+body.tokenbar-codex .social-terminal::before,
+body.tokenbar-codex .identity-create-preview::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px dashed rgba(123, 164, 255, 0.22);
+  opacity: 0.65;
+}
+
+body.tokenbar-codex .identity-slide,
+body.tokenbar-codex .identity-lab,
+body.tokenbar-codex .command-docs,
+body.tokenbar-codex .proof-band,
+body.tokenbar-codex .thread-workspace-head {
+  border-top: 1px solid rgba(139, 173, 238, 0.22);
+}
+
+body.tokenbar-codex .identity-stage {
+  min-height: 74px;
+}
+
+@keyframes tokenbar-codex-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(123, 170, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0.55rem rgba(123, 170, 255, 0);
+  }
+}
+
+body.tokenbar-codex .status-active,
+body.tokenbar-codex .copy-success {
+  animation: tokenbar-codex-pulse 1.4s ease-in-out 1;
+}
+
+@media (max-width: 1020px) {
+  body.tokenbar-codex .topbar {
+    padding: 0 5vw;
+  }
+
+  body.tokenbar-codex nav {
+    gap: 12px;
+  }
+
+  body.tokenbar-codex h1 {
+    font-size: clamp(1.85rem, 7vw, 2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.tokenbar-codex *,
+  body.tokenbar-codex *::before,
+  body.tokenbar-codex *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* Shared Codex desktop shell. Keep this layer structural so every TokenBar
+   destination reads as the same installed product. */
+body.tokenbar-codex {
+  --blue: #4c8dff;
+  --blue-strong: #2f72ef;
+  --ink: #f3f6fc;
+  --muted: #a9b5c9;
+  --line: rgba(158, 177, 208, 0.18);
+  --line-strong: rgba(158, 183, 225, 0.32);
+  --panel: #0d1422;
+  --panel-raised: #111b2c;
+  --panel-soft: rgba(17, 27, 44, 0.72);
+  --canvas: #070b12;
+  --shadow: 0 22px 58px rgba(0, 0, 0, 0.34);
+  background: var(--canvas);
+}
+
+body.tokenbar-codex::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.11'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+body.tokenbar-codex.page-body {
+  background:
+    radial-gradient(circle at 50% -20%, rgba(62, 116, 224, 0.16), transparent 39rem),
+    linear-gradient(180deg, #0a0f18 0, #070b12 34rem, #080c13 100%);
+}
+
+body.tokenbar-codex .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  min-height: 62px;
+  padding: 0 max(24px, calc((100vw - 1280px) / 2));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  background: rgba(7, 11, 18, 0.82);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(22px) saturate(1.24);
+}
+
+body.tokenbar-codex .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.93rem;
+  font-weight: 680;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+body.tokenbar-codex .brand-mark {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(153, 181, 233, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #172641, #0c1423);
+  color: #dbe8ff;
+  font: 700 0.66rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 5px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.tokenbar-codex .topbar nav {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+
+body.tokenbar-codex .topbar nav a,
+body.tokenbar-codex .signin-link {
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #aeb9ca;
+  font-size: 0.82rem;
+  font-weight: 560;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+body.tokenbar-codex .topbar nav a:hover,
+body.tokenbar-codex .topbar nav a[aria-current="page"],
+body.tokenbar-codex .signin-link:hover {
+  color: #f5f8ff;
+  background: rgba(129, 158, 206, 0.12);
+}
+
+body.tokenbar-codex .topbar nav a[aria-current="page"] {
+  box-shadow: inset 0 0 0 1px rgba(150, 178, 226, 0.1);
+}
+
+body.tokenbar-codex .top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+body.tokenbar-codex .download-pill {
+  min-height: 34px;
+  padding: 8px 13px;
+  border: 1px solid rgba(128, 168, 255, 0.42);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #347ced, #2763cb);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 690;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(33, 94, 207, 0.24);
+}
+
+body.tokenbar-codex main,
+body.tokenbar-codex .page-main,
+body.tokenbar-codex .thread-workspace {
+  width: min(1280px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+body.tokenbar-codex .page-main {
+  padding-block: 32px 84px;
+}
+
+body.tokenbar-codex h1,
+body.tokenbar-codex h2,
+body.tokenbar-codex h3 {
+  max-width: 22ch;
+  font-family: Inter, "SF Pro Display", "SF Pro Text", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-weight: 720;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+body.tokenbar-codex h1 {
+  font-size: clamp(2.2rem, 4.2vw, 3.75rem);
+  line-height: 1.02;
+}
+
+body.tokenbar-codex .identity-hero h1::first-line {
+  color: #f3f7ff;
+}
+
+body.tokenbar-codex h2 {
+  font-size: clamp(1.4rem, 2.3vw, 2.05rem);
+  line-height: 1.12;
+}
+
+body.tokenbar-codex h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+body.tokenbar-codex p,
+body.tokenbar-codex li,
+body.tokenbar-codex small {
+  color: var(--muted);
+}
+
+body.tokenbar-codex .eyebrow {
+  color: #7fa8f2;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+
+body.tokenbar-codex .hero,
+body.tokenbar-codex .social-hero,
+body.tokenbar-codex .page-hero,
+body.tokenbar-codex .profile-hero,
+body.tokenbar-codex .thread-workspace-head {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(61, 112, 207, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(17, 27, 44, 0.92), rgba(10, 16, 27, 0.96));
+  box-shadow: var(--shadow);
+}
+
+body.tokenbar-codex .hero::before,
+body.tokenbar-codex .social-hero::before,
+body.tokenbar-codex .page-hero::before,
+body.tokenbar-codex .profile-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(139, 168, 220, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 168, 220, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(90deg, #000, transparent 72%);
+}
+
+body.tokenbar-codex .metrics-strip,
+body.tokenbar-codex .leaderboard-shell,
+body.tokenbar-codex .thread-summary,
+body.tokenbar-codex .profile-proof-strip {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(12, 19, 31, 0.86);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.2);
+}
+
+body.tokenbar-codex .metrics-strip > div,
+body.tokenbar-codex .stats-card,
+body.tokenbar-codex .profile-proof-strip article {
+  min-width: 0;
+  border-color: var(--line);
+  background: transparent;
+}
+
+body.tokenbar-codex .metrics-strip strong,
+body.tokenbar-codex .stats-card strong {
+  color: #eff5ff;
+  font-variant-numeric: tabular-nums;
+}
+
+body.tokenbar-codex .identity-lab,
+body.tokenbar-codex .proof-band,
+body.tokenbar-codex .download-band,
+body.tokenbar-codex .submit-booth,
+body.tokenbar-codex .hackathon-intake,
+body.tokenbar-codex .activation-station,
+body.tokenbar-codex .rankings-entry-panel,
+body.tokenbar-codex .regional-board,
+body.tokenbar-codex .ranking-formula-panel,
+body.tokenbar-codex .ranking-board-section,
+body.tokenbar-codex .command-docs,
+body.tokenbar-codex .token-dock,
+body.tokenbar-codex .share-mode-lab,
+body.tokenbar-codex .proof-action-panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(12, 19, 31, 0.82);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+body.tokenbar-codex .button,
+body.tokenbar-codex button {
+  border-radius: 9px;
+}
+
+body.tokenbar-codex .button.primary,
+body.tokenbar-codex .profile-command-copy,
+body.tokenbar-codex .proof-receipt-actions button,
+body.tokenbar-codex .identity-create-form .button:not(.secondary) {
+  background: linear-gradient(180deg, #3e86f4, #2d67cf);
+  border-color: rgba(138, 176, 249, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 24px rgba(35, 92, 190, 0.22);
+}
+
+body.tokenbar-codex .button:hover,
+body.tokenbar-codex button:hover,
+body.tokenbar-codex .feed-card:hover,
+body.tokenbar-codex .collectible-card:hover,
+body.tokenbar-codex .social-scoreboard:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+}
+
+body.tokenbar-codex code,
+body.tokenbar-codex pre,
+body.tokenbar-codex .social-command,
+body.tokenbar-codex .submit-booth-command,
+body.tokenbar-codex .profile-hero-command {
+  border-color: rgba(133, 164, 218, 0.25);
+  background: #080e19;
+  color: #dce9ff;
+}
+
+body.tokenbar-codex input,
+body.tokenbar-codex textarea,
+body.tokenbar-codex select {
+  min-height: 42px;
+  background: #080f1c;
+  border: 1px solid rgba(133, 164, 218, 0.3);
+  color: #eef4ff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.38);
+}
+
+body.tokenbar-codex input:focus,
+body.tokenbar-codex textarea:focus,
+body.tokenbar-codex select:focus,
+body.tokenbar-codex button:focus-visible,
+body.tokenbar-codex a:focus-visible {
+  outline: 2px solid rgba(92, 151, 255, 0.78);
+  outline-offset: 2px;
+}
+
+body.tokenbar-codex .submission-update-head strong {
+  color: #f4f7fc;
+}
+
+body.tokenbar-codex .submission-update-form label {
+  color: #aab6c9;
+}
+
+/* Home and product installation */
+body.tokenbar-codex .identity-stage,
+body.tokenbar-codex .hero-shot,
+body.tokenbar-codex .social-terminal {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, #111b2c, #0a111e);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+}
+
+body.tokenbar-codex .identity-hero {
+  padding: 74px 5vw 26px;
+}
+
+body.tokenbar-codex .identity-stage {
+  min-height: 520px;
+}
+
+body.tokenbar-codex .identity-stage .hero-shot {
+  top: 54px;
+  width: min(700px, 74vw);
+}
+
+body.tokenbar-codex .identity-stage .tool-cursor {
+  bottom: 54px;
+}
+
+body.tokenbar-codex .hero-shot img {
+  filter: saturate(0.96) contrast(1.02);
+}
+
+/* Homepage launch hero: keep the first viewport product-led. Earlier theme
+   layers make the home hero tall and visually empty; this scoped correction
+   pulls the menu-bar cockpit into view without changing inner product pages. */
+body.tokenbar-codex.home-page .identity-hero {
+  min-height: calc(100vh - 62px);
+  padding: clamp(56px, 7vw, 86px) 5vw 38px;
+  align-items: start;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(76, 141, 255, 0.18), transparent 25rem),
+    radial-gradient(circle at 78% 64%, rgba(55, 207, 155, 0.12), transparent 22rem),
+    linear-gradient(180deg, #0a101b 0%, #080d16 62%, #0a101b 100%) !important;
+}
+
+body.tokenbar-codex.home-page .identity-hero .hero-copy {
+  position: relative;
+  z-index: 5;
+  width: min(960px, 100%);
+  padding: 0;
+  text-align: center;
+}
+
+body.tokenbar-codex.home-page .identity-hero h1 {
+  max-width: 780px;
+  margin-inline: auto;
+  color: #f7f9ff;
+  font-size: clamp(3.3rem, 6.2vw, 6.6rem);
+  line-height: 0.9;
+  text-shadow: 0 18px 54px rgba(0, 0, 0, 0.46);
+}
+
+body.tokenbar-codex.home-page .identity-hero .hero-copy p {
+  max-width: 760px;
+  margin-top: 18px;
+  margin-inline: auto;
+  color: #c3d0e6;
+  font-size: clamp(1rem, 1.55vw, 1.24rem);
+}
+
+body.tokenbar-codex.home-page .identity-hero .hero-actions,
+body.tokenbar-codex.home-page .identity-hero .hero-trust,
+body.tokenbar-codex.home-page .identity-hero .connector-cloud {
+  justify-content: center;
+}
+
+body.tokenbar-codex.home-page .identity-hero .install-line {
+  display: inline-flex;
+  width: min(520px, 100%);
+  margin-top: 16px;
+  background: rgba(4, 10, 20, 0.78);
+}
+
+body.tokenbar-codex.home-page .identity-stage {
+  width: min(1040px, 100%);
+  min-height: clamp(420px, 43vw, 560px);
+  margin-top: clamp(22px, 3vw, 34px);
+  border-color: rgba(126, 157, 219, 0.34);
+  background:
+    linear-gradient(180deg, rgba(18, 28, 47, 0.86), rgba(8, 14, 25, 0.92)),
+    radial-gradient(circle at 50% 16%, rgba(255, 174, 92, 0.14), transparent 22rem);
+  box-shadow: 0 32px 88px rgba(0, 0, 0, 0.48);
+}
+
+body.tokenbar-codex.home-page .identity-stage .hero-shot {
+  top: 48px;
+  width: min(720px, 76vw);
+}
+
+body.tokenbar-codex.home-page .hero-provider-strip {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  left: 13%;
+  right: 8%;
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 1fr 0.8fr 1fr 0.9fr;
+  gap: 3px;
+  min-height: 38px;
+  border-radius: 13px;
+  padding: 4px;
+  background: rgba(15, 21, 37, 0.92);
+  border: 1px solid rgba(144, 170, 214, 0.28);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px) saturate(1.12);
+}
+
+body.tokenbar-codex.home-page .hero-provider-strip span {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  border-radius: 9px;
+  color: #b8c5dc;
+  font-size: 0.58rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+body.tokenbar-codex.home-page .hero-provider-strip span:first-child {
+  background: linear-gradient(180deg, #3c5b98, #243861);
+  color: #f7faff;
+}
+
+body.tokenbar-codex.home-page .identity-stage .mac-menu {
+  left: 9%;
+  right: 9%;
+}
+
+body.tokenbar-codex.home-page .identity-stage .tool-chip {
+  max-width: 176px;
+  background: rgba(11, 20, 34, 0.84);
+}
+
+body.tokenbar-codex .connector-cloud span,
+body.tokenbar-codex .tool-chip,
+body.tokenbar-codex .analysis-size-strip span,
+body.tokenbar-codex .social-badges span,
+body.tokenbar-codex .intake-flags span {
+  border-color: var(--line);
+  background: rgba(13, 22, 37, 0.78);
+  color: #c4cfdf;
+}
+
+body.tokenbar-codex .download-band {
+  background:
+    linear-gradient(110deg, rgba(45, 103, 207, 0.22), transparent 48%),
+    #0d1626;
+  border-color: rgba(104, 151, 235, 0.34);
+}
+
+/* Identity passport */
+body.tokenbar-codex .token-dock-intro,
+body.tokenbar-codex .identity-create-preview,
+body.tokenbar-codex .identity-create-form,
+body.tokenbar-codex .profile-panel,
+body.tokenbar-codex .repo-passport-card,
+body.tokenbar-codex .proof-result {
+  border-color: var(--line);
+  background: linear-gradient(180deg, rgba(18, 29, 48, 0.94), rgba(11, 18, 31, 0.96));
+}
+
+body.tokenbar-codex .identity-create-stages li,
+body.tokenbar-codex .share-mode-lab article {
+  border-color: var(--line);
+  background: rgba(9, 15, 26, 0.74);
+}
+
+body.tokenbar-codex .identity-create-stages li.is-active,
+body.tokenbar-codex .share-mode-lab article.is-active {
+  border-color: rgba(85, 147, 255, 0.48);
+  background: rgba(35, 79, 158, 0.16);
+}
+
+/* For You: proof-rich social surface */
+body.tokenbar-codex .social-scoreboard {
+  width: min(1280px, calc(100% - 48px));
+  margin: 22px auto 0;
+  border: 1px solid var(--line);
+  background: #0b121f;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26);
+}
+
+body.tokenbar-codex .scoreboard-title,
+body.tokenbar-codex .scoreboard-row,
+body.tokenbar-codex .region-row {
+  border-color: var(--line);
+}
+
+body.tokenbar-codex .scoreboard-title {
+  background: linear-gradient(180deg, #111b2c, #0c1422);
+}
+
+body.tokenbar-codex .scoreboard-title span,
+body.tokenbar-codex .scoreboard-row em,
+body.tokenbar-codex .region-row em {
+  color: #8492a8;
+}
+
+body.tokenbar-codex .scoreboard-title strong,
+body.tokenbar-codex .scoreboard-row strong,
+body.tokenbar-codex .region-row strong {
+  color: #eef4ff;
+}
+
+body.tokenbar-codex .scoreboard-row,
+body.tokenbar-codex .region-row {
+  background: transparent;
+}
+
+body.tokenbar-codex .feed-card,
+body.tokenbar-codex .submit-booth-preview,
+body.tokenbar-codex .loop-scale article,
+body.tokenbar-codex .submission-update-preview {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #101a2b, #0b121f);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+}
+
+body.tokenbar-codex .feed-card::before,
+body.tokenbar-codex .collectible-card::before,
+body.tokenbar-codex .ranking-board-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue), transparent 72%);
+}
+
+body.tokenbar-codex .feed-social-post .feed-builder-row strong,
+body.tokenbar-codex .feed-social-post .feed-story-lede strong,
+body.tokenbar-codex .feed-social-post .feed-signal-strip b,
+body.tokenbar-codex .feed-social-post .proof-score-strip b,
+body.tokenbar-codex .feed-empty-state > strong {
+  color: #f1f5fc;
+}
+
+body.tokenbar-codex .feed-social-post .feed-project-line > span,
+body.tokenbar-codex .feed-social-post .feed-evidence-drawer summary {
+  color: #dce5f4;
+}
+
+body.tokenbar-codex .feed-social-post .feed-story-lede p,
+body.tokenbar-codex .feed-social-post .feed-next-drill p,
+body.tokenbar-codex .feed-social-post .feed-builder-row small {
+  color: #9daabd;
+}
+
+body.tokenbar-codex .feed-social-post .feed-signal-strip span,
+body.tokenbar-codex .feed-social-post .proof-score-strip span {
+  border-color: rgba(133, 164, 218, 0.22);
+  background: #0a1322;
+}
+
+body.tokenbar-codex .feed-social-post .feed-project-line,
+body.tokenbar-codex .feed-social-post .feed-next-drill,
+body.tokenbar-codex .feed-social-post .feed-evidence-drawer {
+  border-color: rgba(133, 164, 218, 0.18);
+}
+
+body.tokenbar-codex .feed-social-post .post-actions button,
+body.tokenbar-codex .feed-social-post .post-actions a {
+  border-color: rgba(126, 157, 219, 0.3);
+  background: #101b2d;
+  color: #dfe9f8;
+}
+
+body.tokenbar-codex .identity-switcher button,
+body.tokenbar-codex .region-tabs button {
+  min-height: 34px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #9caabd;
+}
+
+body.tokenbar-codex .identity-switcher button.is-active,
+body.tokenbar-codex .region-tabs button.is-active {
+  background: rgba(68, 126, 226, 0.16);
+  border-color: rgba(98, 151, 243, 0.3);
+  color: #edf4ff;
+}
+
+body.tokenbar-codex .share-mode-mini button,
+body.tokenbar-codex .social-badges button {
+  border: 1px solid rgba(126, 157, 219, 0.28);
+  background: #111b2c;
+  color: #dce8fb;
+}
+
+/* Rankings: information density over oversized marketing copy */
+body.tokenbar-codex .ranking-privacy-panel article,
+body.tokenbar-codex .ranking-board-card,
+body.tokenbar-codex .rankings-grid article {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #0c1422;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+body.tokenbar-codex .ranking-formula-panel ol li {
+  border-color: var(--line);
+  background: rgba(7, 13, 23, 0.66);
+}
+
+body.tokenbar-codex .rankings-entry-panel .token-lookup,
+body.tokenbar-codex .rankings-token-lookup,
+body.tokenbar-codex .token-lookup,
+body.tokenbar-codex .command-panel,
+body.tokenbar-codex .compact-command-panel {
+  border: 1px solid var(--line) !important;
+  background: #0b1321 !important;
+  color: #eaf1ff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+}
+
+body.tokenbar-codex .token-lookup label,
+body.tokenbar-codex .rankings-token-lookup label {
+  color: #eaf1ff;
+}
+
+body.tokenbar-codex .token-lookup p,
+body.tokenbar-codex .rankings-token-lookup p,
+body.tokenbar-codex .rankings-entry-panel p {
+  color: #9aa8bd;
+}
+
+body.tokenbar-codex .command-row {
+  grid-template-columns: minmax(180px, 0.8fr) auto minmax(280px, 1.5fr);
+  border: 1px solid var(--line) !important;
+  background: #080f1b !important;
+}
+
+body.tokenbar-codex .command-row span {
+  color: #74849c;
+  font-size: 0.74rem;
+  font-weight: 560;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+body.tokenbar-codex .command-row code {
+  color: #dce9ff;
+  background: transparent;
+  border: 0;
+}
+
+body.tokenbar-codex .command-row button,
+body.tokenbar-codex .token-lookup button,
+body.tokenbar-codex .profile-hero-command button {
+  border: 1px solid rgba(128, 162, 221, 0.24);
+  background: #17233a;
+  color: #edf4ff;
+}
+
+/* Docs: keep the core path visible and move the long command catalog behind one clear disclosure. */
+body.tokenbar-codex .surface-map,
+body.tokenbar-codex .install-cards article,
+body.tokenbar-codex .command-catalog {
+  border: 1px solid var(--line);
+  background: #0c1422;
+  color: #eaf1ff;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22);
+}
+
+body.tokenbar-codex .surface-map article {
+  border-color: var(--line);
+  background: transparent;
+}
+
+body.tokenbar-codex .surface-map article > span,
+body.tokenbar-codex .surface-map p,
+body.tokenbar-codex .install-cards p {
+  color: #8f9db2;
+}
+
+body.tokenbar-codex .surface-map code {
+  border-color: rgba(128, 162, 221, 0.24);
+  background: #080f1b;
+  color: #dce9ff;
+}
+
+body.tokenbar-codex .surface-map a {
+  color: #79a9ff;
+}
+
+body.tokenbar-codex .install-cards article {
+  border-radius: 12px;
+}
+
+body.tokenbar-codex .command-catalog {
+  max-width: 980px;
+  margin: 18px auto 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+body.tokenbar-codex .command-catalog summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 22px;
+  cursor: pointer;
+  color: #eef4ff;
+  font-weight: 760;
+  list-style: none;
+}
+
+body.tokenbar-codex .command-catalog summary::-webkit-details-marker {
+  display: none;
+}
+
+body.tokenbar-codex .command-catalog summary::after {
+  content: "+";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: #79a9ff;
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+body.tokenbar-codex .command-catalog[open] summary::after {
+  content: "−";
+}
+
+body.tokenbar-codex .command-catalog summary small {
+  color: #8190a6;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+body.tokenbar-codex .command-catalog .command-docs {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Local Codex thread workboard */
+body.tokenbar-codex .thread-workspace {
+  padding-block: 32px 80px;
+}
+
+body.tokenbar-codex .thread-workspace-head {
+  padding: clamp(24px, 4vw, 44px);
+  border-radius: 14px;
+}
+
+body.tokenbar-codex .thread-source-receipt,
+body.tokenbar-codex .thread-local-gate,
+body.tokenbar-codex .thread-lane,
+body.tokenbar-codex .thread-card,
+body.tokenbar-codex .thread-item {
+  border: 1px solid var(--line);
+  background: #0c1422;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+body.tokenbar-codex .thread-board {
+  grid-template-columns: repeat(5, minmax(205px, 1fr));
+  gap: 14px;
+}
+
+body.tokenbar-codex .thread-lane {
+  border-radius: 12px;
+}
+
+body.tokenbar-codex .thread-card,
+body.tokenbar-codex .thread-item {
+  border-radius: 10px;
+}
+
+body.tokenbar-codex .thread-lane > header h2 {
+  max-width: 14ch;
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+body.tokenbar-codex .thread-lane > header span {
+  border-color: var(--line);
+  background: #111c2e;
+  color: #b9c7da;
+}
+
+body.tokenbar-codex .thread-card {
+  min-height: 128px;
+  padding: 12px;
+}
+
+body.tokenbar-codex .thread-card h2 {
+  display: -webkit-box;
+  margin: 10px 0 7px;
+  overflow: hidden;
+  color: #eef4ff;
+  font-size: 0.92rem;
+  line-height: 1.28;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+body.tokenbar-codex .thread-card p {
+  display: -webkit-box;
+  margin-bottom: 10px;
+  overflow: hidden;
+  color: #8f9db2;
+  font-size: 0.72rem;
+  line-height: 1.38;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+body.tokenbar-codex .thread-card-top,
+body.tokenbar-codex .thread-card footer {
+  color: #708198;
+  font-size: 0.61rem;
+}
+
+body.tokenbar-codex .thread-card-top b,
+body.tokenbar-codex .thread-card footer span {
+  color: #b7c5d9;
+}
+
+body.tokenbar-codex .thread-card footer {
+  border-color: var(--line);
+}
+
+/* Archetypes behave like collectable dossiers, not template cards. */
+body.tokenbar-codex .collectible-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 390px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(145deg, rgba(64, 119, 215, 0.1), transparent 46%),
+    linear-gradient(180deg, #111b2d, #0b121f);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+}
+
+body.tokenbar-codex .collectible-card h2 {
+  max-width: 12ch;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+}
+
+body.tokenbar-codex .collectible-card dl div {
+  border-color: var(--line);
+  background: rgba(6, 12, 21, 0.5);
+}
+
+body.tokenbar-codex .collectible-card dd {
+  color: #eef4ff;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1040px) {
+  body.tokenbar-codex .topbar {
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+  }
+
+  body.tokenbar-codex .topbar nav {
+    justify-content: flex-end;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  body.tokenbar-codex .top-actions {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  body.tokenbar-codex .topbar {
+    position: static;
+    min-height: auto;
+    padding: 10px 16px 8px;
+    grid-template-columns: 1fr;
+  }
+
+  body.tokenbar-codex .topbar nav {
+    display: grid;
+    grid-template-columns: repeat(6, max-content);
+    justify-content: space-between;
+    width: 100%;
+    margin-inline: 0;
+    overflow: visible;
+  }
+
+  body.tokenbar-codex .command-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.tokenbar-codex .command-row span {
+    grid-column: 1 / -1;
+  }
+
+  body.tokenbar-codex .topbar nav a {
+    padding-inline: 5px;
+    font-size: 0.68rem;
+  }
+
+  body.tokenbar-codex main,
+  body.tokenbar-codex .page-main,
+  body.tokenbar-codex .thread-workspace,
+  body.tokenbar-codex .social-scoreboard {
+    width: min(100% - 24px, 1280px);
+  }
+
+  body.tokenbar-codex .page-main,
+  body.tokenbar-codex .thread-workspace {
+    padding-top: 18px;
+  }
+
+  body.tokenbar-codex h1 {
+    font-size: clamp(2rem, 12vw, 2.8rem);
+  }
+
+  body.tokenbar-codex h2 {
+    font-size: 1.45rem;
+  }
+
+  body.tokenbar-codex .identity-hero {
+    padding: 44px 16px 20px;
+  }
+
+  body.tokenbar-codex .identity-stage {
+    min-height: 420px;
+  }
+
+  body.tokenbar-codex .identity-stage .hero-shot {
+    top: 48px;
+    width: min(92vw, 620px);
+  }
+
+  body.tokenbar-codex .identity-stage .tool-chip {
+    display: none;
+  }
+
+  body.tokenbar-codex .social-hero,
+  body.tokenbar-codex .rankings-entry-panel,
+  body.tokenbar-codex .profile-hero,
+  body.tokenbar-codex .token-dock,
+  body.tokenbar-codex .submit-booth {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 22px 18px;
+  }
+
+  body.tokenbar-codex .social-hero > *,
+  body.tokenbar-codex .rankings-entry-panel > *,
+  body.tokenbar-codex .profile-hero > *,
+  body.tokenbar-codex .submit-booth > * {
+    min-width: 0;
+  }
+
+  body.tokenbar-codex .social-hero h1,
+  body.tokenbar-codex .profile-hero h1,
+  body.tokenbar-codex .page-hero h1 {
+    max-width: 100%;
+    font-size: clamp(2rem, 10vw, 2.55rem);
+    overflow-wrap: anywhere;
+  }
+
+  body.tokenbar-codex .social-command,
+  body.tokenbar-codex .submit-booth-command,
+  body.tokenbar-codex .profile-hero-command,
+  body.tokenbar-codex .token-lookup div,
+  body.tokenbar-codex .rankings-token-lookup div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.tokenbar-codex .social-command code,
+  body.tokenbar-codex .submit-booth-command code,
+  body.tokenbar-codex .profile-hero-command code,
+  body.tokenbar-codex .command-row code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  body.tokenbar-codex .analysis-size-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.tokenbar-codex .share-mode-mini,
+  body.tokenbar-codex .social-badges {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  body.tokenbar-codex .share-mode-mini button,
+  body.tokenbar-codex .social-badges button {
+    width: 100%;
+  }
+
+  body.tokenbar-codex .social-badges span,
+  body.tokenbar-codex .social-badges code {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  body.tokenbar-codex .social-terminal {
+    margin-top: 4px;
+  }
+
+  body.tokenbar-codex .thread-board {
+    grid-template-columns: repeat(5, minmax(230px, 1fr));
+    scroll-snap-type: x proximity;
+  }
+}

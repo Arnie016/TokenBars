@@ -5,6 +5,7 @@
 create table if not exists public.tokenbar_profiles (
   token text primary key,
   profile jsonb not null,
+  owner_id text,
   primary_archetype text,
   npc_class text,
   specificity_score integer,
@@ -12,6 +13,9 @@ create table if not exists public.tokenbar_profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.tokenbar_profiles
+  add column if not exists owner_id text;
 
 create index if not exists tokenbar_profiles_primary_archetype_idx
   on public.tokenbar_profiles (primary_archetype);
@@ -21,6 +25,9 @@ create index if not exists tokenbar_profiles_npc_class_idx
 
 create index if not exists tokenbar_profiles_uploaded_at_idx
   on public.tokenbar_profiles (uploaded_at_epoch desc);
+
+create index if not exists tokenbar_profiles_owner_id_idx
+  on public.tokenbar_profiles (owner_id);
 
 create or replace function public.set_tokenbar_profiles_updated_at()
 returns trigger as $$

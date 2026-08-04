@@ -51,6 +51,10 @@
       "dest": "/docs/social.html"
     },
     {
+      "src": "/threads/?",
+      "dest": "/docs/threads.html"
+    },
+    {
       "src": "/profile/?",
       "dest": "/docs/profile.html"
     },
@@ -61,6 +65,10 @@
     {
       "src": "/rankings/?",
       "dest": "/docs/rankings.html"
+    },
+    {
+      "src": "/playbooks/?",
+      "dest": "/docs/playbooks.html"
     },
     {
       "src": "/docs/?",

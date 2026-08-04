@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TokenBar Companion</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="companion-shell">
+      <header class="companion-top">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">TB</span>
+          <div>
+            <span class="eyebrow">TokenBar Companion</span>
+            <h1>Usage cockpit</h1>
+          </div>
+        </div>
+        <button type="button" data-refresh aria-label="Refresh local TokenBar signal">Refresh</button>
+      </header>
+
+      <section class="account-panel" aria-label="Current TokenBar account">
+        <span data-connection-dot></span>
+        <div>
+          <b data-account-label>Local preview</b>
+          <small data-connection-label>Start tokenbar api for live data</small>
+        </div>
+        <span class="account-pill" data-account-state>Preview</span>
+      </section>
+
+      <section class="hero-meter" aria-label="Budget and usage summary">
+        <div class="budget-ring" data-budget-ring style="--budget-left: 68">
+          <span data-budget-state>68%</span>
+          <small>budget left</small>
+        </div>
+        <div class="hero-copy">
+          <span data-story-kicker>Budget and proof</span>
+          <h2 data-story-title>Use the prompt playbook before the next long run.</h2>
+          <p data-story-copy>
+            No content scripts. The companion reads only TokenBar's localhost bundle. It does not scrape prompts,
+            source code, private diffs, page text, credentials, or provider accounts.
+          </p>
+        </div>
+      </section>
+
+      <section class="surface-relay-card" aria-label="TokenBar surface relay" data-surface-relay>
+        <div class="surface-relay-head">
+          <div>
+            <span class="section-kicker">Surface relay</span>
+            <h3 data-relay-title>Menu-bar cockpit</h3>
+          </div>
+          <b data-relay-tier>Free</b>
+        </div>
+        <div class="relay-flow" aria-hidden="true" data-relay-flow>
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p data-relay-value>Active account, measured providers, time-window tokens, budget pressure, and next suggested action.</p>
+        <div class="relay-command">
+          <code data-relay-command>tokenbar status</code>
+          <span data-relay-gate>No provider sign-in</span>
+        </div>
+        <div class="relay-tabs" data-relay-tabs>
+          <button type="button" data-relay-key="cli" title="CLI evidence line">CLI</button>
+          <button type="button" data-relay-key="menu" class="is-selected" title="Menu-bar cockpit">Menu</button>
+          <button type="button" data-relay-key="companion" title="Browser context rail">Rail</button>
+          <button type="button" data-relay-key="studio" title="Mac studio archive">Studio</button>
+          <button type="button" data-relay-key="pro" title="Pro proof market · No auto-billing">Pro</button>
+        </div>
+      </section>
+
+      <section class="signal-grid" aria-label="TokenBar local usage signals">
+        <article>
+          <span>Today</span>
+          <strong data-today-tokens>84M</strong>
+          <small>tokens</small>
+        </article>
+        <article>
+          <span>Cadence</span>
+          <strong data-cadence-state>21d</strong>
+          <small>active window</small>
+        </article>
+        <article>
+          <span>Cost</span>
+          <strong data-cost-state>Set price</strong>
+          <small>passport ready</small>
+        </article>
+      </section>
+
+      <section class="guide-card" aria-label="TokenBar guide">
+        <div class="guide-head">
+          <div>
+            <span class="section-kicker">Guide</span>
+            <h3 data-guide-question>What should TokenBar help with before your next AI coding run?</h3>
+          </div>
+          <span data-guide-state>Suggested</span>
+        </div>
+        <div class="guide-options" data-guide-options>
+          <button type="button" data-guide-choice="install">
+            <b>Install</b>
+            <span>Refresh the menu-bar cockpit.</span>
+          </button>
+          <button type="button" data-guide-choice="analyze">
+            <b>Analyze</b>
+            <span>Read local usage first.</span>
+          </button>
+          <button type="button" data-guide-choice="budget">
+            <b>Budget</b>
+            <span>Set a budget brief before the run.</span>
+          </button>
+          <button type="button" data-guide-choice="playbook">
+            <b>Playbook</b>
+            <span>Copy a cheaper prompt.</span>
+          </button>
+          <button type="button" data-guide-choice="proof">
+            <b>Proof</b>
+            <span>Review before sharing.</span>
+          </button>
+        </div>
+        <div class="guide-action-rail" aria-label="Selected guide action">
+          <div>
+            <span>Command</span>
+            <code data-guide-command>tokenbar playbooks copy budget-runway</code>
+          </div>
+          <div>
+            <span>Boundary</span>
+            <b data-guide-boundary>No settings changed.</b>
+          </div>
+          <button type="button" data-guide-copy>Copy</button>
+        </div>
+        <p data-guide-answer>No settings changed. Pick a guide card to copy the right local command.</p>
+      </section>
+
+      <section class="reminder-strip" aria-label="Current reminder">
+        <span>Next useful nudge</span>
+        <b data-reminder-state>Open a playbook before the run grows.</b>
+      </section>
+
+      <section class="runway-brief-card" aria-label="Budget brief">
+        <div class="runway-brief-head">
+          <div>
+            <span class="section-kicker">Budget brief</span>
+            <h3 data-runway-title>Prepare the next run before it expands.</h3>
+          </div>
+          <strong data-runway-state>Calm</strong>
+        </div>
+        <div class="runway-material" aria-hidden="true" data-runway-material style="--runway-risk: 36">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <p data-runway-reason>TokenBar will suggest the smallest next guardrail after local usage is indexed.</p>
+        <div class="runway-command">
+          <div>
+            <span>Operating order</span>
+            <code data-runway-prompt>Budget: Focus | Route: one bounded implementation | Timebox: one verifier</code>
+          </div>
+          <button type="button" data-runway-copy>Copy</button>
+        </div>
+        <small data-runway-boundary>Suggested only. No notification scheduled.</small>
+      </section>
+
+      <section class="memory-pressure-card" aria-label="Memory pressure">
+        <div class="memory-pressure-head">
+          <div>
+            <span class="section-kicker">Memory pressure</span>
+            <h3 data-memory-title>Explain overload before cleanup.</h3>
+          </div>
+          <strong data-memory-pressure-state>Preview</strong>
+        </div>
+        <div class="memory-pressure-body">
+          <div class="memory-bubble" data-memory-bubble style="--memory-pressure: 42">
+            <span data-memory-percent>42%</span>
+            <small>observed</small>
+          </div>
+          <div class="memory-copy">
+            <b data-memory-lane>Chrome + Codex lane</b>
+            <span data-memory-detail>Run tokenbar api to see local process lanes.</span>
+            <em data-memory-action>No apps closed. Approval required before cleanup.</em>
+          </div>
+        </div>
+      </section>
+
+      <section class="cost-passport-card" aria-label="Cost passport">
+        <div class="passport-head">
+          <div>
+            <span class="section-kicker">Cost passport</span>
+            <h3 data-cost-title>Turn usage into a cost story.</h3>
+          </div>
+          <button type="button" data-copy-command="tokenbar cost-passport --from 2026-06-02 --to 2026-08-02 json">Copy range</button>
+        </div>
+        <div class="passport-body">
+          <div class="passport-stamp" aria-hidden="true">
+            <span data-cost-estimate>Set price</span>
+            <small>estimate</small>
+          </div>
+          <div class="passport-copy">
+            <b data-cost-range>30-day local window</b>
+            <span data-cost-uncertainty>Forecast range appears after local usage is indexed.</span>
+            <em data-cost-action>Use a price assumption before treating this as a budget signal.</em>
+          </div>
+        </div>
+      </section>
+
+      <section class="waste-lens-card" aria-label="Waste lens">
+        <div class="waste-lens-head">
+          <div>
+            <span class="section-kicker">Waste lens</span>
+            <h3 data-waste-title>Spend fewer tokens on the next run.</h3>
+          </div>
+          <div class="waste-meter" data-waste-meter style="--waste-score: 42">
+            <b data-waste-score>42</b>
+            <span data-waste-label>Watch</span>
+          </div>
+        </div>
+        <p data-waste-driver>Aggregate usage shape will point to the next saver playbook.</p>
+        <ol class="waste-levers" data-waste-levers>
+          <li><b>Scope before run</b><span>Mission Lock</span></li>
+          <li><b>Shorten output</b><span>Output Budget</span></li>
+          <li><b>Review cost</b><span>Cost Passport</span></li>
+        </ol>
+        <button type="button" data-waste-copy>Copy saver command</button>
+      </section>
+
+      <section class="prompt-vault-card" aria-label="Prompt vault">
+        <div class="prompt-vault-head">
+          <div>
+            <span class="section-kicker">Prompt vault</span>
+            <h3 data-playbooks-title>Copy a better operating order.</h3>
+          </div>
+          <b data-playbooks-tier>Free + Pro</b>
+        </div>
+        <div class="vault-counts" aria-label="Playbook counts">
+          <span><b data-playbooks-free-count>5</b> free</span>
+          <span><b data-playbooks-pro-count>6</b> pro preview</span>
+          <span><b data-playbooks-catalog-count>100</b> catalog</span>
+        </div>
+        <ol class="vault-playbooks" data-playbooks-list>
+          <li><b>Mission Lock</b><span>tokenbar playbooks copy mission-lock</span></li>
+          <li><b>Budget Brief</b><span>tokenbar playbooks copy budget-runway</span></li>
+          <li><b>Cost Saver Header</b><span>tokenbar playbooks copy cost-saver</span></li>
+        </ol>
+        <div class="vault-actions">
+          <button type="button" data-playbooks-copy>Copy starter</button>
+          <a href="https://www.tokenbar.site/playbooks" target="_blank" rel="noreferrer" data-playbooks-marketplace>Open vault</a>
+        </div>
+        <p data-playbooks-boundary>No payments or unlocks from the companion. Pro is a preview until the account layer verifies subscription.</p>
+      </section>
+
+      <section class="composition-card" aria-label="Provider composition">
+        <div>
+          <span class="section-kicker">Composition</span>
+          <h3 data-composition-title>Where the tokens gathered</h3>
+        </div>
+        <div class="composition-stack" data-composition-stack aria-hidden="true">
+          <i style="--weight: 44; --accent: #ffad7a"></i>
+          <i style="--weight: 28; --accent: #78a5ff"></i>
+          <i style="--weight: 18; --accent: #7fd8e8"></i>
+          <i style="--weight: 10; --accent: #b990ff"></i>
+        </div>
+        <ol class="provider-list" data-provider-list>
+          <li><span>Codex</span><b>44%</b></li>
+          <li><span>Claude Code</span><b>28%</b></li>
+          <li><span>Cursor</span><b>18%</b></li>
+          <li><span>OpenCode</span><b>10%</b></li>
+        </ol>
+      </section>
+
+      <section class="provider-strip" aria-label="Provider truth">
+        <div class="provider-truth-head">
+          <span class="section-kicker">Provider truth</span>
+          <b data-provider-summary>Measured vs setup</b>
+        </div>
+        <div class="provider-truth-list" data-provider-strip>
+          <span class="provider-pill status-setup">Codex <b>setup</b></span>
+          <span class="provider-pill status-setup">Claude Code <b>setup</b></span>
+          <span class="provider-pill status-setup">Cursor <b>setup</b></span>
+          <span class="provider-pill status-setup">Antigravity <b>setup</b></span>
+          <span class="provider-pill status-setup">OpenCode <b>setup</b></span>
+        </div>
+        <div class="provider-detail" data-provider-detail>
+          <div>
+            <span data-provider-detail-name>Codex</span>
+            <b data-provider-detail-status>Setup needed</b>
+          </div>
+          <p data-provider-detail-proof>No local aggregate token evidence loaded for this provider yet.</p>
+          <p data-provider-detail-action>No account changes. No provider calls.</p>
+          <ol class="provider-setup-flow" data-provider-setup-flow>
+            <li><b>Detect</b><span>Local evidence</span></li>
+            <li><b>Connect</b><span>Approved source</span></li>
+            <li><b>Review</b><span>Measured proof</span></li>
+          </ol>
+          <button type="button" data-provider-detail-copy>Copy local check</button>
+        </div>
+      </section>
+
+      <section class="comparison-lens-card" aria-label="Comparison lens">
+        <div class="comparison-lens-head">
+          <div>
+            <span class="section-kicker">Comparison lens</span>
+            <h3 data-comparison-title>Compare the pattern, not the person.</h3>
+          </div>
+          <b data-comparison-state>Locked</b>
+        </div>
+        <div class="comparison-orbit" data-comparison-orbit aria-hidden="true">
+          <i style="--score: 68; --angle: 0deg; --accent: #7fd8e8"></i>
+          <i style="--score: 54; --angle: 90deg; --accent: #ffad7a"></i>
+          <i style="--score: 72; --angle: 180deg; --accent: #78a5ff"></i>
+          <i style="--score: 46; --angle: 270deg; --accent: #b990ff"></i>
+        </div>
+        <ol class="comparison-metrics" data-comparison-metrics>
+          <li><span>Cadence</span><b>self</b></li>
+          <li><span>Momentum</span><b>self</b></li>
+          <li><span>Cost control</span><b>self</b></li>
+          <li><span>Scope discipline</span><b>self</b></li>
+        </ol>
+        <p data-comparison-copy>Population percentiles stay locked until a measured opt-in cohort exists.</p>
+        <button type="button" data-comparison-copy-command>Copy comparison command</button>
+      </section>
+
+      <section class="mac-app-handoff" aria-label="TokenBar Mac app handoff">
+        <div>
+          <span class="section-kicker">Mac app</span>
+          <h3>Open the deeper builder studio.</h3>
+          <p>Download TokenBar for Story, Threads, Profile, Reports, Storage, and shareable proof review.</p>
+        </div>
+        <ol class="handoff-mini-flow" aria-label="TokenBar install handoff">
+          <li><b>Install</b><span>CLI + app</span></li>
+          <li><b>Icon bar</b><span>usage cockpit</span></li>
+          <li><b>Local API</b><span>127.0.0.1 rail</span></li>
+          <li><b>Mac studio</b><span>proof review</span></li>
+        </ol>
+        <div class="handoff-actions">
+          <a href="https://www.tokenbar.site/#download" target="_blank" rel="noreferrer">Download</a>
+          <button type="button" data-copy-command="curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash">Copy install</button>
+        </div>
+      </section>
+
+      <section class="proof-packet-card" aria-label="Launch proof packet">
+        <div class="proof-packet-head">
+          <div>
+            <span class="section-kicker">Proof packet</span>
+            <h3 data-proof-title>Show proof without exposing the work.</h3>
+          </div>
+          <b data-proof-state>Review first</b>
+        </div>
+        <div class="proof-packet-seal" aria-hidden="true">
+          <span>TB</span>
+          <i></i>
+          <i></i>
+          <i></i>
+        </div>
+        <ol class="proof-fields" data-proof-fields>
+          <li>Usage evidence</li>
+          <li>Cost passport</li>
+          <li>Waste lens</li>
+          <li>Approval gates</li>
+        </ol>
+        <p data-proof-copy>Public-ready aggregates only. Raw prompts, source code, credentials, posting, uploads, and purchases stay blocked.</p>
+        <button type="button" data-proof-copy-command>Copy proof packet command</button>
+      </section>
+
+      <section class="launch-coach" aria-label="Launch coach">
+        <div class="launch-coach-head">
+          <div>
+            <span class="section-kicker">Launch coach</span>
+            <h3 data-launch-title>Prepare the public story without posting.</h3>
+          </div>
+          <span data-launch-state>No-submit</span>
+        </div>
+        <div class="launch-steps" data-launch-steps>
+          <article>
+            <b>Launch map</b>
+            <span>Check demo proof before Product Hunt or Macapp Supply.</span>
+          </article>
+          <article>
+            <b>Playbook</b>
+            <span>Use Mission Lock before long generation loops.</span>
+          </article>
+          <article>
+            <b>Proof</b>
+            <span>Share aggregates only after reviewing the artifact.</span>
+          </article>
+        </div>
+        <div class="command-row" aria-label="Copyable TokenBar launch commands">
+          <button type="button" data-copy-command="tokenbar coach">Coach</button>
+          <button type="button" data-copy-command="tokenbar runway">Launch map</button>
+          <button type="button" data-copy-command="tokenbar launch-kit">Launch kit</button>
+          <button type="button" data-copy-command="tokenbar playbooks">Playbooks</button>
+        </div>
+      </section>
+
+      <footer class="companion-actions">
+        <button type="button" data-copy-api>Copy API command</button>
+        <a href="https://www.tokenbar.site/playbooks" target="_blank" rel="noreferrer">Playbooks</a>
+      </footer>
+    </main>
+    <script src="./popup.js"></script>
+  </body>
+</html>

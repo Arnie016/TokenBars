@@ -76,6 +76,51 @@ function bindShareProofButtons(scope = document) {
 
 bindShareProofButtons();
 
+// The Create Identity card promises a copy action. Keep that deterministic on
+// browsers that expose a native share sheet: the explicit copy control must
+// never change into a different share workflow.
+async function copySharePreview(button) {
+  const text = button.dataset.copyShare || "";
+  if (!text) return;
+  const original = button.textContent;
+  const state = button.closest(".identity-preview-actions")?.querySelector("[data-copy-share-state]");
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = "Copied";
+    if (state) state.textContent = "Safe share preview copied.";
+  } catch {
+    // Clipboard permissions are commonly unavailable for a local HTTP preview.
+    // Fall back to selecting and copying only the already-safe share summary;
+    // never use the selected artifact or any local file metadata here.
+    const fallback = document.createElement("textarea");
+    fallback.value = text;
+    fallback.setAttribute("aria-label", "Safe share preview copy fallback");
+    fallback.readOnly = true;
+    fallback.style.position = "fixed";
+    fallback.style.opacity = "0";
+    document.body.append(fallback);
+    fallback.focus();
+    fallback.select();
+    const copied = typeof document.execCommand === "function" && document.execCommand("copy");
+    fallback.remove();
+    button.textContent = copied ? "Copied" : "Copy unavailable";
+    if (state) state.textContent = copied ? "Safe share preview copied." : "Safe share preview could not be copied.";
+  }
+  window.setTimeout(() => {
+    button.textContent = original || "Copy share preview";
+  }, 1600);
+}
+
+function bindCopySharePreviewButtons(scope = document) {
+  scope.querySelectorAll("[data-copy-share]").forEach((button) => {
+    if (button.dataset.copyShareBound === "1") return;
+    button.dataset.copyShareBound = "1";
+    button.addEventListener("click", () => copySharePreview(button));
+  });
+}
+
+bindCopySharePreviewButtons();
+
 function submissionForProfile(profile = {}) {
   const raw = profile.hackathonSubmission || profile.submittedProject || {};
   const title = raw.projectTitle || raw.title || profile.projectTitle || profile.submittedProjectTitle || "";
@@ -97,6 +142,53 @@ function renderSubmissionLinks(submission) {
   return `<nav>${links.join("")}<em>No raw repo upload</em></nav>`;
 }
 
+function renderSpotlightSources(profile = {}, options = {}) {
+  const spotlight = profile.spotlightSources || {};
+  if (!spotlight || spotlight.schema !== "tokenbar.spotlight_sources.v1") return "";
+  const sessions = Array.isArray(spotlight.sessions) ? spotlight.sessions.slice(0, 3) : [];
+  const projects = Array.isArray(spotlight.projects) ? spotlight.projects.slice(0, 3) : [];
+  const notes = Array.isArray(spotlight.notes) ? spotlight.notes.slice(0, 2) : [];
+  const story = spotlight.story || {};
+  const storyBeats = Array.isArray(spotlight.storyBeats) ? spotlight.storyBeats.slice(0, 4) : [];
+  const trailerUrl = profile.trailerUrl || surfaceFromBundle(profile, "identityTrailer").url || "";
+  if (!sessions.length && !projects.length && !notes.length && !storyBeats.length && !Object.values(story).some(Boolean)) {
+    return "";
+  }
+  const compact = options.compact ? " is-compact" : "";
+  const anchorRows = [
+    ...projects.map((value) => ["Project", value]),
+    ...sessions.map((value) => ["Session", value]),
+    ...notes.map((value) => ["Note", value]),
+  ].slice(0, options.compact ? 4 : 8);
+  const anchorHtml = anchorRows
+    .map(([label, value]) => `<span><b>${escapeHtml(label)}</b><strong>${escapeHtml(value)}</strong></span>`)
+    .join("");
+  const storyRows = [
+    story.insight ? { label: "Key insight", text: story.insight } : null,
+    story.struggle ? { label: "Struggle", text: story.struggle } : null,
+    story.features ? { label: "Feature shipped", text: story.features } : null,
+    story.progress ? { label: "Progress", text: story.progress } : null,
+  ].filter(Boolean);
+  const beatRows = [...storyRows, ...storyBeats].filter((beat, index, rows) => {
+    const label = String(beat.label || "");
+    const text = String(beat.text || "");
+    return text && rows.findIndex((candidate) => String(candidate.label || "") === label && String(candidate.text || "") === text) === index;
+  });
+  const beatHtml = beatRows
+    .slice(0, options.compact ? 3 : 4)
+    .map((beat) => `<section><b>${escapeHtml(beat.label || "Story beat")}</b><p>${escapeHtml(beat.text || "")}</p></section>`)
+    .join("");
+  return `<div class="spotlight-sources${compact}" aria-label="Builder-selected spotlight anchors">
+    <div class="spotlight-sources-header">
+      <span>Spotlight anchors</span>
+      <small>selected by builder · no raw logs</small>
+      ${trailerUrl ? `<a href="${escapeHtml(trailerUrl)}">Trailer</a>` : ""}
+    </div>
+    ${anchorHtml ? `<div class="spotlight-anchor-grid">${anchorHtml}</div>` : ""}
+    ${beatHtml ? `<div class="spotlight-beat-grid">${beatHtml}</div>` : ""}
+  </div>`;
+}
+
 function renderTokenSubmissionSummary(submission) {
   if (!submission) return "";
   const title = submission.title || "Submitted project";
@@ -108,6 +200,103 @@ function renderTokenSubmissionSummary(submission) {
       ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
       ${renderSubmissionLinks(submission)}
     </div>`;
+}
+
+function radarAxisLabel(axis = {}) {
+  const key = String(axis.key || "").toLowerCase();
+  const label = String(axis.label || axis.name || axis.key || "Signal");
+  if (key.includes("craft")) return "Craft";
+  if (key.includes("systems")) return "Systems";
+  if (key.includes("completion")) return "Finish";
+  if (key.includes("ambition")) return "Ambition";
+  if (key.includes("learning")) return "Learning";
+  if (key.includes("discernment")) return "Judgment";
+  return label.split(/\s+/).slice(0, 2).join(" ");
+}
+
+function renderIdentityRadar(axes = []) {
+  const normalized = axes
+    .filter((axis) => axis && (axis.label || axis.name || axis.key))
+    .slice(0, 6)
+    .map((axis) => ({
+      ...axis,
+      label: axis.label || axis.name || axis.key || "Signal",
+      score: Math.max(0, Math.min(100, Number(axis.score) || 0)),
+    }));
+  if (normalized.length < 3) return "";
+  const center = 160;
+  const radius = 88;
+  const labelRadius = 126;
+  const point = (index, scale) => {
+    const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / normalized.length;
+    return [center + Math.cos(angle) * radius * scale, center + Math.sin(angle) * radius * scale];
+  };
+  const polygon = (scale) => normalized.map((_, index) => point(index, scale).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const scorePolygon = normalized.map((axis, index) => point(index, axis.score / 100).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const grid = [0.25, 0.5, 0.75, 1].map((scale) => `<polygon points="${polygon(scale)}"></polygon>`).join("");
+  const spokes = normalized.map((_, index) => {
+    const [x, y] = point(index, 1);
+    return `<line x1="${center}" y1="${center}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"></line>`;
+  }).join("");
+  const labels = normalized.map((axis, index) => {
+    const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / normalized.length;
+    const x = center + Math.cos(angle) * labelRadius;
+    const y = center + Math.sin(angle) * labelRadius;
+    const anchor = x < center - 8 ? "end" : x > center + 8 ? "start" : "middle";
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}">
+      ${escapeHtml(radarAxisLabel(axis))}<tspan x="${x.toFixed(1)}" dy="15">${formatScore(axis.score)}</tspan>
+    </text>`;
+  }).join("");
+  const dots = normalized.map((axis, index) => {
+    const [x, y] = point(index, axis.score / 100);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"></circle>`;
+  }).join("");
+  const accessibleSummary = normalized.map((axis) => `${radarAxisLabel(axis)} ${formatScore(axis.score)}`).join(", ");
+  return `<svg class="token-identity-radar" viewBox="0 0 320 320" role="img" aria-label="Builder form: ${escapeHtml(accessibleSummary)}">
+    <g class="token-radar-grid">${grid}${spokes}</g>
+    <polygon class="token-radar-form" points="${scorePolygon}"></polygon>
+    <g class="token-radar-dots">${dots}</g>
+    <g class="token-radar-labels">${labels}</g>
+  </svg>`;
+}
+
+function renderMiniIdentityRadar(axes = []) {
+  const normalized = axes
+    .filter((axis) => axis && (axis.label || axis.key))
+    .slice(0, 6)
+    .map((axis) => ({
+      label: axis.label || axis.key || "Signal",
+      score: Math.max(0, Math.min(100, Number(axis.score) || 0)),
+    }));
+  if (normalized.length < 3) return "";
+  const center = 60;
+  const radius = 39;
+  const point = (index, scale) => {
+    const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / normalized.length;
+    return [center + Math.cos(angle) * radius * scale, center + Math.sin(angle) * radius * scale];
+  };
+  const polygon = (scale) => normalized.map((_, index) => point(index, scale).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const scorePolygon = normalized.map((axis, index) => point(index, axis.score / 100).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const summary = normalized.map((axis) => `${axis.label} ${formatScore(axis.score)}`).join(", ");
+  return `<svg class="feed-mini-radar" viewBox="0 0 120 120" role="img" aria-label="Builder form: ${escapeHtml(summary)}">
+    <g class="feed-mini-grid"><polygon points="${polygon(0.5)}"></polygon><polygon points="${polygon(1)}"></polygon></g>
+    <polygon class="feed-mini-form" points="${scorePolygon}"></polygon>
+    ${normalized.map((axis, index) => {
+      const [x, y] = point(index, axis.score / 100);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.7"></circle>`;
+    }).join("")}
+  </svg>`;
+}
+
+function storyEvidenceText(value) {
+  if (!value) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value !== "object") return "";
+  const label = String(value.label || "").trim();
+  const amount = String(value.value || "").trim();
+  const note = String(value.note || value.summary || value.claim || "").trim();
+  const lead = [label, amount].filter(Boolean).join(": ");
+  return [lead, note].filter(Boolean).join(lead && note ? ". " : "");
 }
 
 function renderTokenProofPassport(profile = {}, token = "") {
@@ -124,12 +313,50 @@ function renderTokenProofPassport(profile = {}, token = "") {
   const loop = formatScore(profile.loopMaturity || profile.loopScore || profile.proofScore);
   const specificity = formatScore(profile.specificityScore || profile.score || profile.proofScore);
   const shareModeLabel = String(visibility).replace(/^\w/, (char) => char.toUpperCase());
+  const identityName = profile.primaryArchetype || profile.title || "Builder Identity";
+  const identityVariant = profile.title && profile.title !== identityName ? profile.title : "";
   const rawSafe = privacy.rawTranscriptsIncluded === false ? "raw transcripts excluded" : "raw transcript boundary needs review";
   const sourceSafe = privacy.sourceCodeIncluded === false ? "source code excluded" : "source boundary needs review";
+  const dimensions = (Array.isArray(story.axes) && story.axes.length ? story.axes : Array.isArray(profile.dimensions) ? profile.dimensions : [])
+    .filter((dimension) => dimension && (dimension.name || dimension.label || dimension.key))
+    .slice(0, 6);
+  const strongestAxis = dimensions.reduce((best, axis) => !best || Number(axis.score || 0) > Number(best.score || 0) ? axis : best, null);
+  const weakestAxis = dimensions.reduce((lowest, axis) => !lowest || Number(axis.score || 0) < Number(lowest.score || 0) ? axis : lowest, null);
+  const strongestLabel = strongestAxis?.label || strongestAxis?.name || story.strongestSignal || "Builder signal";
+  const strongestClaim = strongestAxis?.claim || strongestAxis?.description || strongestAxis?.note || "The clearest repeated pattern in this proof.";
+  const weakestLabel = weakestAxis?.label || weakestAxis?.name || story.weakestSignal || "Next frontier";
+  const axisTrustLabel = (axis) => {
+    const confidence = String(axis?.confidence || "bounded").replace(/^\w/, (char) => char.toUpperCase());
+    const sourceCount = Array.isArray(axis?.provenance) ? axis.provenance.length : 0;
+    return `${confidence} confidence${sourceCount ? ` · ${sourceCount} safe sources` : ""}`;
+  };
+  const radarMarkup = renderIdentityRadar(dimensions);
+  const identityFormMarkup = radarMarkup
+    ? `<div class="token-passport-form" aria-label="Builder form and interpretation">
+        <div class="token-radar-stage">
+          <span>Builder form</span>
+          ${radarMarkup}
+          <small>Shape, not a global score</small>
+        </div>
+        <div class="token-form-reading">
+          <article class="is-strength"><span>Signature edge</span><strong>${escapeHtml(strongestLabel)}</strong><p>${escapeHtml(strongestClaim)}</p><small>${escapeHtml(axisTrustLabel(strongestAxis))}</small></article>
+          <article class="is-frontier"><span>Next drill</span><strong>${escapeHtml(weakestLabel)}</strong><p>${escapeHtml(nextFrontier)}</p><small>${escapeHtml(axisTrustLabel(weakestAxis))}</small></article>
+        </div>
+      </div>`
+    : "";
+  const shipped = storyEvidenceText(Array.isArray(story.shippedWork) ? story.shippedWork.find(Boolean) : story.shippedWork);
+  const tradeoff = storyEvidenceText(Array.isArray(story.tradeoffs) ? story.tradeoffs.find(Boolean) : story.tradeoffs);
+  const recovery = storyEvidenceText(story.recovery);
+  const storyMarkup = [
+    shipped ? ["What moved", shipped] : null,
+    tradeoff ? ["Tradeoff", tradeoff] : null,
+    recovery ? ["Recovery", recovery] : null,
+  ].filter(Boolean);
   return `<section class="token-proof-passport" aria-label="TokenBar proof passport">
       <div class="token-passport-head">
         <span>60-second proof passport</span>
-        <strong>${escapeHtml(profile.title || profile.primaryArchetype || "Builder Identity")}</strong>
+        <strong>${escapeHtml(identityName)}</strong>
+        ${identityVariant ? `<em>${escapeHtml(identityVariant)}</em>` : ""}
         <p>${escapeHtml(profile.subtitle || story.summary || profile.bio || "A reloadable proof card built from safe local aggregate evidence.")}</p>
       </div>
       <div class="token-passport-scores" aria-label="Proof scores">
@@ -138,18 +365,97 @@ function renderTokenProofPassport(profile = {}, token = "") {
         <span><b>${specificity}</b><small>Specificity</small></span>
       </div>
       <div class="token-passport-evidence" aria-label="Safe evidence summary">
-        <span><b>${escapeHtml(formatTokenCount(totalTokens))}</b><small>aggregate tokens</small></span>
-        <span><b>${escapeHtml(sessionCount || "local")}</b><small>sessions</small></span>
-        <span><b>${escapeHtml(projectRange)}</b><small>project range</small></span>
+        <span><b>${escapeHtml(formatTokenCount(totalTokens))}</b><small>measured activity</small></span>
+        <span><b>${escapeHtml(sessionCount || "local")}</b><small>sessions sampled</small></span>
+        <span><b>${escapeHtml(projectRange)}</b><small>project scope</small></span>
         <span><b>${escapeHtml(shareModeLabel)}</b><small>share mode</small></span>
       </div>
+      ${identityFormMarkup}
+      ${storyMarkup.length ? `<div class="token-passport-story" aria-label="Builder story">
+        ${storyMarkup.map(([label, value]) => `<p><b>${escapeHtml(label)}</b><span>${escapeHtml(value)}</span></p>`).join("")}
+      </div>` : ""}
       <div class="token-passport-boundary">
         <span>${escapeHtml(rawSafe)}</span>
         <span>${escapeHtml(sourceSafe)}</span>
         <span>token ${escapeHtml(token)}</span>
       </div>
-      <p class="token-passport-frontier"><b>Next frontier:</b> ${escapeHtml(nextFrontier)}</p>
+      ${identityFormMarkup ? "" : `<p class="token-passport-frontier"><b>Next frontier:</b> ${escapeHtml(nextFrontier)}</p>`}
     </section>`;
+}
+
+const profileChronicle = document.querySelector("[data-profile-chronicle]");
+
+function chronicleNumber(...values) {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  return 0;
+}
+
+function profileChronicleCells(profile = {}) {
+  const proof = chronicleNumber(profile.proofScore, profile.score, profile.specificityScore, 50);
+  const loop = chronicleNumber(profile.loopMaturity, profile.loopScore, profile.proofScore, 50);
+  const specificity = chronicleNumber(profile.specificityScore, profile.score, 50);
+  const shipped = Array.isArray(profile.shippedWork) ? profile.shippedWork.length : 0;
+  const badges = Array.isArray(profile.rankBadges) ? profile.rankBadges.length : 0;
+  const seed = Math.round(proof + loop * 1.7 + specificity * 0.9 + shipped * 11 + badges * 13);
+  return Array.from({ length: 60 }, (_, index) => {
+    const wave = (seed + index * 7 + (index % 5) * 11 + (index % 12 === 0 ? 17 : 0)) % 100;
+    const level = wave > 82 ? 5 : wave > 64 ? 4 : wave > 43 ? 3 : wave > 20 ? 2 : 1;
+    return `<i data-level="${level}"></i>`;
+  }).join("");
+}
+
+function comparisonEraFromCard(card, index) {
+  const label = card?.label || (index === 0 ? "Earlier" : "Recent");
+  const title = card?.value || card?.title || label;
+  const note = card?.note || card?.description || "safe aggregate comparison";
+  return { label, title, note };
+}
+
+function profileChronicleEras(profile = {}) {
+  const comparisonCards = Array.isArray(profile?.selfComparison?.cards)
+    ? profile.selfComparison.cards.slice(0, 2).map(comparisonEraFromCard)
+    : [];
+  const currentTitle = profile.title || profile.primaryArchetype || "Current builder form";
+  const currentNote = profile?.builderStory?.summary || profile.verdict || profile.bio || "assigned from current safe evidence";
+  const eras = [
+    ...comparisonCards,
+    { label: "Now", title: currentTitle, note: currentNote },
+  ].slice(-3);
+  while (eras.length < 3) {
+    eras.unshift({
+      label: eras.length === 2 ? "Prior" : "Earlier",
+      title: eras.length === 2 ? "Launch Trialsmith" : "Prototype Cartographer",
+      note: "waiting for more safe comparison windows",
+    });
+  }
+  return eras;
+}
+
+function renderProfileChronicle(profile = {}) {
+  if (!profileChronicle) return;
+  const title = profileChronicle.querySelector("[data-profile-chronicle-title]");
+  const copy = profileChronicle.querySelector("[data-profile-chronicle-copy]");
+  const proofDays = profileChronicle.querySelector("[data-profile-chronicle-proof-days]");
+  const boundary = profileChronicle.querySelector("[data-profile-chronicle-boundary]");
+  const heatmap = profileChronicle.querySelector("[data-profile-chronicle-heatmap]");
+  const eras = profileChronicle.querySelector("[data-profile-chronicle-eras]");
+  const identityTitle = profile.title || profile.primaryArchetype || "Builder identity";
+  const activeDays = chronicleNumber(profile?.usage?.activeDays, profile.activeDays, profile?.selfComparison?.activeDays, profile.sessionCount);
+  if (title) title.textContent = `${identityTitle} is the current form assigned by safe evidence.`;
+  if (copy) {
+    copy.textContent = "No identity is better than another. TokenBar compares your own safe aggregate windows so the profile can explain why the current form changed, what evidence caused it, and what remains uncertain.";
+  }
+  if (proofDays) proofDays.textContent = activeDays ? `${Math.round(activeDays)} proof days` : "proof window";
+  if (boundary) boundary.textContent = "safe profile aggregates only; raw prompts, source code, credentials, and local paths stay local";
+  if (heatmap) heatmap.innerHTML = profileChronicleCells(profile);
+  if (eras) {
+    eras.innerHTML = profileChronicleEras(profile).map((era) => `
+      <li><span>${escapeHtml(era.label)}</span><strong>${escapeHtml(era.title)}</strong><small>${escapeHtml(era.note)}</small></li>
+    `).join("");
+  }
 }
 
 function bindTiltSurface(surface, options = {}) {
@@ -275,6 +581,547 @@ identityNext?.addEventListener("click", () => {
 });
 
 restartIdentityTimer();
+
+const storyTabs = Array.from(document.querySelectorAll("[data-story-tab]"));
+const storyPanels = Array.from(document.querySelectorAll("[data-story-panel]"));
+const storyConsole = document.querySelector("[data-story-console]");
+const storyDots = Array.from(document.querySelectorAll("[data-story-dot]"));
+const storyPrev = document.querySelector("[data-story-prev]");
+const storyNext = document.querySelector("[data-story-next]");
+const storySignal = document.querySelector("[data-signal-story]");
+const storySignalCopy = [
+  "Composition aligns measured provider lanes before the chart speaks.",
+  "Cadence separates work runs from quiet days so rest does not read as failure.",
+  "Forecast bends the field toward expected pace and danger range before the cap breaks.",
+  "Budget pulls reminders forward while external scheduling stays approval-gated.",
+  "Cost turns a date range into a passport with peak burn, waste flags, and proof.",
+  "Playbooks convert vague intent into a copy-ready operating order for the next run.",
+  "Memory pressure clusters Chrome, Codex, and IDE load before any approved cleanup.",
+];
+let storyIndex = 0;
+let storyTimer = null;
+let storyPaused = false;
+
+function showStoryPanel(index) {
+  if (!storyPanels.length) return;
+  const nextIndex = (index + storyPanels.length) % storyPanels.length;
+  storyIndex = nextIndex;
+  const activeLayer = storyPanels[nextIndex]?.dataset.storyLayer || "composition";
+  storyConsole?.setAttribute("data-active-story", activeLayer);
+  if (storySignal) {
+    storySignal.textContent = storySignalCopy[nextIndex] || storySignalCopy[0];
+  }
+  storyPanels.forEach((panel, panelIndex) => {
+    const isActive = panelIndex === nextIndex;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
+  storyTabs.forEach((tab) => {
+    const isActive = Number(tab.dataset.storyTab) === nextIndex;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+    tab.tabIndex = isActive ? 0 : -1;
+  });
+  storyDots.forEach((dot) => {
+    const isActive = Number(dot.dataset.storyDot) === nextIndex;
+    dot.classList.toggle("is-active", isActive);
+    dot.setAttribute("aria-current", isActive ? "step" : "false");
+  });
+}
+
+function restartStoryTimer() {
+  if (!storyPanels.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  window.clearInterval(storyTimer);
+  storyTimer = window.setInterval(() => {
+    if (storyPaused) return;
+    showStoryPanel(storyIndex + 1);
+  }, 4600);
+}
+
+function pauseStory() {
+  storyPaused = true;
+}
+
+function resumeStory() {
+  storyPaused = false;
+}
+
+storyTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    showStoryPanel(Number(tab.dataset.storyTab) || 0);
+    restartStoryTimer();
+  });
+  tab.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = Number(tab.dataset.storyTab) || 0;
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? storyTabs.length - 1
+        : currentIndex + (event.key === "ArrowRight" ? 1 : -1);
+    showStoryPanel(nextIndex);
+    storyTabs[(nextIndex + storyTabs.length) % storyTabs.length]?.focus();
+    restartStoryTimer();
+  });
+});
+
+storyDots.forEach((dot) => {
+  dot.addEventListener("click", () => {
+    showStoryPanel(Number(dot.dataset.storyDot) || 0);
+    restartStoryTimer();
+  });
+});
+
+storyPrev?.addEventListener("click", () => {
+  showStoryPanel(storyIndex - 1);
+  restartStoryTimer();
+});
+
+storyNext?.addEventListener("click", () => {
+  showStoryPanel(storyIndex + 1);
+  restartStoryTimer();
+});
+
+storyConsole?.addEventListener("pointerenter", pauseStory);
+storyConsole?.addEventListener("pointerleave", resumeStory);
+storyConsole?.addEventListener("focusin", pauseStory);
+storyConsole?.addEventListener("focusout", resumeStory);
+
+showStoryPanel(0);
+restartStoryTimer();
+
+const operatingDeck = document.querySelector("[data-operating-deck]");
+if (operatingDeck) {
+  const operatingTabs = Array.from(operatingDeck.querySelectorAll("[data-operating-tab]"));
+  const operatingPanels = Array.from(operatingDeck.querySelectorAll("[data-operating-panel]"));
+
+  function showOperatingLayer(layer) {
+    operatingTabs.forEach((tab) => {
+      const isActive = tab.dataset.operatingTab === layer;
+      tab.classList.toggle("is-active", isActive);
+      tab.setAttribute("aria-selected", String(isActive));
+      tab.tabIndex = isActive ? 0 : -1;
+    });
+    operatingPanels.forEach((panel) => {
+      const isActive = panel.dataset.operatingPanel === layer;
+      panel.classList.toggle("is-active", isActive);
+      panel.hidden = !isActive;
+    });
+  }
+
+  operatingTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => showOperatingLayer(tab.dataset.operatingTab || "measure"));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? operatingTabs.length - 1
+          : index + (event.key === "ArrowRight" ? 1 : -1);
+      const nextTab = operatingTabs[(nextIndex + operatingTabs.length) % operatingTabs.length];
+      showOperatingLayer(nextTab?.dataset.operatingTab || "measure");
+      nextTab?.focus();
+    });
+  });
+}
+
+const costPassportDemo = document.querySelector("[data-cost-passport-demo]");
+if (costPassportDemo) {
+  const startControl = costPassportDemo.querySelector('[data-cost-range-control="start"]');
+  const endControl = costPassportDemo.querySelector('[data-cost-range-control="end"]');
+  const startLabel = costPassportDemo.querySelector("[data-cost-range-start]");
+  const endLabel = costPassportDemo.querySelector("[data-cost-range-end]");
+  const totalLabel = costPassportDemo.querySelector("[data-cost-total]");
+  const storyLabel = costPassportDemo.querySelector("[data-cost-story]");
+  const passportCover = costPassportDemo.querySelector(".passport-cover");
+  const forecastLabel = costPassportDemo.querySelector("[data-cost-forecast]");
+  const forecastCopy = costPassportDemo.querySelector("[data-cost-forecast-copy]");
+  const forecastBand = costPassportDemo.querySelector("[data-cost-forecast-band]");
+  const reminderLabel = costPassportDemo.querySelector("[data-cost-reminder]");
+  const reminderCopy = costPassportDemo.querySelector("[data-cost-reminder-copy]");
+  const playbookLabel = costPassportDemo.querySelector("[data-cost-playbook]");
+  const playbookCopy = costPassportDemo.querySelector("[data-cost-playbook-copy]");
+  const providerStamps = Array.from(costPassportDemo.querySelectorAll("[data-cost-provider-stamp]"));
+  const rangeDates = [
+    "Jun 2", "Jun 9", "Jun 16", "Jun 23", "Jun 30",
+    "Jul 7", "Jul 14", "Jul 21", "Jul 28", "Aug 2",
+  ];
+  const providerProfiles = {
+    codex: { base: 58, swing: 14, label: "measured local sessions" },
+    opencode: { base: 18, swing: 8, label: "open IDE lane" },
+    antigravity: { base: 14, swing: -6, label: "preview connector" },
+    cursor: { base: 10, swing: -4, label: "setup lane" },
+  };
+
+  function dateForRangeValue(value) {
+    const index = Math.max(0, Math.min(rangeDates.length - 1, Math.round((Number(value) || 0) / 61 * (rangeDates.length - 1))));
+    return rangeDates[index];
+  }
+
+  function updateCostPassportDemo() {
+    const rawStart = Number(startControl?.value || 0);
+    const rawEnd = Number(endControl?.value || 61);
+    const start = Math.min(rawStart, rawEnd - 1);
+    const end = Math.max(rawEnd, start + 1);
+    if (startControl && startControl.value !== String(start)) startControl.value = String(start);
+    if (endControl && endControl.value !== String(end)) endControl.value = String(end);
+    const span = Math.max(1, end - start);
+    const estimate = 24 + span * 1.72;
+    const heat = Math.max(28, Math.min(84, 24 + span));
+    const uncertainty = Math.max(10, Math.min(36, Math.round(38 - span * 0.32)));
+    const forecastLow = Math.max(6, estimate * (1 - uncertainty / 100));
+    const forecastHigh = estimate * (1 + uncertainty / 100);
+    const threshold = span >= 45 ? 80 : span >= 20 ? 72 : 60;
+    const peakDate = dateForRangeValue(Math.min(61, start + Math.round(span * 0.68)));
+    const playbook = span >= 45
+      ? ["Verifier First", "Start the next run with budget, context cap, stop condition, and one named proof command."]
+      : span >= 20
+        ? ["Cost Saver Header", "Use a narrower context cap and return only decision-relevant output."]
+        : ["Mission Lock", "Keep one bounded implementation, one verifier, and one stop condition."];
+    if (startLabel) startLabel.textContent = dateForRangeValue(start);
+    if (endLabel) endLabel.textContent = dateForRangeValue(end);
+    if (totalLabel) totalLabel.textContent = `$${estimate.toFixed(2)}`;
+    if (storyLabel) {
+      storyLabel.textContent = `${span + 1}-day local estimate. Peak burn around ${peakDate}; budget reminders stay suggested-only, and the next prompt starts with ${playbook[0]}.`;
+    }
+    if (forecastLabel) forecastLabel.textContent = `$${forecastLow.toFixed(0)} to $${forecastHigh.toFixed(0)}`;
+    if (forecastCopy) forecastCopy.textContent = `Error band +/-${uncertainty}% from the selected local range. Peak day stays visible before the cap breaks.`;
+    if (forecastBand) forecastBand.style.setProperty("--forecast-mid", `${Math.max(18, Math.min(82, 100 - uncertainty * 1.7))}%`);
+    if (reminderLabel) reminderLabel.textContent = `Warn at ${threshold}%`;
+    if (reminderCopy) reminderCopy.textContent = `Suggested-only budget warning for this range. No notification, provider call, or cleanup runs without approval.`;
+    if (playbookLabel) playbookLabel.textContent = playbook[0];
+    if (playbookCopy) playbookCopy.textContent = playbook[1];
+    providerStamps.forEach((stamp, index) => {
+      const profile = providerProfiles[stamp.dataset.costProviderStamp || ""] || { base: 10, swing: 0, label: "setup lane" };
+      const share = Math.max(4, Math.min(76, Math.round(profile.base + profile.swing * (span / 61) + (index === 0 ? start / 18 : -start / 36))));
+      const value = stamp.querySelector("[data-cost-provider-share]");
+      const note = stamp.querySelector("[data-cost-provider-note]");
+      if (value) value.textContent = `${share}%`;
+      if (note) note.textContent = `${profile.label} · ${span + 1}d`;
+    });
+    passportCover?.style.setProperty("--passport-heat", `${heat}%`);
+  }
+
+  startControl?.addEventListener("input", updateCostPassportDemo);
+  endControl?.addEventListener("input", updateCostPassportDemo);
+  updateCostPassportDemo();
+}
+
+const surfaceRelay = document.querySelector("[data-surface-relay]");
+if (surfaceRelay) {
+  const surfaceTabs = Array.from(surfaceRelay.querySelectorAll("[data-surface-tab]"));
+  const surfaceSteps = Array.from(surfaceRelay.querySelectorAll("[data-surface-step]"));
+  const surfacePulses = Array.from(surfaceRelay.querySelectorAll("[data-surface-pulse]"));
+  const surfaceTitle = surfaceRelay.querySelector("[data-surface-title]");
+  const surfaceCopy = surfaceRelay.querySelector("[data-surface-copy]");
+  const surfaceCommand = surfaceRelay.querySelector("[data-surface-command]");
+  const surfaceTier = surfaceRelay.querySelector("[data-surface-tier]");
+  const surfaceGate = surfaceRelay.querySelector("[data-surface-gate]");
+  const surfaceModes = {
+    cli: {
+      title: "CLI evidence line",
+      copy: "Run TokenBar from Terminal when you want raw, scriptable proof: usage, cost passport, reminders, playbooks, launch kit, and local JSON.",
+      command: "tokenbar usage",
+      tier: "Free",
+      gate: "Local read only",
+    },
+    menu: {
+      title: "Menu-bar cockpit",
+      copy: "Open the icon bar while Codex is running. See active account, measured providers, today/week/month/year tokens, budget pressure, and the next suggested action.",
+      command: "tokenbar status",
+      tier: "Free",
+      gate: "No provider sign-in",
+    },
+    companion: {
+      title: "Browser context rail",
+      copy: "Bring account, budget, reminder, memory pressure, and playbook prompts beside Codex, GitHub, Product Hunt, or provider pages through the local API.",
+      command: "tokenbar api",
+      tier: "Free preview",
+      gate: "127.0.0.1 only",
+    },
+    studio: {
+      title: "Mac studio archive",
+      copy: "Turn local aggregate evidence into Story, Timeline, Threads, Profile, Report, Storage, and proof packets without exposing raw transcripts.",
+      command: "tokenbar proof-packet",
+      tier: "Free app",
+      gate: "Review before share",
+    },
+    pro: {
+      title: "Pro proof market",
+      copy: "Paid prompt playbooks, public proof cards, cohort comparison, and premium reports sit behind account review and explicit publishing gates.",
+      command: "tokenbar playbooks",
+      tier: "Pro",
+      gate: "No auto-billing",
+    },
+  };
+
+  function updateSurfaceRelay(surfaceName) {
+    const mode = surfaceModes[surfaceName] || surfaceModes.menu;
+    surfaceRelay.dataset.activeSurface = surfaceName;
+    surfaceTabs.forEach((tab) => {
+      const isActive = tab.dataset.surfaceTab === surfaceName;
+      tab.classList.toggle("is-active", isActive);
+      tab.setAttribute("aria-selected", String(isActive));
+      tab.tabIndex = isActive ? 0 : -1;
+    });
+    surfaceSteps.forEach((step) => {
+      step.classList.toggle("is-active", step.dataset.surfaceStep === surfaceName);
+    });
+    surfacePulses.forEach((pulse) => {
+      pulse.classList.toggle("is-active", pulse.dataset.surfacePulse === surfaceName);
+    });
+    if (surfaceTitle) surfaceTitle.textContent = mode.title;
+    if (surfaceCopy) surfaceCopy.textContent = mode.copy;
+    if (surfaceCommand) surfaceCommand.textContent = mode.command;
+    if (surfaceTier) surfaceTier.textContent = mode.tier;
+    if (surfaceGate) surfaceGate.textContent = mode.gate;
+  }
+
+  surfaceTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => updateSurfaceRelay(tab.dataset.surfaceTab || "menu"));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? surfaceTabs.length - 1
+          : index + (event.key === "ArrowRight" ? 1 : -1);
+      const nextTab = surfaceTabs[(nextIndex + surfaceTabs.length) % surfaceTabs.length];
+      updateSurfaceRelay(nextTab?.dataset.surfaceTab || "menu");
+      nextTab?.focus();
+    });
+  });
+  updateSurfaceRelay(surfaceRelay.dataset.activeSurface || "menu");
+}
+
+const reminderComposer = document.querySelector("[data-reminder-composer]");
+if (reminderComposer) {
+  const reminderButtons = Array.from(reminderComposer.querySelectorAll("[data-reminder-mode]"));
+  const reminderTitle = reminderComposer.querySelector("[data-reminder-preview-title]");
+  const reminderCopy = reminderComposer.querySelector("[data-reminder-preview-copy]");
+  const reminderThreshold = reminderComposer.querySelector("[data-reminder-preview-threshold]");
+  const reminderModes = {
+    steady: {
+      threshold: 80,
+      title: "Warn before the weekly cap bends.",
+      copy: "At 80% of the weekly token budget, draft a warning and a cheaper verifier-first prompt. No notification is scheduled until you approve it.",
+    },
+    focus: {
+      threshold: 72,
+      title: "Protect the next deep run.",
+      copy: "At 72%, suggest a shorter context cap, a proof command, and a reset-window reminder so the session keeps its shape.",
+    },
+    strict: {
+      threshold: 60,
+      title: "Ask before the expensive path.",
+      copy: "At 60%, require a checkpoint question before any long agent run, provider refresh, memory cleanup, or public report action.",
+    },
+  };
+
+  function updateReminderMode(modeName) {
+    const mode = reminderModes[modeName] || reminderModes.steady;
+    reminderButtons.forEach((button) => {
+      const isActive = button.dataset.reminderMode === modeName;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+    if (reminderTitle) reminderTitle.textContent = mode.title;
+    if (reminderCopy) reminderCopy.textContent = mode.copy;
+    if (reminderThreshold) {
+      reminderThreshold.style.setProperty("--threshold", `${mode.threshold}%`);
+      const label = reminderThreshold.querySelector("b");
+      if (label) label.textContent = `${mode.threshold}% warning threshold`;
+    }
+  }
+
+  reminderButtons.forEach((button) => {
+    button.addEventListener("click", () => updateReminderMode(button.dataset.reminderMode || "steady"));
+  });
+  updateReminderMode("steady");
+}
+
+const matrixLab = document.querySelector("[data-matrix-lab]");
+if (matrixLab) {
+  const matrixStage = matrixLab.querySelector(".matrix-lab-stage");
+  const matrixButtons = Array.from(matrixLab.querySelectorAll("[data-matrix-mode]"));
+  const matrixKicker = matrixLab.querySelector("[data-matrix-kicker]");
+  const matrixTitle = matrixLab.querySelector("[data-matrix-title]");
+  const matrixCopy = matrixLab.querySelector("[data-matrix-copy]");
+  const matrixPrimary = matrixLab.querySelector("[data-matrix-primary]");
+  const matrixPrimaryLabel = matrixLab.querySelector("[data-matrix-primary-label]");
+  const matrixSecondary = matrixLab.querySelector("[data-matrix-secondary]");
+  const matrixTertiary = matrixLab.querySelector("[data-matrix-tertiary]");
+  const matrixCore = matrixLab.querySelector("[data-matrix-core]");
+  const matrixStreams = Array.from(matrixLab.querySelectorAll("[data-matrix-stream]"));
+  const matrixModes = {
+    tokens: {
+      kicker: "Token mode",
+      title: "Separate useful output from waste before it compounds.",
+      copy: "Input and output tokens gather into a visible shape, then TokenBar marks what was useful, repeated, or too broad for the next run.",
+      primary: "1.07B",
+      primaryLabel: "30-day weight",
+      secondary: "18%",
+      tertiary: "5",
+      core: "Token Shape",
+      streams: ["input tokens", "output tokens", "cache reuse", "waste lens"],
+    },
+    budget: {
+      kicker: "Budget mode",
+      title: "Turn the cap into a pre-run brief.",
+      copy: "Weekly pressure shapes the prompt before the next run starts: budget, route, context cap, verifier, and stop condition.",
+      primary: "72%",
+      primaryLabel: "focus threshold",
+      secondary: "0",
+      tertiary: "5",
+      core: "Runway Brief",
+      streams: ["weekly cap", "runway left", "prompt cap", "safe next run"],
+    },
+    reminder: {
+      kicker: "Reminder mode",
+      title: "Draft the nudge, then ask before scheduling.",
+      copy: "TokenBar can propose a warning, cooldown, or reset-window reminder while leaving notifications and external actions behind approval.",
+      primary: "80%",
+      primaryLabel: "steady warning",
+      secondary: "0",
+      tertiary: "3",
+      core: "Approval Gate",
+      streams: ["threshold", "reset window", "approval", "notification draft"],
+    },
+    cost: {
+      kicker: "Cost mode",
+      title: "Turn a date range into a cost passport.",
+      copy: "Estimated spend, peak day, provider mix, and forecast band become one local artifact instead of a spreadsheet dump.",
+      primary: "$42",
+      primaryLabel: "range estimate",
+      secondary: "±27%",
+      tertiary: "1",
+      core: "Cost Passport",
+      streams: ["date range", "peak day", "error band", "not an invoice"],
+    },
+    proof: {
+      kicker: "Proof mode",
+      title: "Share only the reviewed aggregate artifact.",
+      copy: "Proof packets expose readiness fields, privacy locks, and commands. They do not include raw prompts, source, credentials, or private paths.",
+      primary: "safe",
+      primaryLabel: "review gate",
+      secondary: "0",
+      tertiary: "1",
+      core: "Proof Packet",
+      streams: ["aggregate only", "privacy lock", "human review", "share link gate"],
+    },
+  };
+
+  function updateMatrixMode(modeName) {
+    const mode = matrixModes[modeName] || matrixModes.budget;
+    matrixStage?.setAttribute("data-matrix-state", modeName);
+    matrixButtons.forEach((button) => {
+      const isActive = button.dataset.matrixMode === modeName;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+    });
+    if (matrixKicker) matrixKicker.textContent = mode.kicker;
+    if (matrixTitle) matrixTitle.textContent = mode.title;
+    if (matrixCopy) matrixCopy.textContent = mode.copy;
+    if (matrixPrimary) matrixPrimary.textContent = mode.primary;
+    if (matrixPrimaryLabel) matrixPrimaryLabel.textContent = mode.primaryLabel;
+    if (matrixSecondary) matrixSecondary.textContent = mode.secondary;
+    if (matrixTertiary) matrixTertiary.textContent = mode.tertiary;
+    if (matrixCore) matrixCore.textContent = mode.core;
+    matrixStreams.forEach((stream, index) => {
+      stream.textContent = mode.streams?.[index] || "";
+    });
+  }
+
+  matrixButtons.forEach((button) => {
+    button.addEventListener("click", () => updateMatrixMode(button.dataset.matrixMode || "budget"));
+  });
+  updateMatrixMode("budget");
+}
+
+const playbookDiagnosis = document.querySelector("[data-playbook-diagnosis]");
+if (playbookDiagnosis) {
+  const diagnosisButtons = Array.from(playbookDiagnosis.querySelectorAll("[data-diagnosis-mode]"));
+  const diagnosisTitle = playbookDiagnosis.querySelector("[data-diagnosis-title]");
+  const diagnosisCopy = playbookDiagnosis.querySelector("[data-diagnosis-copy]");
+  const diagnosisTier = playbookDiagnosis.querySelector("[data-diagnosis-tier]");
+  const diagnosisScore = playbookDiagnosis.querySelector("[data-diagnosis-score]");
+  const diagnosisCommand = playbookDiagnosis.querySelector("[data-diagnosis-command]");
+  const diagnosisBoundary = playbookDiagnosis.querySelector("[data-diagnosis-boundary]");
+  const diagnosisCopyButton = playbookDiagnosis.querySelector("[data-diagnosis-copy-button]");
+  const diagnosisOrbit = playbookDiagnosis.querySelector("[data-diagnosis-orbit]");
+  const diagnosisModes = {
+    scope: {
+      title: "Mission Lock",
+      tier: "Free starter",
+      score: "38%",
+      command: "tokenbar playbooks copy mission-lock",
+      copy: "Use this when the work is real but the boundary is not. It forces budget, route, context cap, stop condition, and verifier into the first line.",
+      boundary: "Copy-only. No subscription, account change, provider call, or payment action happens here.",
+    },
+    verify: {
+      title: "Verifier First",
+      tier: "Free starter",
+      score: "31%",
+      command: "tokenbar playbooks copy verifier-first",
+      copy: "Use this when the agent ships UI or code without proving it. The prompt names the verifier before the first edit and makes weak proof explicit.",
+      boundary: "Copy-only. It can suggest a verifier, but it cannot claim tests passed until they run.",
+    },
+    connector: {
+      title: "Connector Truth Table",
+      tier: "Free starter",
+      score: "24%",
+      command: "tokenbar playbooks copy connector-truth",
+      copy: "Use this when Codex, Claude Code, Cursor, Antigravity, or OpenCode status is unclear. It separates measured lanes from setup lanes.",
+      boundary: "Copy-only. It does not sign into providers, read cookies, or call usage APIs.",
+    },
+    launch: {
+      title: "No-Submit Launch Draft",
+      tier: "Pro preview",
+      score: "46%",
+      command: "tokenbar playbooks",
+      copy: "Use this when launch copy is expanding faster than evidence. Pro keeps Product Hunt, Macapp Supply, proof packets, and review gates in one prompt system.",
+      boundary: "Preview only. No posting, uploading, billing, or public claim happens from this page.",
+    },
+  };
+
+  function updateDiagnosisMode(modeName) {
+    const mode = diagnosisModes[modeName] || diagnosisModes.scope;
+    playbookDiagnosis.dataset.activeDiagnosis = modeName;
+    diagnosisButtons.forEach((button) => {
+      const isActive = button.dataset.diagnosisMode === modeName;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+    });
+    if (diagnosisTitle) diagnosisTitle.textContent = mode.title;
+    if (diagnosisCopy) diagnosisCopy.textContent = mode.copy;
+    if (diagnosisTier) diagnosisTier.textContent = mode.tier;
+    if (diagnosisScore) diagnosisScore.textContent = mode.score;
+    if (diagnosisCommand) diagnosisCommand.textContent = mode.command;
+    if (diagnosisBoundary) diagnosisBoundary.textContent = mode.boundary;
+    if (diagnosisCopyButton) diagnosisCopyButton.dataset.copyCommand = mode.command;
+    if (diagnosisOrbit) diagnosisOrbit.style.setProperty("--diagnosis-score", mode.score);
+  }
+
+  diagnosisButtons.forEach((button, index) => {
+    button.addEventListener("click", () => updateDiagnosisMode(button.dataset.diagnosisMode || "scope"));
+    button.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? diagnosisButtons.length - 1
+          : index + (event.key === "ArrowRight" ? 1 : -1);
+      const nextButton = diagnosisButtons[(nextIndex + diagnosisButtons.length) % diagnosisButtons.length];
+      updateDiagnosisMode(nextButton?.dataset.diagnosisMode || "scope");
+      nextButton?.focus();
+    });
+  });
+  updateDiagnosisMode("scope");
+}
 
 const personaCards = Array.from(document.querySelectorAll("[data-persona-card]"));
 const creatureStatus = document.querySelector("[data-creature-status]");
@@ -405,6 +1252,163 @@ function escapeHtml(value) {
   })[char]);
 }
 
+const threadBoard = document.querySelector("[data-thread-board]");
+const THREAD_BOARD_STORAGE_KEY = "tokenbar:localThreadBoard:v1";
+const THREAD_LANE_META = {
+  active: { label: "Now", tone: "Running or active goal" },
+  attention: { label: "Decide", tone: "Blocked, budgeted, or needs a human call" },
+  paused: { label: "Later", tone: "Parked work you may return to" },
+  recent: { label: "Review", tone: "Touched recently, ready to inspect" },
+  done: { label: "Archive", tone: "Completed or archived tasks" },
+};
+
+function loadThreadBoardPlan() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(THREAD_BOARD_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveThreadBoardPlan(plan) {
+  localStorage.setItem(THREAD_BOARD_STORAGE_KEY, JSON.stringify(plan || {}));
+}
+
+function relativeThreadTime(value) {
+  const timestamp = Date.parse(value || "");
+  if (!Number.isFinite(timestamp)) return "unknown";
+  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return "now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function bindThreadBoardDrag() {
+  if (!threadBoard) return;
+  const plan = loadThreadBoardPlan();
+  const updateLaneCounts = () => {
+    threadBoard.querySelectorAll(".thread-lane").forEach((laneNode) => {
+      const count = laneNode.querySelectorAll(".thread-card").length;
+      const countNode = laneNode.querySelector("[data-thread-lane-count]");
+      if (countNode) countNode.textContent = String(count);
+    });
+  };
+  threadBoard.querySelectorAll(".thread-card").forEach((card) => {
+    card.addEventListener("dragstart", (event) => {
+      card.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", card.dataset.threadId || "");
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("is-dragging");
+      threadBoard.querySelectorAll(".thread-lane").forEach((lane) => lane.classList.remove("is-drop-target"));
+    });
+  });
+  threadBoard.querySelectorAll("[data-thread-lane-list]").forEach((list) => {
+    list.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      list.closest(".thread-lane")?.classList.add("is-drop-target");
+    });
+    list.addEventListener("dragleave", (event) => {
+      if (!list.contains(event.relatedTarget)) list.closest(".thread-lane")?.classList.remove("is-drop-target");
+    });
+    list.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const threadId = event.dataTransfer.getData("text/plain");
+      const card = threadId ? threadBoard.querySelector(`[data-thread-id="${CSS.escape(threadId)}"]`) : null;
+      const lane = list.closest(".thread-lane")?.dataset.lane || "";
+      if (!card || !lane) return;
+      list.appendChild(card);
+      card.dataset.threadLane = lane;
+      card.querySelector("[data-thread-planned-lane]")?.replaceChildren(document.createTextNode(THREAD_LANE_META[lane]?.label || lane));
+      plan[threadId] = lane;
+      saveThreadBoardPlan(plan);
+      updateLaneCounts();
+      threadBoard.querySelectorAll(".thread-lane").forEach((laneNode) => laneNode.classList.remove("is-drop-target"));
+    });
+  });
+  updateLaneCounts();
+}
+
+function renderLocalThreads(payload) {
+  const summary = document.querySelector("[data-thread-summary]");
+  const source = document.querySelector("[data-thread-source]");
+  const gate = document.querySelector("[data-thread-local-gate]");
+  const localPlan = loadThreadBoardPlan();
+  const grouped = Object.fromEntries((payload.laneOrder || []).map((lane) => [lane, []]));
+  (payload.threads || []).forEach((thread) => {
+    const plannedLane = localPlan[thread.id] || thread.lane;
+    (grouped[plannedLane] ||= []).push({ ...thread, plannedLane, sourceLane: thread.lane });
+  });
+  if (source) source.textContent = `${payload.source?.threads || "state_5.sqlite"} + ${payload.source?.goals || "goals_1.sqlite"} · localhost only`;
+  if (gate) gate.hidden = true;
+  if (summary) {
+    const totalTokens = (payload.threads || []).reduce((sum, thread) => sum + Number(thread.tokens || 0), 0);
+    summary.innerHTML = `
+      <article><b>${(payload.threads || []).length}</b><span>visible threads</span></article>
+      <article><b>${payload.counts?.active || 0}</b><span>in progress</span></article>
+      <article><b>${payload.counts?.attention || 0}</b><span>need attention</span></article>
+      <article><b>${escapeHtml(formatTokenCount(totalTokens))}</b><span>token weight</span></article>
+    `;
+  }
+  threadBoard.innerHTML = (payload.laneOrder || []).map((lane) => {
+    const items = grouped[lane] || [];
+    const visibleLimit = 6;
+    const cards = items.slice(0, visibleLimit).map((thread) => `
+      <article class="thread-card" draggable="true" data-thread-id="${escapeHtml(thread.id)}" data-thread-lane="${escapeHtml(lane)}" data-thread-source-lane="${escapeHtml(thread.sourceLane || lane)}">
+        <div class="thread-card-top"><span>${escapeHtml(thread.project || "No project")}</span><b>${escapeHtml(formatTokenCount(thread.tokens))}</b></div>
+        <h2>${escapeHtml(thread.title)}</h2>
+        ${thread.objective ? `<p>${escapeHtml(thread.objective)}</p>` : ""}
+        <footer><span>${escapeHtml(thread.goalStatus === "none" ? "no goal" : thread.goalStatus.replaceAll("_", " "))}</span><time>${escapeHtml(relativeThreadTime(thread.updatedAt))}</time></footer>
+        <div class="thread-card-plan"><span data-thread-planned-lane>${escapeHtml(THREAD_LANE_META[lane]?.label || lane)}</span><small>drag to reorder locally</small></div>
+      </article>
+    `).join("");
+    const meta = THREAD_LANE_META[lane] || { label: lane, tone: "Local Codex lane" };
+    return `
+      <section class="thread-lane" data-lane="${escapeHtml(lane)}">
+        <header><div><h2>${escapeHtml(meta.label)}</h2><p>${escapeHtml(meta.tone)}</p></div><span data-thread-lane-count>${items.length}</span></header>
+        <div class="thread-lane-list" data-thread-lane-list>${cards || '<p class="thread-lane-empty">Nothing here.</p>'}</div>
+        ${items.length > visibleLimit ? `<p class="thread-lane-more">+ ${items.length - visibleLimit} more in local snapshot</p>` : ""}
+      </section>
+    `;
+  }).join("");
+  bindThreadBoardDrag();
+}
+
+async function loadLocalThreads() {
+  if (!threadBoard) return;
+  const state = document.querySelector("[data-thread-state]");
+  const gate = document.querySelector("[data-thread-local-gate]");
+  const source = document.querySelector("[data-thread-source]");
+  if (state) state.textContent = "Reading local Codex state...";
+  try {
+    const response = await fetch("/api/local-threads", { cache: "no-store", headers: { Accept: "application/json" } });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Local thread bridge unavailable.");
+    renderLocalThreads(payload);
+  } catch (error) {
+    threadBoard.innerHTML = '<p class="thread-board-state">Your public browser cannot read local Codex threads.</p>';
+    if (source) source.textContent = "Local bridge disconnected";
+    if (gate) {
+      gate.hidden = false;
+      const message = gate.querySelector("p");
+      if (message && error?.message) message.textContent = `${error.message} Run the local server, then reopen this page locally.`;
+    }
+  }
+}
+
+if (threadBoard) {
+  document.querySelector("[data-thread-refresh]")?.addEventListener("click", loadLocalThreads);
+  document.querySelector("[data-thread-reset-board]")?.addEventListener("click", () => {
+    localStorage.removeItem(THREAD_BOARD_STORAGE_KEY);
+    loadLocalThreads();
+  });
+  loadLocalThreads();
+}
+
 function formatScore(value) {
   const score = Number(value || 0);
   return Math.max(0, Math.min(100, score)).toFixed(0);
@@ -500,12 +1504,12 @@ function renderTopProfiles(target, profiles, options = {}) {
         ? `<small class="ranking-project-line">${escapeHtml(submission.title || "Submitted project")} · ${escapeHtml(submission.event || submission.track || "safe submission")}</small>`
         : "";
       const breakdown = profile.rankingBreakdown || {};
-      const breakdownRows = ["proof", "loop", "specificity", "range", "tokens"]
+      const breakdownRows = ["proof", "loop", "specificity", "range", "outcomes", "tokens"]
         .filter((key) => breakdown[key] !== undefined && breakdown[key] !== null)
         .map((key) => `<span><b>${escapeHtml(key)}</b><em>${formatScore(breakdown[key])}</em></span>`)
         .join("");
       const breakdownNote = breakdownRows
-        ? `<div class="ranking-breakdown" aria-label="Ranking score breakdown">${breakdownRows}<small>${escapeHtml(breakdown.note || "Token volume is capped at 6% of the composite ranking score.")}</small></div>`
+        ? `<div class="ranking-breakdown" aria-label="Ranking score breakdown">${breakdownRows}<small>${escapeHtml(breakdown.note || "Token volume is capped at 2% of the composite ranking score.")}</small></div>`
         : "";
       return `<a class="ranking-proof-card" data-identity-theme="${theme}" href="${escapeHtml(href)}">
         <span>${safeTitle}<small>${archetype} · ${escapeHtml(context)}</small>${projectLine}</span>
@@ -547,8 +1551,6 @@ function renderSocialFeed(profiles) {
     const token = escapeHtml(profile.token || "");
     const score = formatScore(profile.proofScore || profile.score || profile.specificityScore);
     const loopScore = formatScore(profile.loopMaturity || profile.loopScore || profile.proofScore || profile.specificityScore);
-    const specificity = formatScore(profile.specificityScore || profile.score || profile.proofScore);
-    const nextFrontier = profile.nextFrontier ? `<small class="feed-frontier">${escapeHtml(profile.nextFrontier)}</small>` : "";
     const proofFacts = Array.isArray(profile.proofFacts) ? profile.proofFacts.slice(0, 3) : [];
     const feedStory = profile.feedStory || {};
     const safeEvidenceReceipt = profile.safeEvidenceReceipt || {};
@@ -561,27 +1563,11 @@ function renderSocialFeed(profiles) {
     const privacy = profile.privacy || {};
     const rawSafe = privacy.rawTranscriptsIncluded === false ? "No raw transcripts" : "Transcript boundary unclear";
     const codeSafe = privacy.sourceCodeIncluded === false ? "No source code" : "Source boundary unclear";
-    const artifact = escapeHtml(privacy.uploadedArtifact || "generated proof artifact only");
     const publicProfileSurface = surfaceFromBundle(profile, "publicProfile");
     const proofSurface = surfaceFromBundle(profile, "proofCard");
     const socialSurface = surfaceFromBundle(profile, "socialFeed");
     const rankingsSurface = surfaceFromBundle(profile, "rankings");
-    const profileLinks = profile.profileLinks || profile.ownerProfile?.links || {};
     const submission = submissionForProfile(profile);
-    const profileLinksHtml = Object.entries(profileLinks)
-      .filter(([, href]) => typeof href === "string" && href.trim())
-      .slice(0, 4)
-      .map(([label, href]) => `<a href="${escapeHtml(href)}" rel="noopener noreferrer">${escapeHtml(label)}</a>`)
-      .join("");
-    const submissionCard = submission
-      ? `<div class="feed-submission-card" aria-label="Submitted project">
-          <span>Submitted project</span>
-          <strong>${escapeHtml(submission.title || "Untitled project")}</strong>
-          ${submission.tagline ? `<p>${escapeHtml(submission.tagline)}</p>` : ""}
-          <small>${escapeHtml([submission.event, submission.track].filter(Boolean).join(" · ") || "Independent build")}</small>
-          ${renderSubmissionLinks(submission)}
-        </div>`
-      : "";
     const shareUrl = profile.shareUrl || publicProfileSurface.url || proofSurface.url || proofHref(profile) || socialSurface.url || rankingsSurface.url || "/social";
     const shareCopy = profile?.surfaceBundle?.shareCopy || profile.shareCopy || `I published my TokenBar builder proof: ${nickname} (${archetype}). ${shareUrl}`;
     const proofReceipt = proved.length
@@ -595,16 +1581,6 @@ function renderSocialFeed(profiles) {
         const score = formatScore(badge.score);
         return `<span><b>${label}</b><strong>#${rank}</strong><small>${total ? `of ${total}` : "public board"} · ${score}</small></span>`;
       }).join("")}</div>`
-      : "";
-    const storyCard = feedStory.whatShipped || feedStory.whyItMatters || feedStory.tradeoff || feedStory.nextFrontier
-      ? `<div class="feed-story-card" aria-label="Builder story card">
-          <span>Builder story</span>
-          ${feedStory.whatShipped ? `<section><b>What shipped</b><strong>${escapeHtml(feedStory.whatShipped)}</strong></section>` : ""}
-          ${feedStory.whyItMatters ? `<section><b>Why it matters</b><p>${escapeHtml(feedStory.whyItMatters)}</p></section>` : ""}
-          ${feedStory.tradeoff ? `<section><b>Tradeoff</b><p>${escapeHtml(feedStory.tradeoff)}</p></section>` : ""}
-          ${feedStory.nextFrontier ? `<section><b>Next frontier</b><p>${escapeHtml(feedStory.nextFrontier)}</p></section>` : ""}
-          ${feedStory.provenance ? `<em>${escapeHtml(feedStory.provenance)}</em>` : ""}
-        </div>`
       : "";
     const uncertaintyReceipt = remaining.length
       ? `<div class="feed-uncertainty"><b>Still uncertain</b>${remaining.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`
@@ -646,6 +1622,7 @@ function renderSocialFeed(profiles) {
           <small>Public proof shows aggregates only. Raw URLs, titles, notes, transcripts, and source code stay local.</small>
         </div>`
       : "";
+    const spotlightReceipt = renderSpotlightSources(profile, { compact: true });
     const nextActions = Array.isArray(nextActionPlan.actions) ? nextActionPlan.actions.slice(0, 3) : [];
     const nextActionReceipt = nextActionPlan.schema
       ? `<div class="feed-next-action" aria-label="Act verify share next-action plan">
@@ -654,43 +1631,57 @@ function renderSocialFeed(profiles) {
           ${nextActions.map((item) => `<small><code>${escapeHtml(item.command || "tokenbar claim")}</code>${escapeHtml(item.label || item.key || "Next action")}</small>`).join("")}
         </div>`
       : "";
+    const identityAxes = Array.isArray(profile.identityAxes) ? profile.identityAxes.slice(0, 6) : [];
+    const identityGlyph = renderMiniIdentityRadar(identityAxes);
+    const shippedHeadline = feedStory.whatShipped || storyEvidenceText(shippedWork[0]) || profile.headline || bio;
+    const whyItMatters = feedStory.whyItMatters || bio;
+    const frontierText = feedStory.nextFrontier || profile.nextFrontier || "Publish one tighter proof loop.";
+    const compactShipped = shippedWork.length
+      ? `<div class="feed-signal-strip" aria-label="Safe shipped-work signals">${shippedWork.slice(0, 3).map((item) => `
+          <span><b>${escapeHtml(item.value || "evidence")}</b><small>${escapeHtml(item.label || "Proof signal")}</small></span>`).join("")}</div>`
+      : "";
+    const meaningfulSubmission = submission && (
+      String(submission.title || "") !== String(profile.title || "")
+      || submission.tagline || submission.repoUrl || submission.demoUrl
+      || (submission.event && String(submission.event).toLowerCase() !== "independent build")
+      || (submission.track && String(submission.track).toLowerCase() !== "builder identity")
+    );
+    const projectContext = meaningfulSubmission
+      ? `<div class="feed-project-line"><span>${escapeHtml(submission.title || "Submitted project")}</span>${renderSubmissionLinks(submission)}</div>`
+      : "";
+    const evidenceSections = [rankBadgeHtml, spotlightReceipt, proofReceipt, shippedReceipt, signalReceipt, nextActionReceipt, safeReceipt, factReceipt, uncertaintyReceipt]
+      .filter(Boolean)
+      .join("");
     const theme = identityThemeFor(`${archetype} ${npc} ${profile.bucket || ""}`);
-    return `<article class="feed-card shipped-card" data-identity-theme="${theme}">
+    return `<article class="feed-card shipped-card feed-social-post" data-identity-theme="${theme}">
       <div class="proof-network-strip">
         <span class="rank-dot ${index % 2 ? "green" : ""}">#${index + 1} ${region}</span>
         <span class="privacy-chip">safe aggregate only</span>
         ${token ? `<code>${token}</code>` : ""}
       </div>
-      <div><strong>${nickname}</strong><small>${region} · ${archetype} · ${npc}</small></div>
-      <p>${bio}</p>
-      ${profileLinksHtml ? `<div class="feed-profile-links" aria-label="Builder public links">${profileLinksHtml}</div>` : ""}
-      ${submissionCard}
-      ${rankBadgeHtml}
-      ${storyCard}
-      <div class="proof-score-strip">
+      <div class="feed-builder-row">
+        <div><span>Builder</span><strong>${nickname}</strong><small>${region} · ${archetype} · ${npc}</small></div>
+        ${identityGlyph ? `<div class="feed-form-badge">${identityGlyph}<p><span>${escapeHtml(profile.strongestSignal || "Builder form")}</span><small>edge</small><span>${escapeHtml(profile.weakestSignal || "Next frontier")}</span><small>next</small></p></div>` : ""}
+      </div>
+      ${projectContext}
+      <section class="feed-story-lede"><span>What shipped</span><strong>${escapeHtml(shippedHeadline)}</strong><p>${escapeHtml(whyItMatters)}</p></section>
+      ${compactShipped}
+      <div class="proof-score-strip feed-proof-posture" aria-label="Supporting proof posture">
         <span><b>${score}</b><small>Proof</small></span>
         <span><b>${loopScore}</b><small>Loop</small></span>
-        <span><b>${specificity}</b><small>Specificity</small></span>
         <span><b>${formatTokenCount(profile.tokenCount)}</b><small>Tokens</small></span>
       </div>
-      ${proofReceipt}
-      ${shippedReceipt}
-      ${signalReceipt}
-      ${nextActionReceipt}
-      ${safeReceipt}
-      ${factReceipt}
-      ${nextFrontier}
-      ${uncertaintyReceipt}
+      <div class="feed-next-drill"><span>Next drill</span><p>${escapeHtml(frontierText)}</p></div>
       <div class="feed-safety" aria-label="Safe sharing boundary">
-        <span>${escapeHtml(rawSafe)}</span>
-        <span>${escapeHtml(codeSafe)}</span>
-        <span>${artifact}</span>
+        <span>${escapeHtml(rawSafe)} · ${escapeHtml(codeSafe)}</span>
       </div>
       <div class="post-actions">
         <button type="button" data-share-proof data-share-url="${escapeHtml(shareUrl)}" data-share-text="${escapeHtml(shareCopy)}">Share proof</button>
-        <a class="profile-card-link" href="${escapeHtml(publicProfileSurface.url || profile.profileUrl || shareUrl || "/profile")}">Discuss profile</a>
-        ${renderProofLinks(profile) || `<a class="profile-card-link" href="/rankings">Rankings</a>`}
+        <a class="profile-card-link" href="${escapeHtml(publicProfileSurface.url || profile.profileUrl || shareUrl || "/profile")}">Open profile</a>
+        ${proofSurface.url ? `<a class="profile-card-link" href="${escapeHtml(proofSurface.url)}">Inspect proof</a>` : ""}
+        <a class="profile-card-link" href="${escapeHtml(rankingsSurface.url || profile.rankingsUrl || "/rankings")}">Rankings</a>
       </div>
+      ${evidenceSections ? `<details class="feed-evidence-drawer"><summary>Inspect evidence <small>safe receipts and next actions</small></summary><div>${evidenceSections}</div></details>` : ""}
     </article>`;
   }).join("");
   bindIdentityThemes(socialFeed);
@@ -934,8 +1925,6 @@ async function loadPublicStats() {
   }
 }
 
-loadPublicStats();
-
 async function loadActionFeed() {
   if (!socialFeed && !actionLoopRankings && !statsTopProfiles && !statsTopLoopProfiles && !statsCount && !scoreboardList && !regionList) return;
   try {
@@ -960,7 +1949,7 @@ async function loadActionFeed() {
   }
 }
 
-loadActionFeed();
+loadPublicStats().finally(loadActionFeed);
 
 const atlasCards = Array.from(document.querySelectorAll("[data-atlas-card]"));
 const atlasTitle = document.querySelector("[data-atlas-title]");
@@ -1108,26 +2097,20 @@ function setSubmissionState(form, message, state = "idle") {
   target.dataset.state = state;
 }
 
-function renderSubmissionUpdatePreview(form, payload) {
+function shellArgument(value) {
+  return `'${String(value || "").replaceAll("'", `'"'"'`)}'`;
+}
+
+function renderSubmissionCommandPreview(form, command, projectTitle, visibility) {
   const preview = form.querySelector("[data-submission-update-preview]");
   if (!preview) return;
-  const submission = payload?.submission || {};
-  const token = payload?.token || "";
-  const profileUrl = payload?.shareUrl || (token ? `/api/profiles?token=${encodeURIComponent(token)}` : "");
-  const socialUrl = payload?.socialUrl || "/social";
-  const rankingsUrl = payload?.rankingsUrl || "/rankings";
   preview.innerHTML = `
-    <article class="submission-preview-card" data-identity-theme="${identityThemeFor(submission.projectTitle || payload?.profile?.title || "Builder")}">
-      <span>Submission attached</span>
-      <strong>${escapeHtml(submission.projectTitle || "Submitted project")}</strong>
-      ${submission.tagline ? `<p>${escapeHtml(submission.tagline)}</p>` : ""}
-      <small>${escapeHtml([submission.event, submission.track].filter(Boolean).join(" · ") || "Independent build")}</small>
-      <div>
-        ${profileUrl ? `<a href="${escapeHtml(profileUrl)}">Profile</a>` : ""}
-        <a href="${escapeHtml(socialUrl)}">For You feed</a>
-        <a href="${escapeHtml(rankingsUrl)}">Rankings</a>
-      </div>
-      <em>No raw repo upload · No transcripts · Public metadata only</em>
+    <article class="submission-preview-card" data-identity-theme="${identityThemeFor(projectTitle || "Builder")}">
+      <span>Owner-device handoff</span>
+      <strong>${escapeHtml(projectTitle || "Submitted project")}</strong>
+      <code>${escapeHtml(command)}</code>
+      <small>${escapeHtml(visibility === "unlisted" ? "Unlisted proof link" : "Public profile + rankings")}</small>
+      <em>The public token is read-only. Raw repo data, transcripts, diffs, and secrets stay on this Mac.</em>
     </article>`;
   bindIdentityThemes(preview);
 }
@@ -1139,47 +2122,33 @@ function formValue(form, name) {
 submissionUpdateForms.forEach((form) => {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const token = formValue(form, "token");
-    if (!/^TBAR-[A-Za-z0-9._-]+$/.test(token)) {
-      setSubmissionState(form, "Paste a valid TBAR token first.", "error");
+    const projectTitle = formValue(form, "projectTitle");
+    if (!projectTitle) {
+      setSubmissionState(form, "Name the project first.", "error");
       return;
     }
-    const body = {
-      schema: "tokenbar.hackathon_submission_update.v1",
-      token,
-      visibility: formValue(form, "visibility") || "public",
-      hackathonSubmission: {
-        schema: "tokenbar.hackathon_submission.v1",
-        projectTitle: formValue(form, "projectTitle") || "Untitled project",
-        tagline: formValue(form, "tagline"),
-        event: formValue(form, "event") || "Independent build",
-        track: formValue(form, "track") || "Builder identity",
-        repoUrl: formValue(form, "repoUrl"),
-        demoUrl: formValue(form, "demoUrl"),
-        submittedAt: new Date().toISOString(),
-        privacy: {
-          rawRepoUploaded: false,
-          sourceCodeUploaded: false,
-          rawTranscriptsUploaded: false,
-          publicMetadataOnly: true,
-        },
-      },
-    };
-    setSubmissionState(form, "Attaching safe project metadata to this proof token...", "loading");
+    const visibility = formValue(form, "visibility") || "public";
+    const fields = [
+      ["--project", projectTitle],
+      ["--tagline", formValue(form, "tagline")],
+      ["--event", formValue(form, "event") || "Independent build"],
+      ["--track", formValue(form, "track") || "Builder identity"],
+      ["--repo", formValue(form, "repoUrl")],
+      ["--demo", formValue(form, "demoUrl")],
+    ];
+    const command = [
+      "tokenbar submit",
+      ...fields.filter(([, value]) => value).map(([flag, value]) => `${flag} ${shellArgument(value)}`),
+      visibility === "unlisted" ? "--unlisted" : "--public",
+    ].join(" ");
+    setSubmissionState(form, "Copying the owner command...", "loading");
     try {
-      const response = await fetch("/api/profiles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(body),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `HTTP ${response.status}`);
-      }
-      renderSubmissionUpdatePreview(form, payload);
-      setSubmissionState(form, "Project attached. Public surfaces now use safe project metadata only.", "ok");
+      await navigator.clipboard.writeText(command);
+      renderSubmissionCommandPreview(form, command, projectTitle, visibility);
+      setSubmissionState(form, "Copied. Run it in Terminal; TokenBar will analyze locally and print the new proof token.", "ok");
     } catch (error) {
-      setSubmissionState(form, error?.message || "Could not attach project metadata.", "error");
+      renderSubmissionCommandPreview(form, command, projectTitle, visibility);
+      setSubmissionState(form, "Clipboard access is unavailable here. Select the command below and run it in Terminal.", "error");
     }
   });
 });
@@ -1190,7 +2159,7 @@ function surfaceHref(profile, key, fallback) {
 }
 
 function renderTokenSurfaceLauncher(form, token, profile) {
-  const scope = form.closest(".profile-panel") || document;
+  const scope = form.closest(".profile-panel, .token-dock") || document;
   const launcher = scope.querySelector("[data-token-surface-launcher]") || document.querySelector("[data-token-surface-launcher]");
   if (!launcher) return false;
   const bundle = profile?.surfaceBundle || {};
@@ -1244,7 +2213,7 @@ function renderTokenSurfaceLauncher(form, token, profile) {
       </div>`
     : "";
   launcher.innerHTML = `
-    <span>Proof bundle unlocked</span>
+    <span>Verified builder profile unlocked</span>
     <strong>${escapeHtml(profile?.title || profile?.primaryArchetype || "TokenBar builder profile")}</strong>
     <p>Safe public surfaces for <code>${escapeHtml(token)}</code>. ${escapeHtml(neverPublic.join(", "))} stay out of this bundle.</p>
     ${renderTokenProofPassport(profile, token)}
@@ -1258,8 +2227,9 @@ function renderTokenSurfaceLauncher(form, token, profile) {
       `).join("")}
     </div>
     ${safeReceipt}
-    <button type="button" data-share-proof data-share-url="${escapeHtml(profileUrl)}" data-share-text="${escapeHtml(shareCopy)}">Copy share preview</button>`;
+    <button type="button" data-share-proof data-share-url="${escapeHtml(profileUrl)}" data-share-text="${escapeHtml(shareCopy)}">Copy profile link</button>`;
   bindShareProofButtons(launcher);
+  renderProfileChronicle(profile);
   return true;
 }
 
@@ -1468,6 +2438,7 @@ function renderProofAction(data) {
         </div>
       </section>`
     : "";
+  const spotlightHtml = renderSpotlightSources(proof);
   actionResult.innerHTML = `
     <div class="proof-action-card" data-proof-mode="public">
       <span>${escapeHtml(run?.runId || proof?.token || "proof card")}</span>
@@ -1492,6 +2463,7 @@ function renderProofAction(data) {
       </div>
       ${facts ? `<ul class="proof-fact-grid">${facts}</ul>` : ""}
       ${story?.headline ? `<section class="proof-builder-story"><h4>${escapeHtml(story.headline)}</h4><p>${escapeHtml(story.summary || "")}</p></section>` : ""}
+      ${spotlightHtml}
       ${selfComparisonHtml}
       ${axes ? `<section class="proof-story-private"><h4>Identity axes</h4><ul class="proof-axis-grid">${axes}</ul></section>` : ""}
       ${proved ? `<section class="proof-story-selective"><h4>What this proves</h4><ol>${proved}</ol></section>` : ""}
@@ -1575,26 +2547,42 @@ function renderIdentityCreatePreview(payload, visibility) {
   const shareUrl = String(proof?.profileUrl || proof?.proofCardUrl || "");
   const shareCopy = String(proof?.shareCopy || `TokenBar builder identity: ${title}`);
   const excluded = Array.isArray(receipt?.neverUsed) ? receipt.neverUsed.slice(0, 2).join(" and ") : "raw transcripts and source code";
+  const canSharePassport = visibility !== "private" && Boolean(shareUrl);
+  const tokenLabel = visibility === "private" ? "Owner-only" : (token || "generated");
+  const audience = {
+    private: "Owner-only review. No link, token lookup, feed, or ranking entry.",
+    unlisted: "Direct-link only. Hidden from public discovery, feeds, and rankings.",
+    public: "Discovery eligible. This share card can appear in TokenBar discovery."
+  };
+  const reviewNext = visibility === "private"
+    ? "Review next: confirm this remains owner-only before closing."
+    : "Review next: confirm the share scope, open the safe proof, then copy the share preview.";
   identityCreatePreview.innerHTML = `
     <article class="identity-create-preview-card" data-identity-passport tabindex="-1">
       <div><span>${escapeHtml(visibility)} passport preview</span><strong>${escapeHtml(title)}</strong><p>${escapeHtml(archetype)}</p></div>
-      <dl><div><dt>Proof</dt><dd>${Number.isFinite(score) ? score.toFixed(0) : "—"}/100</dd></div><div><dt>Token</dt><dd>${escapeHtml(token || "generated")}</dd></div></dl>
+      <dl><div><dt>Proof</dt><dd>${Number.isFinite(score) ? score.toFixed(0) : "—"}/100</dd></div><div><dt>Token</dt><dd>${escapeHtml(tokenLabel)}</dd></div></dl>
+      <p class="identity-preview-audience"><b>Share scope:</b> ${escapeHtml(audience[visibility] || audience.unlisted)}</p>
       <p class="identity-preview-boundary">Safe aggregate evidence only. Never used: ${escapeHtml(excluded)}.</p>
+      <p class="identity-preview-review"><b>Review next:</b> ${escapeHtml(reviewNext.replace("Review next: ", ""))}</p>
       <div class="identity-preview-actions">
-        ${shareUrl ? `<a href="${escapeHtml(shareUrl)}">Open ${escapeHtml(visibility)} proof</a>` : ""}
-        <button type="button" data-share-proof data-share-url="${escapeHtml(shareUrl)}" data-share-text="${escapeHtml(shareCopy)}">Copy share preview</button>
+        ${canSharePassport ? `<a href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(visibility)} proof in a new tab">Open ${escapeHtml(visibility)} proof <span aria-hidden="true">(new tab)</span></a>` : ""}
+        ${canSharePassport ? `<button type="button" data-copy-share="${escapeHtml(shareCopy)}">Copy share preview</button>` : ""}
+        ${canSharePassport ? '<p class="identity-copy-share-state" data-copy-share-state aria-live="polite"></p>' : ""}
+        ${visibility === "private" ? "<span class=\"identity-private-preview-note\">Owner-only review: no share link or token lookup is created.</span>" : ""}
       </div>
-    </article>`;
+  </article>`;
   bindShareProofButtons(identityCreatePreview);
+  bindCopySharePreviewButtons(identityCreatePreview);
 }
 
 if (identityCreateForm) {
   const artifactInput = identityCreateForm.querySelector('input[name="artifact"]');
-  const identitySubmit = identityCreateForm.querySelector('button[type="submit"]');
+  const identitySubmit = identityCreateForm.querySelector('[data-identity-submit]');
   const identityVisibilityInputs = identityCreateForm.querySelectorAll('input[name="visibility"]');
   const MAX_IDENTITY_ARTIFACT_BYTES = 240_000;
   let identityArtifactIsSafe = false;
   let identityArtifactSelectionKey = "";
+  let lastGeneratedIdentityVisibility = "";
 
   function createIdentityArtifactSelectionKey() {
     const random = globalThis.crypto?.randomUUID?.();
@@ -1605,6 +2593,13 @@ if (identityCreateForm) {
     if (!identitySubmit) return;
     identitySubmit.disabled = !enabled;
     identitySubmit.setAttribute("aria-disabled", String(!enabled));
+  }
+
+  function updateIdentitySubmitLabel() {
+    if (!identitySubmit) return;
+    identitySubmit.textContent = identityArtifactIsSafe
+      ? `Generate ${selectedIdentityVisibility()} 60-second passport`
+      : "Generate 60-second passport";
   }
 
   function setIdentityRetryVisible(visible) {
@@ -1650,6 +2645,17 @@ if (identityCreateForm) {
       public: "Public creates a share card that can appear in TokenBar discovery."
     };
     identityCreateState.textContent = `${messages[selectedIdentityVisibility()]} Raw transcripts and source code remain excluded.`;
+    updateIdentitySubmitLabel();
+    renderIdentityShareContract();
+  }
+
+  function invalidateIdentityPreviewForVisibilityChange() {
+    if (!lastGeneratedIdentityVisibility) return;
+    if (identityCreatePreview) identityCreatePreview.innerHTML = "";
+    setIdentityCreateStage("share", "waiting", "Regenerate preview");
+    if (identityCreateState) {
+      identityCreateState.textContent = `The existing ${lastGeneratedIdentityVisibility} passport is unchanged. Generate again to preview ${selectedIdentityVisibility()} mode.`;
+    }
     renderIdentityShareContract();
   }
 
@@ -1660,19 +2666,26 @@ if (identityCreateForm) {
     setIdentityRetryVisible(false);
     identityCreateForm.requestSubmit();
   });
-  identityVisibilityInputs.forEach((input) => input.addEventListener("change", announceIdentityVisibility));
+  identityVisibilityInputs.forEach((input) => input.addEventListener("change", () => {
+    announceIdentityVisibility();
+    invalidateIdentityPreviewForVisibilityChange();
+  }));
   artifactInput?.addEventListener("change", async () => {
     const file = artifactInput.files?.[0];
-    if (identityFileName) identityFileName.textContent = file ? file.name : "Choose generated identity JSON";
+    // Local filenames often encode client, repository, or experiment names.
+    // Confirm selection without echoing that metadata into the page or screenshots.
+    if (identityFileName) identityFileName.textContent = file ? "Identity JSON selected locally" : "Choose generated identity JSON";
     // A previous passport belongs only to its already-checked artifact. Do not
     // leave its share link visible while a replacement is being inspected.
     if (identityCreatePreview) identityCreatePreview.innerHTML = "";
+    lastGeneratedIdentityVisibility = "";
     setIdentityRetryVisible(false);
     resetIdentityCreateStages();
     setIdentityRetryVisible(false);
     identityArtifactIsSafe = false;
     identityArtifactSelectionKey = file ? createIdentityArtifactSelectionKey() : "";
     setIdentitySubmitEnabled(false);
+    updateIdentitySubmitLabel();
     renderIdentityShareContract();
     if (!file) {
       if (identityCreateState) identityCreateState.textContent = "Nothing leaves this page until you choose an identity JSON and privacy mode.";
@@ -1756,6 +2769,7 @@ if (identityCreateForm) {
       setIdentityCreateStage("share", "complete", `${visibility} preview ready`);
       if (identityCreateState) identityCreateState.textContent = `60-second passport ready in ${visibility} mode. Review the share card below.`;
       renderIdentityCreatePreview(payload, visibility);
+      lastGeneratedIdentityVisibility = visibility;
       renderProofAction(payload);
       const passportPreview = identityCreatePreview?.querySelector("[data-identity-passport]");
       passportPreview?.scrollIntoView({ behavior: "smooth", block: "nearest" });

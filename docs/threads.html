@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TokenBar Threads · Local Codex Workboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./tokenbar-codex.css" />
+  </head>
+  <body class="page-body threads-page tokenbar-codex">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TokenBar home"><span class="brand-mark" aria-hidden="true">tb</span><span>TokenBar</span></a>
+      <nav aria-label="Primary navigation"><a href="/#usage">Usage</a><a href="/threads" aria-current="page">Threads</a><a href="/profile">Identity</a><a href="/social">For You</a><a href="/rankings">Rankings</a><a href="/docs">Docs</a></nav>
+      <div class="top-actions"><a class="download-pill" href="/#download">Download for macOS</a></div>
+    </header>
+    <main class="thread-workspace">
+      <header class="thread-workspace-head">
+        <div><p class="eyebrow">Local Codex workboard</p><h1>Your threads, with state.</h1><p>Real task titles, goals, recency, and token weight from Codex's local databases. No transcripts, source files, or full paths leave this Mac.</p></div>
+        <div class="thread-source-receipt"><span data-thread-source>Connecting to local Codex...</span><button type="button" data-thread-refresh>Refresh</button></div>
+      </header>
+      <section class="thread-board-tools" aria-label="Thread board controls">
+        <div>
+          <strong>Plan locally</strong>
+          <p>Drag a card between lanes to make your own working order. TokenBar saves that board on this browser only and never rewrites Codex's database.</p>
+        </div>
+        <button type="button" data-thread-reset-board>Reset local board</button>
+      </section>
+      <section class="thread-summary" data-thread-summary aria-label="Thread summary"></section>
+      <section class="thread-board" data-thread-board aria-label="Codex thread kanban">
+        <p class="thread-board-state" data-thread-state>Reading the local TokenBar bridge...</p>
+      </section>
+      <aside class="thread-local-gate" data-thread-local-gate hidden>
+        <strong>This page needs TokenBar's localhost bridge.</strong>
+        <p>The public website cannot read your Codex task database. Run the local server, then reopen this page locally.</p>
+        <div><code>python3 scripts/tokenbar_local_server.py --port 8768</code><button type="button" data-copy-command="python3 scripts/tokenbar_local_server.py --port 8768">Copy</button></div>
+      </aside>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
