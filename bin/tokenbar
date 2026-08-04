@@ -6648,6 +6648,29 @@ print()
 print(f"Identity token: {profile_token}")
 print(f"Proof score: {leaderboard_score}/100")
 print(f"Loop maturity: {loop_maturity_score}/100")
+
+# A score with no next action is trivia. Name the two weakest loop dimensions
+# and what specifically raises each, derived from the same signals that scored them.
+LOOP_LIFTS = {
+    "loopDesign": "close one loop end to end - trigger, action, evidence, verdict - before opening another",
+    "roleClarity": "give each agent or session one owned job and one deliverable, not a shared pile",
+    "contractStrength": "state the success metric and stop condition before starting the next task",
+    "stateDiscipline": "write the outcome to a report, ledger, or manifest instead of leaving it in scrollback",
+    "restartQuality": "end long sessions with a restart brief: goal, done, verified, blocker, next command",
+    "tasteRubric": "ship one artifact judged on clarity and restraint, not volume",
+    "traceLiteracy": "read logs, diffs, or command output before declaring a task done",
+    "harnessHygiene": "retire one stale script, scaffold, or dead automation this week",
+    "bottleneckSense": "after your next win, name the constraint it exposed instead of starting fresh work",
+}
+_weak = sorted(loop_scale, key=lambda i: i["score"])[:2]
+if _weak:
+    print()
+    print("Weakest loop dimensions and what raises them:")
+    for _item in _weak:
+        _lift = LOOP_LIFTS.get(_item["key"], _item.get("evidence", ""))
+        print(f"  {_item['name']} {_item['score']}/100 - {_lift}")
+
+print()
 print(f"Report: {path}")
 print(f"Identity JSON: {identity_json_path}")
 print(f"Skill.md: {skill_md_path}")
