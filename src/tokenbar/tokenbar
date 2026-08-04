@@ -392,18 +392,71 @@ def compact(value):
         return f"{value / 1_000:.1f}K".replace(".0K", "K")
     return str(value)
 
-print("Usage index: ready")
-print("Tracking: paused (new local log indexing is off; historical usage is still readable)" if tracking_paused else "Tracking: on")
-print(f"Today: {compact(today)}")
-print(f"Last 30d: {compact(last30)}")
-print(f"Active days: {active_days}/30")
-print(f"Sessions indexed: {sessions}")
-print(f"Top local model: {top_model}")
-print(f"Updated: {updated_text}")
+import textwrap
+
+
+def say(text):
+    for line in textwrap.wrap(text, width=76):
+        print(line)
+
+
+def ago(seconds):
+    if seconds < 90:
+        return "just now"
+    if seconds < 5400:
+        return f"{int(round(seconds / 60))} minutes ago"
+    if seconds < 172800:
+        return f"{int(round(seconds / 3600))} hours ago"
+    return f"{int(seconds // 86400)} days ago"
+
+
+# "Usage index: ready" was printed unconditionally, which reads as healthy even
+# when the index is days old and Today is only zero because nothing has counted.
+age = (time.time() - updated) if updated else None
+stale = age is not None and age >= 86400
+if age is None:
+    say("Tracking is {}, but the index carries no timestamp, so treat these totals as unverified.".format(
+        "paused" if tracking_paused else "on"
+    ))
+else:
+    line = "Tracking is {} and the index was last refreshed {}.".format(
+        "paused" if tracking_paused else "on", ago(age)
+    )
+    if stale and today == 0:
+        line += " Nothing has been counted since, so today reads zero because it is uncounted, not because you were idle."
+    elif stale:
+        line += " Anything since then is missing, so today's total is incomplete."
+    say(line)
+
+print()
+volume = f"{compact(last30)} tokens over the last 30 days, across {sessions} sessions on {active_days} of those 30 days."
+if top_model and top_model != "unknown":
+    volume += f" Most of it went through {top_model}."
+say(volume)
+
+# A stale index pads the recent window with uncounted days, which would fake a
+# slowdown, so the comparison is only honest when the index is current.
+if not stale and day_tokens:
+    end = datetime.now().date()
+    recent = sum(int(day_tokens.get((end - timedelta(days=i)).strftime("%Y-%m-%d"), 0) or 0) for i in range(7))
+    earlier = sum(int(day_tokens.get((end - timedelta(days=i)).strftime("%Y-%m-%d"), 0) or 0) for i in range(7, 30))
+    recent_avg = recent / 7.0
+    earlier_avg = earlier / 23.0
+    if earlier_avg > 0:
+        ratio = recent_avg / earlier_avg
+        if ratio >= 1.4:
+            say(f"This past week ran hotter than the three before it, roughly {ratio:.1f}x the earlier daily pace.")
+        elif ratio <= 0.65:
+            say(f"This past week ran quieter than the three before it, roughly {int(round(ratio * 100))}% of the earlier daily pace.")
+        else:
+            say("Your pace this past week is about the same as the rest of the month.")
+
 if tracking_paused:
-    print("Resume new local indexing: tokenbar tracking on")
+    print()
+    say("Historical usage is still readable. Resume indexing with: tokenbar tracking on")
 if last30 >= 1_000_000_000:
-    print(f"Read: {compact(last30)} tokens in the local 30-day trace. TokenBar treats this as evidence to inspect, not a score to worship.")
+    print()
+    print("TokenBar treats this as evidence to inspect, not a score to worship.")
 PY
 }
 
@@ -1667,16 +1720,12 @@ status_report() {
   app_path="$(find_app || true)"
   pid="$(running_pid)"
 
-  if [[ -n "$app_path" ]]; then
-    printf 'App: %s\n' "$app_path"
+  if [[ -n "$app_path" && -n "$pid" ]]; then
+    printf 'TokenBar is running (pid %s) and indexing as you work.\n' "$pid"
+  elif [[ -n "$app_path" ]]; then
+    printf 'TokenBar is installed but not running, so nothing new is being indexed.\n'
   else
-    printf 'App: not installed\n'
-  fi
-
-  if [[ -n "$pid" ]]; then
-    printf 'Process: running (pid %s)\n' "$pid"
-  else
-    printf 'Process: not running\n'
+    printf 'The menu-bar app is not installed, so nothing is indexing your logs automatically.\n'
   fi
 
   usage_summary
