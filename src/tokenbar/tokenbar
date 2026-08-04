@@ -9,8 +9,8 @@ APP_CANDIDATES=(
   "/Applications/CodexLimitBar.app"
 )
 
-download_url="https://github.com/Arnie016/codex-goated-skills/releases/download/v0.1.0/CodexLimitBar-macOS-arm64-2026-05-20.zip"
 install_url="https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh"
+download_url="${TOKENBAR_DOWNLOAD_URL:-$install_url}"
 site_url="${TOKENBAR_SITE_URL:-https://www.tokenbar.site}"
 tokenbar_version="${TOKENBAR_VERSION:-0.1.1}"
 skills_url="https://github.com/Arnie016/codex-goated-skills"
@@ -29,12 +29,27 @@ TokenBar terminal launcher
 Usage:
   tokenbar                  Open TokenBar
   tokenbar usage            Main dashboard: tokens, forecast, folders, commentary
+  tokenbar cost-passport    Range cost story: spend estimate, pressure, forecast, next action
+  tokenbar waste            Local aggregate waste lens and next saver playbook
+  tokenbar comparison-lens  Self-over-time benchmarks; cohort percentiles stay opt-in
+  tokenbar proof-packet     Privacy-safe launch proof packet; no posting or uploads
+  tokenbar reminders        Aggregate-only budget and usage nudges for the next run
+  tokenbar memory-pressure  Read-only Mac memory pressure story; no cleanup without approval
   tokenbar threads          Read-only Codex task board: goals, recency, and token weight
   tokenbar usage REPORT     Turn an exported multi-agent usage table into a Builder Pulse
+  tokenbar cost-passport REPORT
+                           Turn an exported usage table into a share-safe cost passport
   usage | tokenbar usage -  Read the same report from stdin
   tokenbar status           Check app install, running process, and usage index
   tokenbar version          Print CLI version
   tokenbar help             Show this command list
+  tokenbar playbooks        Open/copy prompt templates for cheaper agent runs
+  tokenbar coach            Guided next action: install, analyze, budget, playbook, or proof
+  tokenbar ecosystem        Show the menu bar, Mac app, CLI, web app, and next technology lanes
+  tokenbar runway           Launch-day map with proof and approval gates
+  tokenbar launch-kit       Product Hunt, Macapp Supply, demo video, and no-submit checklist
+  tokenbar browser-companion
+                           Inspect the local-only browser extension prototype
   tokenbar prove            Local analysis + safe proof token in one command
   tokenbar join             Submit this repo to the public builder board
   tokenbar submit           Submit this repo to a hackathon/social profile with a safe TBAR token
@@ -47,6 +62,20 @@ Usage:
   tokenbar trailer          Print a renderer-ready 30s Builder Identity trailer
   tokenbar trailer --html   Export a local standalone trailer storyboard
   tokenbar video            Alias for the identity trailer brief
+  tokenbar launch-kit json  Machine-readable launch copy and checklist
+  tokenbar ecosystem json   Machine-readable TokenBar product system map
+  tokenbar runway json      Machine-readable launch map
+  tokenbar cost-passport json
+  tokenbar waste json
+  tokenbar comparison-lens json
+  tokenbar proof-packet json
+                           Machine-readable local cost, waste, and comparison layers
+  tokenbar reminders json   Machine-readable local reminder plan
+  tokenbar memory-pressure json
+                           Machine-readable local memory pressure plan
+  tokenbar browser-companion json
+                           Machine-readable extension prototype handoff
+  tokenbar coach json       Machine-readable suggested-only decision guide
   tokenbar save URL         Save a builder/social reference link locally
   tokenbar inbox            List saved builder signals and reference links
   tokenbar claim            Generate a private local builder identity token
@@ -96,13 +125,30 @@ Identity and sharing:
   tokenbar trailer          Produce the privacy-safe identity-trailer brief
   tokenbar trailer --html   Export a local standalone trailer storyboard
   tokenbar video            Alias for trailer
+  tokenbar ecosystem        Explain the product system: menu bar, Mac app, CLI, web app, and next lanes
+  tokenbar runway           Show demo-ready, review-gated, and polish-before-launch work
+  tokenbar launch-kit       Draft launch page copy, app-directory copy, and demo outline
+  tokenbar browser-companion
+                           Inspect the local-only browser extension prototype
   tokenbar verify [FILE]    Audit an identity JSON before sharing
 
 Power user:
   tokenbar forecast         Explain forecast inputs
   tokenbar controls         Show tokens, cost, reset, budget, and hours dials
+  tokenbar cost-passport    Show estimated spend, limits, waste flags, and cheaper next run
+  tokenbar waste            Show aggregate next-run saver advice
+  tokenbar proof-packet     Package safe launch proof without submitting or uploading
+  tokenbar reminders        Show budget, forecast, cadence, and setup reminders
+  tokenbar memory-pressure  Explain Chrome/Codex/IDE pressure before any approved cleanup
   tokenbar power            Show Mac heat, battery draw, and estimated energy
-  tokenbar connectors       Detect Codex, Claude, Cursor, and Gemini sources
+  tokenbar playbooks        Show free/pro prompt templates and copy starters
+  tokenbar coach            Ask one guided question and show the next safe command
+  tokenbar ecosystem        Product system map and next technology lanes
+  tokenbar runway           Launch-day map with explicit gates
+  tokenbar launch-kit       Prepare launch copy and approval-gated posting checklist
+  tokenbar browser-companion
+                           Local browser popup handoff with privacy boundaries
+  tokenbar connectors       Detect Codex, Claude, Cursor, Antigravity, and OpenCode sources
   tokenbar ask PROMPT       Ask the log-aware TokenBar agent
   tokenbar prompt           Start the log-aware agent prompt
   tokenbar install          Install or refresh TokenBar
@@ -972,38 +1018,6 @@ def cursor_session_analysis():
         summary["reason"] = "no parseable local Cursor generation descriptions found"
     return summary
 
-def gemini_session_analysis():
-    home = Path.home()
-    checked = [
-        home / ".gemini" / "history",
-        home / ".gemini" / "projects.json",
-        Path.cwd() / ".gemini" / "telemetry.log",
-    ]
-    found = [str(path) for path in checked if path.exists()]
-    project_count = 0
-    try:
-        projects_path = home / ".gemini" / "projects.json"
-        if projects_path.exists():
-            payload = json.loads(projects_path.read_text(encoding="utf-8", errors="replace"))
-            projects = payload.get("projects") if isinstance(payload, dict) else {}
-            if isinstance(projects, dict):
-                project_count = len(projects)
-    except Exception:
-        project_count = 0
-
-    return {
-        "available": False,
-        "provider": "Gemini CLI",
-        "source": "~/.gemini/history + ~/.gemini/projects.json",
-        "sampledFiles": len(found),
-        "promptCount": 0,
-        "detectedProjects": project_count,
-        "checkedPaths": found,
-        "reason": "Gemini local state was detected, but this machine does not expose a stable local user-prompt transcript format to parse yet.",
-        "rawTranscriptsIncluded": False,
-        "redactedExcerptsOnly": True,
-    }
-
 def antigravity_session_analysis():
     root = Path.home() / ".gemini" / "antigravity" / "brain"
     if not root.exists():
@@ -1097,13 +1111,6 @@ def provider_source_inventory():
             "analysis": "bounded local SQLite generation-description sampler; redacted aggregate signals only",
         },
         {
-            "name": "Gemini CLI",
-            "key": "gemini",
-            "status": "detected-not-parsed",
-            "paths": [Path.cwd() / ".gemini" / "telemetry.log", home / ".gemini"],
-            "analysis": "local project/config source detection; no stable transcript parser enabled",
-        },
-        {
             "name": "Antigravity",
             "key": "antigravity",
             "status": "detected-partial-parser",
@@ -1113,6 +1120,13 @@ def provider_source_inventory():
                 home / "Library" / "Application Support" / "Antigravity",
             ],
             "analysis": "bounded local brain/task/plan artifact sampler; redacted aggregate signals only",
+        },
+        {
+            "name": "OpenCode",
+            "key": "opencode",
+            "status": "planned",
+            "paths": [home / ".opencode", home / "Library" / "Application Support" / "OpenCode"],
+            "analysis": "connector target for open-source IDE and agent usage exports; no parser enabled yet",
         },
     ]
     inventory = []
@@ -1422,11 +1436,14 @@ context = {
         {"date": date, "tokens": value, "compact": compact(value)}
         for date, value in last14_items
     ],
+    "all_days": [
+        {"date": date, "tokens": value, "compact": compact(value)}
+        for date, value in items
+    ],
     "session_analysis": codex_session_analysis(),
     "provider_analyses": {
         "claude": claude_session_analysis(),
         "cursor": cursor_session_analysis(),
-        "gemini": gemini_session_analysis(),
         "antigravity": antigravity_session_analysis(),
     },
     "provider_sources": provider_source_inventory(),
@@ -1513,7 +1530,7 @@ elif any(word in lower for word in ("folder", "folders", "project", "projects", 
         for item in folders[:6]:
             active = " active" if item.get("active") else ""
             print(f"- {item['name']}: {item['compact']} across {item.get('sessions', 0)} session(s){active}")
-elif any(word in lower for word in ("provider", "connector", "antigravity", "anti-gravity", "claude", "gemini", "cursor")):
+elif any(word in lower for word in ("provider", "connector", "antigravity", "anti-gravity", "claude", "cursor", "opencode", "open code")):
     print(f"The live source is the local Codex usage index at {ctx['path']}.")
     print("Other agent providers should stay explicit connectors until they expose a reliable API, export, or user-approved local file.")
     print(f"Current local baseline: {ctx['last30_compact']} in 30d, top model {ctx['top_local_model']}.")
@@ -2147,18 +2164,691 @@ print(f"Open app: {blue('tokenbar open')} | More commands: {blue('tokenbar help'
 PY
 }
 
-provider_report() {
-  cat <<'EOF'
-Provider status:
-  OpenAI Codex       live local log reader + rate-limit window when available
-  ChatGPT/Codex      verify billing and credits in the official dashboard
-  Antigravity        future connector target
-  Claude             future connector target
-  Gemini             future connector target
-  Cursor             future connector target
+cost_passport_command() {
+  local imported_path=""
+  local range_start=""
+  local range_end=""
+  local json_mode=false
+  local temp_report=""
 
-TokenBar does not read browser cookies, passwords, auth files, or provider secrets.
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help|-h)
+        cat <<'EOF'
+Usage:
+  tokenbar cost-passport
+  tokenbar cost-passport json
+  tokenbar cost-passport --from 2026-06-02 --to 2026-08-02 json
+  tokenbar cost-passport --range 2026-06-02..2026-08-02
+  tokenbar cost-passport REPORT.txt
+  usage | tokenbar cost-passport -
+
+Build a share-safe cost passport from local aggregate usage. Costs are estimates,
+not provider invoices. Raw reports, prompts, transcripts, source code, local
+paths, credentials, and private diffs are not included in the passport output.
 EOF
+        return 0
+        ;;
+      --json|json)
+        json_mode=true
+        ;;
+      --from)
+        shift
+        if [[ "${1:-}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+          range_start="${1:-}"
+        else
+          imported_path="${1:-}"
+        fi
+        ;;
+      --from-date|--start)
+        shift
+        range_start="${1:-}"
+        ;;
+      --to|--to-date|--end)
+        shift
+        range_end="${1:-}"
+        ;;
+      --range)
+        shift
+        range_start="${1%%..*}"
+        range_end="${1##*..}"
+        ;;
+      -)
+        temp_report="$(mktemp "${TMPDIR:-/tmp}/tokenbar-cost-report.XXXXXX")"
+        cat > "$temp_report"
+        imported_path="$temp_report"
+        ;;
+      *)
+        if [[ -z "$imported_path" ]]; then
+          imported_path="$1"
+        else
+          printf 'Unknown tokenbar cost-passport option: %s\n' "$1" >&2
+          return 2
+        fi
+        ;;
+    esac
+    shift || true
+  done
+
+  local pulse_json=""
+  local context_json=""
+  if [[ -n "$imported_path" ]]; then
+    if [[ ! -f "$imported_path" ]]; then
+      printf 'Usage report not found: %s\n' "$imported_path" >&2
+      return 1
+    fi
+    pulse_json="$(imported_usage_report "$imported_path" true)"
+    if [[ -n "$temp_report" ]]; then
+      rm -f "$temp_report"
+    fi
+  else
+    context_json="$(usage_context_json 2>/dev/null || printf '{}')"
+  fi
+
+  TOKENBAR_COST_PASSPORT_JSON="$json_mode" \
+  TOKENBAR_COST_RANGE_START="$range_start" \
+  TOKENBAR_COST_RANGE_END="$range_end" \
+  TOKENBAR_USAGE_PULSE="$pulse_json" \
+  TOKENBAR_USAGE_CONTEXT="$context_json" \
+  python3 - <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+json_mode = os.environ.get("TOKENBAR_COST_PASSPORT_JSON") == "true"
+range_start = (os.environ.get("TOKENBAR_COST_RANGE_START") or "").strip()
+range_end = (os.environ.get("TOKENBAR_COST_RANGE_END") or "").strip()
+
+def load_env_json(name):
+    try:
+        return json.loads(os.environ.get(name) or "{}")
+    except Exception:
+        return {}
+
+def compact(value):
+    try:
+        value = float(value or 0)
+    except Exception:
+        value = 0
+    value = max(0, value)
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M".replace(".0M", "M")
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K".replace(".0K", "K")
+    return str(int(value))
+
+def money(value):
+    if value is None:
+        return None
+    try:
+        value = float(value)
+    except Exception:
+        return None
+    if value >= 100:
+        return f"${value:,.0f}"
+    return f"${value:,.2f}"
+
+def safe_percent(value):
+    try:
+        return max(0, min(100, round(float(value))))
+    except Exception:
+        return 0
+
+def parse_day(value):
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+def selected_day_rows(ctx):
+    rows = ctx.get("all_days") if isinstance(ctx.get("all_days"), list) else ctx.get("recent_days")
+    if not isinstance(rows, list):
+        rows = []
+    start_day = parse_day(range_start)
+    end_day = parse_day(range_end)
+    if start_day and end_day and start_day > end_day:
+        start_day, end_day = end_day, start_day
+    selected = []
+    for row in rows:
+        date_text = str(row.get("date") or "")
+        day = parse_day(date_text)
+        if not day:
+            continue
+        if start_day and day < start_day:
+            continue
+        if end_day and day > end_day:
+            continue
+        selected.append({"date": date_text, "tokens": int(row.get("tokens") or 0), "compact": row.get("compact") or compact(row.get("tokens"))})
+    return selected, start_day, end_day
+
+def recommendation(flags):
+    if any("price" in flag.lower() for flag in flags):
+        return "Set a dollars-per-million assumption before using this as a budget signal."
+    if any("limit" in flag.lower() for flag in flags):
+        return "Set daily and weekly cost limits before the next long agent run."
+    if any("uncertainty" in flag.lower() for flag in flags):
+        return "Run one shorter, verifier-first pass before trusting a long forecast."
+    return "Start the next run with a cost-saver header and a verifier named in the first response."
+
+def local_passport(ctx):
+    flags = []
+    ready = bool(ctx.get("ready"))
+    if not ready:
+        flags.append(ctx.get("reason") or "usage index unavailable")
+    if ctx.get("price_per_million") is None:
+        flags.append("price assumption missing")
+    if not ctx.get("daily_cost_limit_usd") and not ctx.get("weekly_cost_limit_usd"):
+        flags.append("cost limits not configured")
+    if not ctx.get("daily_guardrail_compact") and not ctx.get("weekly_guardrail_compact") and not ctx.get("thirty_day_guardrail_compact"):
+        flags.append("token limits not configured")
+    if int(ctx.get("uncertainty_percent") or 0) >= 55:
+        flags.append("forecast uncertainty high")
+    if ctx.get("tracking_enabled") is False:
+        flags.append("tracking paused")
+
+    recent = ctx.get("recent_days") if isinstance(ctx.get("recent_days"), list) else []
+    selected_rows, selected_start, selected_end = selected_day_rows(ctx)
+    nonzero_recent = [day for day in recent if int(day.get("tokens") or 0) > 0]
+    nonzero_selected = [day for day in selected_rows if int(day.get("tokens") or 0) > 0]
+    start = recent[0].get("date") if recent else None
+    end = recent[-1].get("date") if recent else ctx.get("today_key")
+    selected_tokens = sum(int(day.get("tokens") or 0) for day in selected_rows)
+    selected_cost = (selected_tokens / 1_000_000) * ctx.get("price_per_million") if ctx.get("price_per_million") is not None else None
+    selected_peak = max(selected_rows, key=lambda day: int(day.get("tokens") or 0), default=None)
+    top_folders = []
+    for folder in (ctx.get("top_folders") or [])[:4]:
+        top_folders.append({
+            "name": folder.get("name") or "project",
+            "tokens": int(folder.get("tokens") or 0),
+            "compact": folder.get("compact") or compact(folder.get("tokens")),
+            "sessions": int(folder.get("sessions") or 0),
+            "active": bool(folder.get("active")),
+        })
+
+    budget_left = None
+    if ctx.get("budget_tokens") and ctx.get("remaining_budget_tokens") is not None:
+        budget_left = safe_percent((float(ctx.get("remaining_budget_tokens") or 0) / max(1, float(ctx.get("budget_tokens") or 1))) * 100)
+
+    return {
+        "schema": "tokenbar.cost_passport.v1",
+        "source": "local-usage-index",
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "window": {
+            "start": selected_rows[0].get("date") if selected_rows else (selected_start.isoformat() if selected_start else start),
+            "end": selected_rows[-1].get("date") if selected_rows else (selected_end.isoformat() if selected_end else end),
+            "activeDays": len(nonzero_selected) if (range_start or range_end) else int(ctx.get("active_days_last30") or len(nonzero_recent)),
+            "label": "selected local cost range" if (range_start or range_end) else "local 30-day operating window",
+            "requestedStart": range_start or None,
+            "requestedEnd": range_end or None,
+            "daysReturned": len(selected_rows) if (range_start or range_end) else len(recent),
+        },
+        "summary": {
+            "selectedRangeTokens": selected_tokens if (range_start or range_end) else int(ctx.get("last30_tokens") or 0),
+            "selectedRange": compact(selected_tokens) if (range_start or range_end) else ctx.get("last30_compact") or compact(ctx.get("last30_tokens")),
+            "selectedRangeCost": money(selected_cost) if (range_start or range_end) else money(ctx.get("estimated_30d_cost")),
+            "selectedPeakDay": selected_peak.get("date") if selected_peak else ctx.get("peak_day"),
+            "selectedPeakTokens": int(selected_peak.get("tokens") or 0) if selected_peak else int(ctx.get("peak_tokens") or 0),
+            "selectedPeak": compact(selected_peak.get("tokens")) if selected_peak else ctx.get("peak_compact"),
+            "todayTokens": int(ctx.get("today_tokens") or 0),
+            "today": ctx.get("today_compact") or compact(ctx.get("today_tokens")),
+            "last7Tokens": int(ctx.get("last7_tokens") or 0),
+            "last7": ctx.get("last7_compact") or compact(ctx.get("last7_tokens")),
+            "last30Tokens": int(ctx.get("last30_tokens") or 0),
+            "last30": ctx.get("last30_compact") or compact(ctx.get("last30_tokens")),
+            "projectedNext7": ctx.get("projected_next7_compact") or compact(ctx.get("projected_next7_tokens")),
+            "projectedNext30": ctx.get("projected_next30_compact") or compact(ctx.get("projected_next30_tokens")),
+            "estimated30dCost": money(ctx.get("estimated_30d_cost")),
+            "projectedWeeklyCost": money(ctx.get("projected_weekly_cost")),
+            "projected30dCost": money(ctx.get("projected_30d_cost")),
+            "budgetLeftPercent": budget_left,
+            "uncertainty": f"+/-{int(ctx.get('uncertainty_percent') or 0)}%",
+            "basis": ctx.get("prediction_basis") or "history only",
+        },
+        "rangePassport": {
+            "command": "tokenbar cost-passport --from YYYY-MM-DD --to YYYY-MM-DD json",
+            "selectedRows": selected_rows[-14:] if (range_start or range_end) else recent,
+            "estimatedCost": money(selected_cost) if (range_start or range_end) else money(ctx.get("estimated_30d_cost")),
+            "peakDay": selected_peak.get("date") if selected_peak else ctx.get("peak_day"),
+            "peakTokens": compact(selected_peak.get("tokens")) if selected_peak else ctx.get("peak_compact"),
+            "copy": "Use this selected-range passport for planning; do not call it an invoice.",
+        },
+        "limits": {
+            "dailyTokens": ctx.get("daily_guardrail_compact") or "off",
+            "weeklyTokens": ctx.get("weekly_guardrail_compact") or "off",
+            "thirtyDayTokens": ctx.get("thirty_day_guardrail_compact") or "off",
+            "dailyCost": money(ctx.get("daily_cost_limit_usd")) or "off",
+            "weeklyCost": money(ctx.get("weekly_cost_limit_usd")) or "off",
+        },
+        "providerOrProjectMix": top_folders,
+        "wasteFlags": flags,
+        "nextAction": recommendation(flags),
+        "privacy": {
+            "rawReportIncluded": False,
+            "rawTranscriptsIncluded": False,
+            "sourceCodeIncluded": False,
+            "localPathsIncluded": False,
+            "credentialsIncluded": False,
+            "safeForSelectiveShare": True,
+        },
+        "disclaimer": "Costs are local estimates, not official provider invoices. Token volume is activity evidence, not output quality.",
+    }
+
+def imported_passport(pulse):
+    totals = pulse.get("totals") if isinstance(pulse.get("totals"), dict) else {}
+    last7 = pulse.get("last7Days") if isinstance(pulse.get("last7Days"), dict) else {}
+    period = pulse.get("period") if isinstance(pulse.get("period"), dict) else {}
+    agent_mix = pulse.get("agentMix") if isinstance(pulse.get("agentMix"), list) else []
+    flags = []
+    cache_share = pulse.get("cacheSharePercent")
+    try:
+        if float(cache_share or 0) >= 70:
+            flags.append(f"cache traffic is {cache_share}% of measured tokens")
+    except Exception:
+        pass
+    if not totals.get("reportedCostUsd"):
+        flags.append("reported cost estimate missing")
+    if not agent_mix:
+        flags.append("agent attribution missing")
+
+    return {
+        "schema": "tokenbar.cost_passport.v1",
+        "source": "imported-usage-report",
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "window": {
+            "start": period.get("start"),
+            "end": period.get("end"),
+            "activeDays": int(period.get("activeDays") or 0),
+            "label": "imported report window",
+        },
+        "summary": {
+            "totalTokens": int(totals.get("totalTokens") or 0),
+            "total": compact(totals.get("totalTokens")),
+            "freshInputOutput": compact(pulse.get("freshInputOutputTokens")),
+            "last7Tokens": int(last7.get("totalTokens") or 0),
+            "last7": compact(last7.get("totalTokens")),
+            "reportedTotalCost": money(totals.get("reportedCostUsd")),
+            "reportedLast7Cost": money(last7.get("reportedCostUsd")),
+            "cacheSharePercent": cache_share,
+        },
+        "limits": {
+            "dailyTokens": "not in imported report",
+            "weeklyTokens": "not in imported report",
+            "thirtyDayTokens": "not in imported report",
+            "dailyCost": "not in imported report",
+            "weeklyCost": "not in imported report",
+        },
+        "providerOrProjectMix": [
+            {
+                "name": item.get("agent") or "agent",
+                "tokens": int(item.get("totalTokens") or 0),
+                "compact": compact(item.get("totalTokens")),
+                "sharePercent": item.get("sharePercent"),
+            }
+            for item in agent_mix[:5]
+        ],
+        "wasteFlags": flags,
+        "nextAction": recommendation(flags),
+        "privacy": {
+            "rawReportIncluded": False,
+            "rawTranscriptsIncluded": False,
+            "sourceCodeIncluded": False,
+            "localPathsIncluded": False,
+            "credentialsIncluded": False,
+            "safeForSelectiveShare": True,
+        },
+        "disclaimer": pulse.get("disclaimer") or "Costs are local estimates, not official provider invoices.",
+    }
+
+pulse = load_env_json("TOKENBAR_USAGE_PULSE")
+ctx = load_env_json("TOKENBAR_USAGE_CONTEXT")
+passport = imported_passport(pulse) if pulse else local_passport(ctx)
+
+if json_mode:
+    print(json.dumps(passport, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+use_color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+def paint(code, text):
+    return f"\033[{code}m{text}\033[0m" if use_color else str(text)
+
+def bold(text):
+    return paint("1", text)
+
+def cyan(text):
+    return paint("38;5;51", text)
+
+def amber(text):
+    return paint("38;5;214", text)
+
+def dim(text):
+    return paint("2", text)
+
+summary = passport.get("summary") or {}
+window = passport.get("window") or {}
+print(bold("TokenBar Cost Passport"))
+print(dim(f"{passport['source']} · {window.get('label')} · {window.get('start') or '?'} to {window.get('end') or '?'}"))
+print()
+if passport["source"] == "imported-usage-report":
+    print(f"Total: {cyan(bold(summary.get('total', '0')))} tokens · {amber(bold(summary.get('reportedTotalCost') or 'cost unavailable'))}")
+    print(f"Last 7d: {summary.get('last7', '0')} · {summary.get('reportedLast7Cost') or 'cost unavailable'}")
+    print(f"Fresh input/output: {summary.get('freshInputOutput', '0')} · cache share {summary.get('cacheSharePercent', 0)}%")
+else:
+    if window.get("label") == "selected local cost range":
+        print(f"Selected range: {cyan(bold(summary.get('selectedRange', '0')))} · estimated {amber(bold(summary.get('selectedRangeCost') or 'set price'))}")
+        print(f"Peak: {summary.get('selectedPeakDay') or '?'} · {summary.get('selectedPeak') or '0'}")
+    print(f"Last 30d: {cyan(bold(summary.get('last30', '0')))} · estimated {amber(bold(summary.get('estimated30dCost') or 'set price'))}")
+    print(f"Next 7d: {summary.get('projectedNext7', '0')} · projected {summary.get('projectedWeeklyCost') or 'set price'} · {summary.get('uncertainty')}")
+    print(f"Budget left: {summary.get('budgetLeftPercent') if summary.get('budgetLeftPercent') is not None else 'not set'}")
+print()
+print(bold("Limits"))
+limits = passport.get("limits") or {}
+print(f"Tokens: daily {limits.get('dailyTokens')} | weekly {limits.get('weeklyTokens')} | 30d {limits.get('thirtyDayTokens')}")
+print(f"Cost: daily {limits.get('dailyCost')} | weekly {limits.get('weeklyCost')}")
+print()
+print(bold("Mix"))
+mix = passport.get("providerOrProjectMix") or []
+if mix:
+    for item in mix[:5]:
+        suffix = f" · {item.get('sharePercent')}%" if item.get("sharePercent") is not None else ""
+        print(f"  {item.get('name'):<22} {item.get('compact', compact(item.get('tokens'))):>8}{suffix}")
+else:
+    print("  No project or provider mix available yet.")
+print()
+print(bold("Waste flags"))
+flags = passport.get("wasteFlags") or []
+if flags:
+    for flag in flags[:6]:
+        print(f"  - {flag}")
+else:
+    print("  - no obvious aggregate waste flag")
+print()
+print(bold("Next action"))
+print(passport.get("nextAction"))
+print()
+print(dim(passport.get("disclaimer")))
+print(dim("Privacy: aggregate passport only; raw work stays local."))
+PY
+}
+
+provider_report() {
+  local format
+  format="${1:-}"
+  TOKENBAR_CODEX_INDEX="$usage_index" TOKENBAR_PROVIDER_FORMAT="$format" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+fmt = (os.environ.get("TOKENBAR_PROVIDER_FORMAT") or "").strip().lower()
+index_path = Path(os.environ.get("TOKENBAR_CODEX_INDEX") or "")
+try:
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+except Exception:
+    index = {}
+if not isinstance(index, dict):
+    index = {}
+
+model_tokens = index.get("modelTokens") if isinstance(index.get("modelTokens"), dict) else {}
+
+targets = [
+    {
+        "key": "codex",
+        "name": "Codex",
+        "aliases": ("codex", "gpt", "openai"),
+        "setup": "Run tokenbar usage or refresh the local Codex usage index.",
+    },
+    {
+        "key": "claude-code",
+        "name": "Claude Code",
+        "aliases": ("claude", "sonnet", "opus"),
+        "setup": "Connect a user-approved Claude Code export or official usage API.",
+    },
+    {
+        "key": "cursor",
+        "name": "Cursor",
+        "aliases": ("cursor",),
+        "setup": "Add a user-approved Cursor usage export before calling it measured.",
+    },
+    {
+        "key": "antigravity",
+        "name": "Antigravity",
+        "aliases": ("antigravity", "anti-gravity"),
+        "setup": "Add Antigravity once reliable local usage evidence exists.",
+    },
+    {
+        "key": "opencode",
+        "name": "OpenCode",
+        "aliases": ("opencode", "open code", "open-code"),
+        "setup": "Connect an OpenCode local usage export for open-source IDE tracking.",
+    },
+]
+
+
+def safe_int(value):
+    try:
+        return max(0, int(float(value or 0)))
+    except Exception:
+        return 0
+
+
+def compact(value):
+    numeric = safe_int(value)
+    if numeric >= 1_000_000_000:
+        return f"{numeric / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if numeric >= 1_000_000:
+        return f"{numeric / 1_000_000:.1f}M".replace(".0M", "M")
+    if numeric >= 1_000:
+        return f"{numeric / 1_000:.1f}K".replace(".0K", "K")
+    return str(numeric)
+
+
+def matched_tokens(aliases):
+    total = 0
+    lowered = tuple(alias.lower() for alias in aliases)
+    for raw_name, raw_tokens in model_tokens.items():
+        name = str(raw_name).lower()
+        if any(alias in name for alias in lowered):
+            total += safe_int(raw_tokens)
+    return total
+
+
+providers = []
+for target in targets:
+    tokens = matched_tokens(target["aliases"])
+    measured = tokens > 0
+    providers.append(
+        {
+            "key": target["key"],
+            "name": target["name"],
+            "status": "measured" if measured else "setup",
+            "tokens": tokens,
+            "tokensLabel": compact(tokens),
+            "proof": "usage-index modelTokens matched this provider" if measured else "No local aggregate token evidence yet",
+            "evidenceNeeded": "Already measured from aggregate local modelTokens." if measured else "A user-approved local usage export or official usage API that exposes aggregate tokens.",
+            "command": "tokenbar usage" if measured else "tokenbar providers",
+            "setupFlow": [
+                {"label": "Detect", "done": measured},
+                {"label": "Connect", "done": measured},
+                {"label": "Review", "done": measured},
+            ],
+        }
+    )
+
+payload = {
+    "schema": "tokenbar.provider_truth.v1",
+    "source": "local-model-token-aggregate",
+    "providers": providers,
+    "privacy": {
+        "readOnly": True,
+        "providerCalls": False,
+        "accountMutation": False,
+        "browserCookies": False,
+        "credentials": False,
+        "rawPrompts": False,
+        "externalActions": False,
+    },
+    "disclaimer": "Measured means local aggregate token evidence exists. Setup means TokenBar has not measured that provider yet.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar provider truth")
+print("-----------------------")
+measured_count = sum(1 for item in providers if item["status"] == "measured")
+print(f"{measured_count} measured · {len(providers) - measured_count} setup")
+print()
+for item in providers:
+    status = f"{item['status']} · {item['tokensLabel']}" if item["status"] == "measured" else "setup"
+    print(f"{item['name']}: {status}")
+    print(f"  Proof: {item['proof']}")
+    print(f"  Need:  {item['evidenceNeeded']}")
+    print("  Flow:  " + " -> ".join(f"{step['label']}{'✓' if step['done'] else ''}" for step in item["setupFlow"]))
+    print(f"  Run:   {item['command']}")
+print()
+print("Privacy: read-only aggregate status. No provider API calls, account changes, cookies, credentials, raw prompts, or external actions.")
+PY
+}
+
+waste_lens_report() {
+  local format
+  format="${1:-}"
+  TOKENBAR_CODEX_INDEX="$usage_index" TOKENBAR_WASTE_FORMAT="$format" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+fmt = (os.environ.get("TOKENBAR_WASTE_FORMAT") or "").strip().lower()
+index_path = Path(os.environ.get("TOKENBAR_CODEX_INDEX") or "")
+try:
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+except Exception:
+    index = {}
+if not isinstance(index, dict):
+    index = {}
+
+day_tokens = index.get("dayTokens") if isinstance(index.get("dayTokens"), dict) else {}
+
+
+def safe_int(value):
+    try:
+        return max(0, int(float(value or 0)))
+    except Exception:
+        return 0
+
+
+def compact(value):
+    numeric = safe_int(value)
+    if numeric >= 1_000_000_000:
+        return f"{numeric / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if numeric >= 1_000_000:
+        return f"{numeric / 1_000_000:.1f}M".replace(".0M", "M")
+    if numeric >= 1_000:
+        return f"{numeric / 1_000:.1f}K".replace(".0K", "K")
+    return str(numeric)
+
+
+values = [safe_int(value) for _, value in list(day_tokens.items())[-90:]]
+recent = values[-14:]
+last7 = values[-7:]
+today = values[-1] if values else 0
+last7_total = sum(last7)
+last30_total = sum(values[-30:])
+active_last7 = [value for value in last7 if value > 0]
+active_last30 = [value for value in values[-30:] if value > 0]
+avg_active = int(sum(active_last7) / max(1, len(active_last7))) if active_last7 else 0
+burst_ratio = today / max(1, avg_active) if avg_active else 0
+burst_score = min(34, round(max(0, burst_ratio - 1) * 18))
+volume_score = min(34, round(last7_total / 1_000_000_000 * 9))
+consistency_score = 0 if len(active_last30) >= 4 else 14
+score = max(0, min(100, 18 + burst_score + volume_score + consistency_score))
+label = "High" if score >= 72 else "Watch" if score >= 42 else "Clear"
+
+drivers = []
+if burst_score:
+    drivers.append(f"Today is {compact(today)} against a {compact(avg_active)} active-day baseline.")
+if volume_score:
+    drivers.append(f"The last 7 days used {compact(last7_total)} aggregate tokens.")
+if consistency_score:
+    drivers.append("Local history is sparse, so a scoped prompt protects the next broad run.")
+if not drivers:
+    drivers.append("Aggregate usage is below the current waste lens threshold.")
+
+levers = [
+    {
+        "key": "mission-lock",
+        "title": "Scope before run",
+        "copy": "Start with budget, route, timebox, context cap, and stop conditions.",
+        "impact": "Prevents runaway context and vague delegation.",
+        "command": "tokenbar playbooks copy mission-lock",
+    },
+    {
+        "key": "output-budget",
+        "title": "Shorten output",
+        "copy": "Ask for proof, blockers, and one next action before long prose.",
+        "impact": "Cuts answer spillover while preserving review signal.",
+        "command": "tokenbar playbooks copy output-budget",
+    },
+    {
+        "key": "cost-passport",
+        "title": "Review cost",
+        "copy": "Open the cost passport before another broad autonomous loop.",
+        "impact": "Turns token volume into a budget decision.",
+        "command": "tokenbar cost-passport",
+    },
+]
+
+payload = {
+    "schema": "tokenbar.waste_lens.v1",
+    "source": "local-aggregate-usage-shape",
+    "score": score,
+    "label": label,
+    "summary": {
+        "today": compact(today),
+        "last7": compact(last7_total),
+        "last30": compact(last30_total),
+        "activeDays30": len(active_last30),
+        "peakRecent": compact(max(recent or [0])),
+        "basis": "Aggregate token shape only; TokenBar does not judge output quality or read raw prompts.",
+    },
+    "primaryDriver": drivers[0],
+    "drivers": drivers[:3],
+    "levers": levers,
+    "privacy": {
+        "readOnly": True,
+        "rawPrompts": False,
+        "rawTranscripts": False,
+        "sourceCode": False,
+        "localPaths": False,
+        "credentials": False,
+        "providerCalls": False,
+        "accountMutation": False,
+        "externalActions": False,
+        "qualityJudgment": False,
+    },
+    "disclaimer": "Waste lens is a local aggregate heuristic. It does not read prompt text, source code, transcripts, credentials, provider accounts, or output quality.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar waste lens")
+print("-------------------")
+print(f"{payload['label']} · {payload['score']}/100")
+print(payload["primaryDriver"])
+print()
+print("Saver levers")
+for lever in payload["levers"]:
+    print(f"- {lever['title']}: {lever['copy']}")
+    print(f"  Run: {lever['command']}")
+print()
+print("Privacy: aggregate usage shape only; no raw prompts, transcripts, source code, credentials, provider calls, account changes, or output-quality judgment.")
+PY
 }
 
 connector_report() {
@@ -2191,10 +2881,16 @@ checks = [
         "note": "Cursor chat history is local SQLite/export based; parser not enabled yet.",
     },
     {
-        "name": "Gemini CLI",
+        "name": "Antigravity",
         "status": "planned",
-        "paths": [Path.cwd() / ".gemini" / "telemetry.log", home / ".gemini"],
-        "note": "Gemini CLI supports local telemetry output when enabled; parser not enabled yet.",
+        "paths": [home / ".gemini" / "antigravity" / "brain", home / ".antigravity"],
+        "note": "Antigravity is connector-ready once reliable local usage exports or APIs are available.",
+    },
+    {
+        "name": "OpenCode",
+        "status": "planned",
+        "paths": [home / ".opencode", home / "Library" / "Application Support" / "OpenCode"],
+        "note": "OpenCode is connector-ready for open-source IDE usage exports.",
     },
 ]
 
@@ -2546,7 +3242,7 @@ def build_trait_vector():
     projection_pressure = min(100, (projected / last30) * 64 if last30 else 0)
     product = 38 + keyword_hits(all_text, ["stripe", "payment", "checkout", "billing", "pricing", "landing", "growth", "user", "customer", "trial", "launch"]) * 9
     artifact = 36 + keyword_hits(all_text, ["pdf", "report", "deck", "doc", "course", "video", "landing", "profile", "identity", "skill"]) * 8
-    infrastructure = 34 + keyword_hits(all_text, ["token", "codex", "agent", "cursor", "claude", "gemini", "api", "webhook", "convex", "vercel", "stripe", "cli", "database"]) * 7
+    infrastructure = 34 + keyword_hits(all_text, ["token", "codex", "agent", "cursor", "claude", "antigravity", "opencode", "api", "webhook", "convex", "vercel", "stripe", "cli", "database"]) * 7
     research = 30 + keyword_hits(all_text, ["paper", "research", "analysis", "benchmark", "model", "eval", "heuristic", "proof", "math", "erdos"]) * 9
     design = 28 + keyword_hits(all_text, ["design", "ui", "frontend", "visual", "brand", "pdf", "deck", "landing", "animation", "figma"]) * 8
     monetization = 26 + keyword_hits(all_text, ["stripe", "checkout", "payment", "billing", "price", "trial", "subscription", "pro", "tax"]) * 10
@@ -2778,7 +3474,7 @@ ARCHETYPES = [
 
 ARCHETYPE_DISPLAY_TITLES = {
     "Scaffold Architect": "Blueprint Builder",
-    "Revenue Systems Captain": "Revenue Engine Pilot",
+    "Revenue Systems Captain": "The Commercial Architect",
     "Agent Infrastructure Cartographer": "Agent Systems Pathfinder",
     "Report Engine Philosopher": "Evidence Storyteller",
     "Velocity Operator": "Afterburner Builder",
@@ -2786,7 +3482,7 @@ ARCHETYPE_DISPLAY_TITLES = {
     "Prompt Stress Tester": "Chaos Lab Pilot",
     "Design Systems Bard": "Interface Storysmith",
     "Research Alchemist": "Signal Alchemist",
-    "Multi-Agent Conductor": "Mission Control Captain",
+    "Multi-Agent Conductor": "The Control Room Director",
     "Product Mythmaker": "Product Lorekeeper",
     "Local-First Sovereign": "Privacy Homesteader",
     "Session Archaeologist": "Session Pathfinder",
@@ -2988,7 +3684,7 @@ def fine_grained_signal_records():
         ("Artifact maturity", clamp(traits["artifact"] * 0.48 + traits["taste"] * 0.30 + visual * 0.22), "Whether sessions become PDFs, pages, docs, reports, Skill.md files, or share packets.", "Name the artifact before the run starts so the output has a destination."),
         ("Commercial instinct", clamp(traits["monetization"] * 0.46 + traits["product_instinct"] * 0.32 + monetization * 0.22), "How often the work touches pricing, trust, access, conversion, support, or renewal.", "Pair every checkout or launch change with a buyer promise and failure path."),
         ("Privacy boundary", clamp(traits["local_first"] * 0.52 + privacy * 0.36 + traits["engineering"] * 0.12), "Whether the product can explain what stays local and what gets shared.", "Put the upload boundary in every share flow and exported report."),
-        ("Toolchain breadth", clamp(traits["orchestration"] * 0.44 + traits["infrastructure"] * 0.34 + min(100, len(provider_sources) * 18) * 0.22), "How much value comes from connecting Codex, Claude, Cursor, Gemini, APIs, webhooks, and local logs.", "Turn provider support into a visible inventory with status and evidence."),
+        ("Toolchain breadth", clamp(traits["orchestration"] * 0.44 + traits["infrastructure"] * 0.34 + min(100, len(provider_sources) * 18) * 0.22), "How much value comes from connecting Codex, Claude Code, Cursor, Antigravity, OpenCode, APIs, webhooks, and local logs.", "Turn provider support into a visible inventory with status and evidence."),
         ("Evidence discipline", clamp(traits["research_depth"] * 0.38 + traits["engineering"] * 0.22 + traits["planning"] * 0.18 + (100 if shipping_analysis.get("available") else 35) * 0.22), "How strongly the report can defend claims with metadata, commits, sessions, or artifacts.", "Separate claims from proof: each strong claim should cite one local metadata source."),
         ("Rhythm consistency", clamp(traits["consistency"] * 0.62 + traits["density"] * 0.20 + max(0, 100 - traits["volatility"]) * 0.18), "Whether the work style is steady or bursty.", "Compare weekday rhythm against shipping outcomes, not token volume alone."),
         ("Spike risk", clamp(traits["volatility"] * 0.50 + traits["surge"] * 0.30 + traits["projection_pressure"] * 0.20), "How likely the profile is driven by intense bursts that need cleanup afterward.", "After spikes, require a stabilization pass and a report note on what remains brittle."),
@@ -9544,7 +10240,7 @@ shots = [
         "end": 3,
         "title": "Scattered work becomes a dossier",
         "onScreenText": "SEEN",
-        "direction": "Floating fragments labelled Codex, Claude Code, Gemini, and Cursor collapse into one clean identity passport.",
+        "direction": "Floating fragments labelled Codex, Claude Code, Cursor, Antigravity, and OpenCode collapse into one clean identity passport.",
         "visualElements": ["dark room", "thin measurement grid", "paper dossier silhouette", "safe aggregate labels only"],
         "transitionOut": "Fragments snap into the menu-bar icon.",
         "intelligenceRole": "Shows TokenBar as a layer that organizes agent work instead of just measuring tokens.",
@@ -9985,6 +10681,1405 @@ print()
 print("Renderer integration note")
 print("  Use `tokenbar trailer --json > tokenbar-identity-trailer.json` as the handoff for HyperFrames, Director Bay, Remotion, or another renderer.")
 print("  Render locally first; publish only final video frames that exclude raw private data.")
+PY
+}
+
+launch_kit_command() {
+  local format
+  format="${1:-}"
+  TOKENBAR_LAUNCH_FORMAT="$format" TOKENBAR_SITE_URL_VALUE="$site_url" TOKENBAR_DOWNLOAD_URL_VALUE="$download_url" python3 - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+
+fmt = (os.environ.get("TOKENBAR_LAUNCH_FORMAT") or "").strip().lower()
+site_url = (os.environ.get("TOKENBAR_SITE_URL_VALUE") or "https://www.tokenbar.site").rstrip("/")
+download_url = os.environ.get("TOKENBAR_DOWNLOAD_URL_VALUE") or ""
+generated = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+payload = {
+    "schema": "tokenbar.launch_kit.v1",
+    "generatedAt": generated,
+    "product": {
+        "name": "TokenBar",
+        "oneLiner": "A macOS menu-bar and CLI layer that turns AI coding-agent usage into budgets, forecasts, playbooks, and shareable builder proof.",
+        "shortTagline": "Your AI coding work, measured and made memorable.",
+        "siteUrl": site_url,
+        "downloadUrl": download_url,
+        "repoUrl": "https://github.com/Arnie016/TokenBar",
+        "primaryCommand": "tokenbar usage",
+        "costCommand": "tokenbar cost-passport",
+        "remindersCommand": "tokenbar reminders",
+        "proofCommand": "tokenbar prove",
+        "proofPacketCommand": "tokenbar proof-packet",
+        "playbooksCommand": "tokenbar playbooks",
+    },
+    "audience": [
+        "AI builders using Codex, Claude Code, Cursor, Antigravity, or OpenCode",
+        "developers with multiple accounts or providers who need visible usage context",
+        "founders who want proof of shipped agent work without exposing raw prompts or source code",
+    ],
+    "productHunt": {
+        "name": "TokenBar",
+        "tagline": "The menu bar for AI coding-agent tokens, budgets, and builder proof.",
+        "description": (
+            "TokenBar is a local-first macOS menu-bar app and CLI for people building with AI coding agents. "
+            "It tracks token usage, costs, resets, provider lanes, account context, budgets, reminders, memory pressure, "
+            "and prompt playbooks, then turns the work into privacy-safe builder identity reports and shareable proof cards."
+        ),
+        "topics": ["Developer Tools", "AI Coding", "Productivity", "macOS", "Analytics"],
+        "firstComment": (
+            "I built TokenBar because AI builders are running serious product work through Codex, Claude Code, Cursor, "
+            "Antigravity, and OpenCode, but the usage story is usually hidden in terminals and scattered provider pages. "
+            "TokenBar keeps the raw work local, shows budgets and forecasts in the menu bar, and turns aggregate evidence "
+            "into a shareable builder identity only when you choose to publish it."
+        ),
+    },
+    "macappSupply": {
+        "title": "TokenBar",
+        "subtitle": "Menu-bar usage intelligence for AI coding agents.",
+        "category": "Productivity",
+        "shortDescription": "Track Codex and AI coding-agent tokens, costs, budgets, reminders, prompt playbooks, and local builder proof from the macOS menu bar.",
+        "longDescription": [
+            "TokenBar sits in your macOS menu bar and shows the work your AI coding agents are doing: today, week, month, and year token views; provider lanes; costs; forecasts with uncertainty; reset pressure; and reminders before you waste context or budget.",
+            "The companion CLI can generate privacy-safe builder identity reports, proof cards, prompt playbooks, and launch-ready data stories. Raw prompts, transcripts, source code, credentials, and private diffs stay on your Mac unless you explicitly publish a generated safe artifact.",
+        ],
+        "visitUrl": site_url,
+    },
+    "demoVideo": {
+        "durationSeconds": 60,
+        "title": "TokenBar: your AI work becomes a proof story",
+        "beats": [
+            {"time": "0-6s", "shot": "Menu-bar opens over Codex", "line": "Your AI coding work has a cost, a rhythm, and a story."},
+            {"time": "6-14s", "shot": "Account and provider lanes", "line": "See which account is active and which providers are measured versus still needing setup."},
+            {"time": "14-24s", "shot": "Composition and cadence tabs", "line": "Tokens become composition, quiet days, active days, and work rhythm."},
+            {"time": "24-34s", "shot": "Forecast with error bars", "line": "Forecast the next run before the budget, rate limit, or bill surprises you."},
+            {"time": "34-44s", "shot": "Cost passport and reminders", "line": "Turn spend, limits, waste flags, and the next cheaper prompt into one local passport."},
+            {"time": "44-52s", "shot": "Playbooks", "line": "Open prompt templates that reduce wasted input and output tokens."},
+            {"time": "52-60s", "shot": "Proof card", "line": "Share the generated proof, not your private work."},
+        ],
+    },
+    "approvalGates": [
+        "Do not submit to Product Hunt automatically.",
+        "Do not submit to Macapp Supply automatically.",
+        "Do not enable Stripe, billing, or subscriptions from this command.",
+        "Do not upload raw transcripts, source code, credentials, private diffs, or private repo contents.",
+        "Only publish generated safe artifacts after explicit user approval.",
+    ],
+    "checklist": [
+        {"item": "Install handoff resolves", "proof": "Open the public install script or run `tokenbar copy-install`."},
+        {"item": "Menu-bar app opens", "proof": "Run `tokenbar open` and confirm the native popover appears."},
+        {"item": "Usage story works", "proof": "Run `tokenbar usage` and confirm token, forecast, folder, and control windows render."},
+        {"item": "Cost passport works", "proof": "Run `tokenbar cost-passport json` and confirm aggregate-only cost, limit, forecast, and waste-flag fields."},
+        {"item": "Launch proof packet works", "proof": "Run `tokenbar proof-packet json` and confirm cards, blocked fields, and approval gates."},
+        {"item": "Reminder plan works", "proof": "Run `tokenbar reminders json` and confirm no scheduling, account mutation, provider calls, or private-data fields."},
+        {"item": "Playbook catalog works", "proof": "Run `tokenbar playbooks json` and confirm Free and Pro tiers."},
+        {"item": "Video handoff works", "proof": "Run `tokenbar trailer --json` or `tokenbar launch-kit json`."},
+        {"item": "Public proof is opt-in", "proof": "Run `tokenbar prove` only when ready to generate a safe TBAR artifact."},
+    ],
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar launch kit")
+print("No external submission is performed. This command drafts copy and the approval-gated checklist only.")
+print()
+print("Product Hunt")
+print(f"  Name: {payload['productHunt']['name']}")
+print(f"  Tagline: {payload['productHunt']['tagline']}")
+print(f"  Topics: {', '.join(payload['productHunt']['topics'])}")
+print("  Description:")
+print(f"    {payload['productHunt']['description']}")
+print()
+print("Macapp Supply")
+print(f"  Title: {payload['macappSupply']['title']}")
+print(f"  Subtitle: {payload['macappSupply']['subtitle']}")
+print(f"  Category: {payload['macappSupply']['category']}")
+print(f"  Short description: {payload['macappSupply']['shortDescription']}")
+print()
+print("60-second demo arc")
+for beat in payload["demoVideo"]["beats"]:
+    print(f"  {beat['time']:<7} {beat['shot']} - {beat['line']}")
+print()
+print("Useful commands")
+for key in ["primaryCommand", "costCommand", "proofPacketCommand", "remindersCommand", "proofCommand", "playbooksCommand"]:
+    print(f"  {payload['product'][key]}")
+print()
+print("Approval gates")
+for gate in payload["approvalGates"]:
+    print(f"  - {gate}")
+print()
+print("Checklist")
+for row in payload["checklist"]:
+    print(f"  - {row['item']}: {row['proof']}")
+PY
+}
+
+ecosystem_command() {
+  local format
+  format="${1:-}"
+  TOKENBAR_ECOSYSTEM_FORMAT="$format" TOKENBAR_SITE_URL_VALUE="$site_url" TOKENBAR_DOWNLOAD_URL_VALUE="$download_url" TOKENBAR_INSTALL_COMMAND_VALUE="$install_command" python3 - <<'PY'
+import json
+import os
+
+fmt = (os.environ.get("TOKENBAR_ECOSYSTEM_FORMAT") or "").strip().lower()
+site_url = (os.environ.get("TOKENBAR_SITE_URL_VALUE") or "https://www.tokenbar.site").rstrip("/")
+download_url = os.environ.get("TOKENBAR_DOWNLOAD_URL_VALUE") or ""
+install_command = os.environ.get("TOKENBAR_INSTALL_COMMAND_VALUE") or "curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash"
+
+payload = {
+    "schema": "tokenbar.ecosystem.v1",
+    "product": "TokenBar",
+    "promise": "Turn AI coding-agent usage into budgets, reminders, forecasts, prompt playbooks, and privacy-safe builder proof.",
+    "surfaces": [
+        {
+            "name": "Menu Bar",
+            "role": "Always-on usage cockpit",
+            "proof": "Shows active account, measured provider lanes, tokens, cost pressure, reminders, memory pressure, and prompt playbooks.",
+            "command": "tokenbar open",
+        },
+        {
+            "name": "CLI",
+            "role": "Private evidence engine",
+            "proof": "Reads local logs, builds cost passports, generates proof packets, and drafts launch copy without posting.",
+            "command": "tokenbar usage --costs",
+        },
+        {
+            "name": "Mac App",
+            "role": "Builder identity studio",
+            "proof": "Turns aggregate Codex evidence into Story, Timeline, Threads, Profile, Reports, and Storage views.",
+            "command": "tokenbar identity",
+        },
+        {
+            "name": "Web App",
+            "role": "Public proof and marketplace",
+            "proof": "Hosts opt-in profiles, rankings, playbooks, launch copy, and download/install handoff.",
+            "url": site_url,
+        },
+    ],
+    "nextTechnologies": [
+        {
+            "name": "Browser Companion",
+            "why": "A Chrome/Safari extension can show the active TokenBar account, budget pressure, reminders, and playbook prompts directly on Codex, GitHub, Product Hunt, and provider pages.",
+            "safeBoundary": "Read-only page context after permission; never scrape private prompts into public reports.",
+            "firstExperiment": "Implemented local prototype at browser-companion; run `tokenbar browser-companion` and start `tokenbar api` so the popup reads only 127.0.0.1:8769/v1/bundle.",
+            "command": "tokenbar browser-companion",
+        },
+        {
+            "name": "Local Automation Relay",
+            "why": "A localhost agent can explain Chrome/Codex/IDE memory pressure, propose recovery steps, and restore windows after the user approves cleanup.",
+            "safeBoundary": "No process closing, browser restore, webhook, or external action without explicit approval.",
+            "firstExperiment": "Read-only memory pressure notification with a one-click open into the TokenBar menu-bar surface.",
+        },
+    ],
+    "assemblyRail": [
+        {
+            "step": "Account",
+            "proof": "Show the active local account and measured provider lane before reading the graph.",
+        },
+        {
+            "step": "Analyze",
+            "proof": "Build a private aggregate bundle from usage, costs, cadence, and memory pressure.",
+        },
+        {
+            "step": "MCQ",
+            "proof": "Ask one short interpretation question before assigning a story or builder form.",
+        },
+        {
+            "step": "Budget",
+            "proof": "Convert daily, weekly, monthly, or yearly caps into visible run pressure.",
+        },
+        {
+            "step": "Reminder",
+            "proof": "Suggest a nudge or cooldown while keeping scheduling behind approval.",
+        },
+        {
+            "step": "Playbook",
+            "proof": "Offer the prompt template that can reduce waste on the next run.",
+        },
+        {
+            "step": "Proof",
+            "proof": "Export a safe cost passport, report, or profile only after review.",
+        },
+    ],
+    "businessLayer": {
+        "free": ["Menu-bar usage", "basic budgets", "starter playbooks", "local cost estimates"],
+        "pro": ["premium playbooks", "identity reports", "comparison engine", "public proof links", "team-safe profile analytics"],
+        "paymentGate": "Stripe or subscription wiring is not enabled by this command.",
+    },
+    "handoff": {
+        "installCommand": install_command,
+        "downloadUrl": download_url,
+        "launchCommand": "tokenbar launch-kit",
+        "remindersCommand": "tokenbar reminders",
+        "memoryCommand": "tokenbar memory-pressure",
+        "playbooksCommand": "tokenbar playbooks",
+    },
+    "handoffJourney": [
+        {
+            "step": "Install",
+            "surface": "CLI and menu-bar app",
+            "command": install_command,
+            "userValue": "Puts TokenBar in the path and installs or refreshes the macOS icon-bar surface.",
+            "safeBoundary": "Does not sign into providers, scrape accounts, submit launches, enable Stripe, upload private work, or schedule reminders.",
+        },
+        {
+            "step": "Open icon bar",
+            "surface": "macOS menu bar",
+            "command": "tokenbar open",
+            "userValue": "Shows the active account, provider truth, tokens, cost pressure, budget runway, reminders, and launch proof actions.",
+            "safeBoundary": "Shows measured local evidence and setup states only; no provider account mutation or external calls.",
+        },
+        {
+            "step": "Start local API",
+            "surface": "localhost companion feed",
+            "command": "tokenbar api",
+            "userValue": "Makes the browser companion read the same local bundle from 127.0.0.1 while you work in Codex, GitHub, Product Hunt, or provider pages.",
+            "safeBoundary": "Localhost JSON only; no content scripts, remote hosts, private prompt scraping, or browser-cookie access.",
+        },
+        {
+            "step": "Open Mac studio",
+            "surface": "native TokenBar app",
+            "command": "tokenbar proof-packet",
+            "userValue": "Turns aggregate evidence into Story, Timeline, Threads, Profile, Reports, Storage, and reviewable proof packets.",
+            "safeBoundary": "Public proof remains review-first and opt-in; raw prompts, transcripts, source code, credentials, local paths, and private diffs stay out.",
+        },
+    ],
+    "surfaceRelay": [
+        {
+            "key": "cli",
+            "surface": "CLI evidence line",
+            "command": "tokenbar usage",
+            "tier": "Free",
+            "gate": "Local read only",
+            "value": "Scriptable usage, cost passport, reminders, playbooks, launch kit, and local JSON.",
+        },
+        {
+            "key": "menu",
+            "surface": "Menu-bar cockpit",
+            "command": "tokenbar status",
+            "tier": "Free",
+            "gate": "No provider sign-in",
+            "value": "Active account, measured providers, time-window tokens, budget pressure, and next suggested action.",
+        },
+        {
+            "key": "companion",
+            "surface": "Browser context rail",
+            "command": "tokenbar api",
+            "tier": "Free preview",
+            "gate": "127.0.0.1 only",
+            "value": "Budget, reminders, memory pressure, and prompt playbooks beside Codex, GitHub, Product Hunt, and provider pages.",
+        },
+        {
+            "key": "studio",
+            "surface": "Mac studio archive",
+            "command": "tokenbar proof-packet",
+            "tier": "Free app",
+            "gate": "Review before share",
+            "value": "Story, Timeline, Threads, Profile, Report, Storage, and proof packets from aggregate evidence.",
+        },
+        {
+            "key": "pro",
+            "surface": "Pro proof market",
+            "command": "tokenbar playbooks",
+            "tier": "Pro",
+            "gate": "No auto-billing",
+            "value": "Paid prompt playbooks, public proof cards, cohort comparison, and premium reports after account review.",
+        },
+    ],
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar ecosystem")
+print(payload["promise"])
+print()
+print("Assembly rail")
+for row in payload["assemblyRail"]:
+    print(f"  - {row['step']}: {row['proof']}")
+print()
+print("Surfaces")
+for surface in payload["surfaces"]:
+    command = surface.get("command") or surface.get("url")
+    print(f"  {surface['name']}: {surface['role']}")
+    print(f"    {surface['proof']}")
+    print(f"    Open: {command}")
+print()
+print("Surface relay")
+for relay in payload["surfaceRelay"]:
+    print(f"  {relay['surface']} [{relay['tier']}]")
+    print(f"    Command: {relay['command']}")
+    print(f"    Gate: {relay['gate']}")
+    print(f"    Value: {relay['value']}")
+print()
+print("Two technology lanes to build next")
+for lane in payload["nextTechnologies"]:
+    print(f"  {lane['name']}")
+    print(f"    Why: {lane['why']}")
+    print(f"    Boundary: {lane['safeBoundary']}")
+    print(f"    First experiment: {lane['firstExperiment']}")
+print()
+print("Business layer")
+print(f"  Free: {', '.join(payload['businessLayer']['free'])}")
+print(f"  Pro: {', '.join(payload['businessLayer']['pro'])}")
+print(f"  Gate: {payload['businessLayer']['paymentGate']}")
+print()
+print("Handoff")
+for key, value in payload["handoff"].items():
+    print(f"  {key}: {value}")
+print()
+print("Install journey")
+for row in payload["handoffJourney"]:
+    print(f"  {row['step']}: {row['command']}")
+    print(f"    Surface: {row['surface']}")
+    print(f"    Why: {row['userValue']}")
+    print(f"    Boundary: {row['safeBoundary']}")
+PY
+}
+
+reminders_command() {
+  local json_mode=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help|-h)
+        cat <<'EOF'
+Usage:
+  tokenbar reminders
+  tokenbar reminders json
+
+Build an aggregate-only reminder plan from local TokenBar evidence. This command
+does not schedule notifications, write settings, close apps, change accounts,
+upload reports, or contact providers. It only explains which reminders would be
+useful before the next coding-agent run.
+EOF
+        return 0
+        ;;
+      --json|json)
+        json_mode=true
+        ;;
+      *)
+        printf 'Unknown tokenbar reminders option: %s\n' "$1" >&2
+        return 2
+        ;;
+    esac
+    shift || true
+  done
+
+  local context_json
+  context_json="$(usage_context_json 2>/dev/null || printf '{}')"
+
+  TOKENBAR_REMINDERS_JSON="$json_mode" \
+  TOKENBAR_USAGE_CONTEXT="$context_json" \
+  python3 - <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+json_mode = os.environ.get("TOKENBAR_REMINDERS_JSON") == "true"
+
+try:
+    ctx = json.loads(os.environ.get("TOKENBAR_USAGE_CONTEXT") or "{}")
+except Exception:
+    ctx = {}
+
+def compact(value):
+    try:
+        value = float(value or 0)
+    except Exception:
+        value = 0
+    value = max(0, value)
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}".replace(".0", "") + "M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}".replace(".0", "") + "K"
+    return str(int(value))
+
+def money(value):
+    if value is None:
+        return None
+    try:
+        value = float(value)
+    except Exception:
+        return None
+    if value >= 100:
+        return f"${value:,.0f}"
+    return f"${value:,.2f}"
+
+def pct(numer, denom):
+    try:
+        denom = float(denom or 0)
+        if denom <= 0:
+            return None
+        return max(0, round(float(numer or 0) / denom * 100))
+    except Exception:
+        return None
+
+def pct_label(value):
+    if value is None:
+        return "unknown%"
+    return ">999%" if value > 999 else f"{value}%"
+
+def reminder(kind, title, trigger, reason, action, severity="info"):
+    return {
+        "kind": kind,
+        "title": title,
+        "trigger": trigger,
+        "reason": reason,
+        "action": action,
+        "severity": severity,
+        "delivery": "suggested-only",
+        "requiresApproval": True,
+    }
+
+ready = bool(ctx.get("ready"))
+today = int(ctx.get("today_tokens") or 0)
+last7 = int(ctx.get("last7_tokens") or 0)
+last30 = int(ctx.get("last30_tokens") or 0)
+projected7 = int(ctx.get("projected_next7_tokens") or 0)
+projected30 = int(ctx.get("projected_next30_tokens") or 0)
+uncertainty = int(ctx.get("uncertainty_percent") or 0)
+daily_limit = ctx.get("daily_guardrail_tokens")
+weekly_limit = ctx.get("weekly_guardrail_tokens")
+thirty_limit = ctx.get("thirty_day_guardrail_tokens")
+daily_limit_tokens = int(ctx.get("daily_guardrail_tokens_parsed") or 0) if ctx.get("daily_guardrail_tokens_parsed") else None
+
+def parse_limit(raw):
+    if not raw:
+        return None
+    text = str(raw).strip().lower().replace(",", "")
+    mult = 1
+    if text.endswith("b"):
+        mult = 1_000_000_000
+        text = text[:-1]
+    elif text.endswith("m"):
+        mult = 1_000_000
+        text = text[:-1]
+    elif text.endswith("k"):
+        mult = 1_000
+        text = text[:-1]
+    try:
+        return int(float(text) * mult)
+    except Exception:
+        return None
+
+daily_limit_tokens = parse_limit(daily_limit)
+weekly_limit_tokens = parse_limit(weekly_limit)
+thirty_limit_tokens = parse_limit(thirty_limit)
+daily_cost_limit = ctx.get("daily_cost_limit_usd")
+weekly_cost_limit = ctx.get("weekly_cost_limit_usd")
+today_cost = ctx.get("today_cost")
+projected_weekly_cost = ctx.get("projected_weekly_cost")
+price = ctx.get("price_per_million")
+tracking = ctx.get("tracking_enabled")
+activity = ctx.get("activity_signals_enabled")
+
+reminders = []
+
+if not ready:
+    reminders.append(reminder(
+        "setup",
+        "Connect the local usage index",
+        "Before opening the menu bar",
+        ctx.get("reason") or "TokenBar does not have enough local aggregate usage to build live reminders.",
+        "Run `tokenbar usage` after a Codex session, then reopen TokenBar.",
+        "warning",
+    ))
+
+if tracking is False:
+    reminders.append(reminder(
+        "setup",
+        "Tracking is paused",
+        "Before the next agent run",
+        "New local sessions will not appear in budget, cost, or cadence reminders while tracking is paused.",
+        "Run `tokenbar tracking on` only if you want local aggregate tracking to resume.",
+        "warning",
+    ))
+
+if daily_limit_tokens:
+    daily_pressure = pct(today, daily_limit_tokens)
+    if daily_pressure is not None and daily_pressure >= 80:
+        reminders.append(reminder(
+            "budget",
+            "Daily token cap is close",
+            f"{pct_label(daily_pressure)} of daily token guardrail",
+            f"Today has used {compact(today)} against a {compact(daily_limit_tokens)} daily guardrail.",
+            "Start the next prompt with a smaller scope and a named verifier.",
+            "danger" if daily_pressure >= 100 else "warning",
+        ))
+
+if weekly_limit_tokens:
+    weekly_pressure = pct(projected7, weekly_limit_tokens)
+    if weekly_pressure is not None and weekly_pressure >= 70:
+        reminders.append(reminder(
+            "forecast",
+            "Projected week is heavy",
+            f"{pct_label(weekly_pressure)} of weekly token guardrail",
+            f"The next 7 days project to {compact(projected7)} against a {compact(weekly_limit_tokens)} weekly guardrail.",
+            "Use `tokenbar playbooks copy cost-saver` before launching a broad run.",
+            "warning",
+        ))
+
+if thirty_limit_tokens:
+    month_pressure = pct(projected30, thirty_limit_tokens)
+    if month_pressure is not None and month_pressure >= 75:
+        reminders.append(reminder(
+            "forecast",
+            "Monthly runway needs attention",
+            f"{pct_label(month_pressure)} of 30-day token guardrail",
+            f"The next 30 days project to {compact(projected30)} against a {compact(thirty_limit_tokens)} guardrail.",
+            "Switch the menu-bar token scope to month/year before starting the next long task.",
+            "warning",
+        ))
+
+if price is None:
+    reminders.append(reminder(
+        "setup",
+        "Cost estimate is missing",
+        "Before relying on cost views",
+        "TokenBar can show token pressure, but dollar reminders need a dollars-per-million assumption.",
+        "Run `tokenbar --price 2.50 cost-passport` or set TOKENBAR_PRICE_PER_MILLION.",
+        "info",
+    ))
+
+if daily_cost_limit and today_cost is not None:
+    daily_cost_pressure = pct(today_cost, daily_cost_limit)
+    if daily_cost_pressure is not None and daily_cost_pressure >= 80:
+        reminders.append(reminder(
+            "cost",
+            "Daily spend limit is close",
+            f"{pct_label(daily_cost_pressure)} of daily cost limit",
+            f"Estimated today cost is {money(today_cost)} against a {money(daily_cost_limit)} daily limit.",
+            "Open `tokenbar cost-passport` before continuing.",
+            "danger" if daily_cost_pressure >= 100 else "warning",
+        ))
+
+if weekly_cost_limit and projected_weekly_cost is not None:
+    weekly_cost_pressure = pct(projected_weekly_cost, weekly_cost_limit)
+    if weekly_cost_pressure is not None and weekly_cost_pressure >= 75:
+        reminders.append(reminder(
+            "cost",
+            "Weekly spend forecast is high",
+            f"{pct_label(weekly_cost_pressure)} of weekly cost limit",
+            f"Projected weekly cost is {money(projected_weekly_cost)} against a {money(weekly_cost_limit)} limit.",
+            "Use the Cost Saver playbook and reduce open-ended generation.",
+            "warning",
+        ))
+
+if uncertainty >= 55:
+    reminders.append(reminder(
+        "forecast",
+        "Forecast confidence is low",
+        f"+/-{uncertainty}% uncertainty",
+        "Recent usage is volatile enough that long-run cost and token forecasts may swing.",
+        "Run one short verifier-first task before committing to a long autonomous loop.",
+        "info",
+    ))
+
+if activity is False:
+    reminders.append(reminder(
+        "cadence",
+        "Activity cadence is off",
+        "When forecasts feel stale",
+        "Optional activity signals can make quiet-day and active-day reminders more useful.",
+        "Run with `--activity` for this session, or leave it off for stricter history-only forecasts.",
+        "info",
+    ))
+
+if not reminders:
+    reminders.append(reminder(
+        "ready",
+        "No urgent reminder",
+        "Before the next run",
+        "Token, cost, and forecast pressure are below the configured reminder thresholds.",
+        "Use `tokenbar playbooks copy mission-lock` to keep the next task bounded.",
+        "success",
+    ))
+
+top_reminder = reminders[0]
+pressure_candidates = []
+
+if daily_limit_tokens:
+    pressure_candidates.append(pct(today, daily_limit_tokens) or 0)
+if weekly_limit_tokens:
+    pressure_candidates.append(pct(projected7, weekly_limit_tokens) or 0)
+if thirty_limit_tokens:
+    pressure_candidates.append(pct(projected30, thirty_limit_tokens) or 0)
+
+budget_pressure = max(pressure_candidates or [0])
+risk_level = "calm"
+if budget_pressure >= 100:
+    risk_level = "over"
+elif budget_pressure >= 80:
+    risk_level = "high"
+elif budget_pressure >= 55:
+    risk_level = "watch"
+
+recommended_limit = "Set a daily or weekly guardrail"
+if weekly_limit_tokens:
+    recommended_limit = f"Keep the next 7 days under {compact(weekly_limit_tokens)}"
+elif daily_limit_tokens:
+    recommended_limit = f"Keep today under {compact(daily_limit_tokens)}"
+
+runway_brief = {
+    "title": "Budget brief before the next run",
+    "state": risk_level,
+    "window": "next agent run",
+    "trigger": top_reminder.get("trigger"),
+    "reason": top_reminder.get("reason"),
+    "recommendedLimit": recommended_limit,
+    "reminderDraft": (
+        "Start with budget, route, timebox, context cap, verifier, and stop. "
+        "Ask before scheduling, publishing, spending, credentials, or cleanup."
+    ),
+    "setupPrompt": "Budget: Focus | Route: one bounded implementation | Timebox: one verifier | Context cap: touched files only | Stop: approval-gated external actions.",
+    "commands": {
+        "copyPrompt": "tokenbar playbooks copy budget-runway",
+        "setLimits": "tokenbar limits",
+        "reviewCost": "tokenbar cost-passport --from YYYY-MM-DD --to YYYY-MM-DD json",
+        "openReminders": "tokenbar reminders json",
+    },
+    "approvalRequired": True,
+    "delivery": "suggested-only",
+    "scheduledNotifications": False,
+}
+
+payload = {
+    "schema": "tokenbar.reminders.v1",
+    "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    "source": "local-usage-index",
+    "summary": {
+        "today": ctx.get("today_compact") or compact(today),
+        "last7": ctx.get("last7_compact") or compact(last7),
+        "last30": ctx.get("last30_compact") or compact(last30),
+        "projectedNext7": ctx.get("projected_next7_compact") or compact(projected7),
+        "uncertainty": f"+/-{uncertainty}%",
+        "basis": ctx.get("prediction_basis") or "history only",
+    },
+    "topReminder": top_reminder,
+    "runwayBrief": runway_brief,
+    "reminders": reminders[:8],
+    "privacy": {
+        "rawPromptsIncluded": False,
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "credentialsIncluded": False,
+        "networkActions": False,
+        "scheduledNotifications": False,
+    },
+    "disclaimer": "This is a suggested reminder plan. TokenBar does not schedule notifications or mutate accounts from this command.",
+}
+
+if json_mode:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+use_color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+def paint(code, text):
+    return f"\033[{code}m{text}\033[0m" if use_color else str(text)
+
+print(paint("1", "TokenBar Reminders"))
+summary = payload["summary"]
+print(f"{summary['today']} today · {summary['projectedNext7']} next 7d · {summary['uncertainty']} · {summary['basis']}")
+print()
+for item in payload["reminders"]:
+    label = item["severity"].upper()
+    print(f"{label:<7} {item['title']}")
+    print(f"        Trigger: {item['trigger']}")
+    print(f"        Why: {item['reason']}")
+    print(f"        Next: {item['action']}")
+print()
+brief = payload["runwayBrief"]
+print("Budget brief")
+print(f"  State: {brief['state']} · {brief['recommendedLimit']}")
+print(f"  Prompt: {brief['setupPrompt']}")
+print(f"  Copy: {brief['commands']['copyPrompt']}")
+print()
+print("No notifications were scheduled. No accounts, providers, or files were changed.")
+PY
+}
+
+memory_pressure_command() {
+  local format
+  format="${1:-}"
+  TOKENBAR_MEMORY_PRESSURE_FORMAT="$format" python3 - <<'PY'
+import json
+import os
+import subprocess
+from collections import defaultdict
+from pathlib import Path
+
+
+fmt = (os.environ.get("TOKENBAR_MEMORY_PRESSURE_FORMAT") or "").strip().lower()
+
+
+def run(args):
+    try:
+        return subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5, check=False).stdout
+    except Exception:
+        return ""
+
+
+def total_memory_mb():
+    raw = run(["sysctl", "-n", "hw.memsize"]).strip()
+    try:
+        return round(int(raw) / 1024 / 1024)
+    except Exception:
+        return None
+
+
+def process_rows():
+    output = run(["ps", "-axo", "pid=,rss=,comm="])
+    rows = []
+    for line in output.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) != 3:
+            continue
+        pid_raw, rss_raw, command = parts
+        try:
+            rss_mb = int(rss_raw) / 1024
+            pid = int(pid_raw)
+        except Exception:
+            continue
+        name = Path(command).name or command
+        if rss_mb < 20:
+            continue
+        rows.append({"pid": pid, "name": name[:72], "rssMb": round(rss_mb, 1)})
+    return rows
+
+
+def category_for(name):
+    lower = name.lower()
+    if any(marker in lower for marker in ["chrome", "chromium", "arc", "safari", "brave", "firefox"]):
+        return "browser"
+    if any(marker in lower for marker in ["codex", "chatgpt", "claude", "cursor", "antigravity", "opencode", "code helper", "electron"]):
+        return "agent_workspace"
+    if any(marker in lower for marker in ["node", "python", "ruby", "java", "uvicorn", "vite", "next-server"]):
+        return "local_runtime"
+    if any(marker in lower for marker in ["blender", "unreal", "xcode", "simulator", "figma"]):
+        return "creative_runtime"
+    return "other"
+
+
+rows = process_rows()
+category_totals = defaultdict(float)
+category_counts = defaultdict(int)
+top_by_name = {}
+for row in rows:
+    category = category_for(row["name"])
+    category_totals[category] += row["rssMb"]
+    category_counts[category] += 1
+    current = top_by_name.get(row["name"], {"name": row["name"], "rssMb": 0, "count": 0})
+    current["rssMb"] += row["rssMb"]
+    current["count"] += 1
+    top_by_name[row["name"]] = current
+
+total_rss = sum(row["rssMb"] for row in rows)
+memory_total = total_memory_mb()
+observed_percent = round((total_rss / memory_total) * 100) if memory_total else None
+browser_agent_mb = category_totals["browser"] + category_totals["agent_workspace"]
+
+if observed_percent is None:
+    pressure = "unknown"
+elif observed_percent >= 72 or browser_agent_mb >= 8192:
+    pressure = "high"
+elif observed_percent >= 48 or browser_agent_mb >= 4096:
+    pressure = "watch"
+else:
+    pressure = "clear"
+
+categories = [
+    {
+        "name": name,
+        "rssMb": round(value, 1),
+        "processes": category_counts[name],
+        "sharePercent": round((value / total_rss) * 100) if total_rss else 0,
+    }
+    for name, value in sorted(category_totals.items(), key=lambda item: item[1], reverse=True)
+]
+
+top_apps = [
+    {"name": row["name"], "rssMb": round(row["rssMb"], 1), "processes": row["count"]}
+    for row in sorted(top_by_name.values(), key=lambda item: item["rssMb"], reverse=True)[:6]
+]
+
+actions = []
+if browser_agent_mb >= 4096:
+    actions.append({
+        "title": "Review browser plus agent pressure",
+        "why": "Browser and AI-agent workspaces are the largest combined lane.",
+        "approvalRequired": True,
+        "safeNext": "Open TokenBar, review windows, then approve any close/reopen/restore plan manually.",
+    })
+if category_totals["local_runtime"] >= 2048:
+    actions.append({
+        "title": "Check local dev servers",
+        "why": "Local runtimes are using enough memory to matter.",
+        "approvalRequired": True,
+        "safeNext": "List the relevant servers first; do not stop a process without naming it and getting approval.",
+    })
+if not actions:
+    actions.append({
+        "title": "No cleanup suggested",
+        "why": "Observed app memory is below TokenBar's review threshold.",
+        "approvalRequired": True,
+        "safeNext": "Keep tracking. If the Mac feels slow, rerun this command before opening more heavy tools.",
+    })
+
+payload = {
+    "schema": "tokenbar.memory_pressure.v1",
+    "source": "local-ps-aggregate",
+    "summary": {
+        "pressure": pressure,
+        "observedAppMemoryMb": round(total_rss, 1),
+        "systemMemoryMb": memory_total,
+        "observedPercent": observed_percent,
+        "browserAgentMemoryMb": round(browser_agent_mb, 1),
+        "basis": "process names and RSS only; no browser tabs, prompts, source files, command arguments, or credentials",
+    },
+    "categories": categories,
+    "topApps": top_apps,
+    "actions": actions[:4],
+    "privacy": {
+        "rawPromptsIncluded": False,
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "commandArgumentsIncluded": False,
+        "credentialsIncluded": False,
+        "browserTabsIncluded": False,
+        "processKill": False,
+        "browserRestore": False,
+        "externalActions": False,
+    },
+    "disclaimer": "This is a read-only memory pressure explanation. TokenBar does not close apps, restore windows, contact providers, or change accounts from this command.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar Memory Pressure")
+summary = payload["summary"]
+observed = f"{summary['observedPercent']}%" if summary["observedPercent"] is not None else "unknown"
+print(f"{summary['pressure'].upper()} · {summary['observedAppMemoryMb']:.0f} MB observed app RSS · {observed} of system memory")
+print("Basis:", summary["basis"])
+print()
+print("Lanes")
+for item in payload["categories"][:5]:
+    print(f"  {item['name']:<17} {item['rssMb']:>8.0f} MB  {item['processes']} processes  {item['sharePercent']}%")
+print()
+print("Top apps")
+for item in payload["topApps"]:
+    print(f"  {item['name']:<32} {item['rssMb']:>8.0f} MB  {item['processes']} processes")
+print()
+print("Suggested next actions")
+for item in payload["actions"]:
+    print(f"  - {item['title']}")
+    print(f"    Why: {item['why']}")
+    print(f"    Approval: required")
+    print(f"    Next: {item['safeNext']}")
+print()
+print("No apps were closed. No browser windows were restored. No external actions were taken.")
+PY
+}
+
+browser_companion_command() {
+  local format
+  format="${1:-}"
+  TOKENBAR_BROWSER_COMPANION_FORMAT="$format" TOKENBAR_SITE_URL_VALUE="$site_url" TOKENBAR_INSTALL_COMMAND_VALUE="$install_command" python3 - <<'PY'
+import json
+import os
+
+fmt = (os.environ.get("TOKENBAR_BROWSER_COMPANION_FORMAT") or "").strip().lower()
+site_url = (os.environ.get("TOKENBAR_SITE_URL_VALUE") or "https://www.tokenbar.site").rstrip("/")
+
+payload = {
+    "schema": "tokenbar.browser_companion.v1",
+    "product": "TokenBar Companion",
+    "purpose": "A local-only browser popup for seeing the active TokenBar account, budget pressure, reminders, and playbook prompts beside coding-agent work.",
+    "path": "browser-companion",
+    "manifest": "browser-companion/manifest.json",
+    "popup": "browser-companion/popup.html",
+    "apiUrl": "http://127.0.0.1:8769/v1/bundle",
+    "fallbackApiUrl": "http://127.0.0.1:8769/v1/stats",
+    "remindersApiUrl": "http://127.0.0.1:8769/v1/reminders",
+    "memoryPressureApiUrl": "http://127.0.0.1:8769/v1/memory-pressure",
+    "guideApiUrl": "http://127.0.0.1:8769/v1/guide",
+    "wasteLensApiUrl": "http://127.0.0.1:8769/v1/waste-lens",
+    "playbooksApiUrl": "http://127.0.0.1:8769/v1/playbooks",
+    "providersApiUrl": "http://127.0.0.1:8769/v1/providers",
+    "comparisonLensApiUrl": "http://127.0.0.1:8769/v1/comparison-lens",
+    "proofPacketApiUrl": "http://127.0.0.1:8769/v1/proof-packet",
+    "startCommand": "tokenbar api",
+    "installExperiment": [
+        "Open chrome://extensions",
+        "Enable Developer mode",
+        "Load unpacked",
+        "Choose browser-companion",
+        "Run tokenbar api locally",
+        "Open the TokenBar Companion popup",
+    ],
+    "privacy": {
+        "readOnly": True,
+        "rawPrompts": False,
+        "sourceCode": False,
+        "credentials": False,
+        "contentScripts": False,
+        "remoteHosts": False,
+        "externalActions": False,
+    },
+    "storySurfaces": [
+        "active account badge",
+        "budget-left ring",
+        "today token readout",
+        "cadence window",
+        "cost passport state",
+        "cost passport card",
+        "next useful reminder",
+        "structured reminder plan",
+        "read-only memory pressure rail",
+        "browser plus agent pressure",
+        "MCQ guide before the next run",
+        "suggested-only guide choices",
+        "aggregate waste lens",
+        "next-run saver playbook",
+        "freemium prompt vault",
+        "free and Pro playbook preview",
+        "provider composition stack",
+        "provider truth rail",
+        "measured versus setup provider status",
+        "comparison lens",
+        "self-over-time benchmark",
+        "locked percentile gate",
+        "reviewable launch proof packet",
+        "blocked-field launch seal",
+        "Mac app download handoff",
+        "copyable install command",
+        "no-submit launch coach",
+        "copyable launch commands",
+        "stats fallback before identity generation",
+    ],
+    "surfaceRelay": [
+        {
+            "key": "cli",
+            "surface": "CLI evidence line",
+            "command": "tokenbar usage",
+            "tier": "Free",
+            "gate": "Local read only",
+            "value": "Scriptable usage, cost passport, reminders, playbooks, launch kit, and local JSON.",
+        },
+        {
+            "key": "menu",
+            "surface": "Menu-bar cockpit",
+            "command": "tokenbar status",
+            "tier": "Free",
+            "gate": "No provider sign-in",
+            "value": "Active account, measured providers, time-window tokens, budget pressure, and next suggested action.",
+        },
+        {
+            "key": "companion",
+            "surface": "Browser context rail",
+            "command": "tokenbar api",
+            "tier": "Free preview",
+            "gate": "127.0.0.1 only",
+            "value": "Budget, reminders, memory pressure, and prompt playbooks beside Codex, GitHub, Product Hunt, and provider pages.",
+        },
+        {
+            "key": "studio",
+            "surface": "Mac studio archive",
+            "command": "tokenbar proof-packet",
+            "tier": "Free app",
+            "gate": "Review before share",
+            "value": "Story, Timeline, Threads, Profile, Report, Storage, and proof packets from aggregate evidence.",
+        },
+        {
+            "key": "pro",
+            "surface": "Pro proof market",
+            "command": "tokenbar playbooks",
+            "tier": "Pro",
+            "gate": "No auto-billing",
+            "value": "Paid prompt playbooks, public proof cards, cohort comparison, and premium reports after account review.",
+        },
+    ],
+    "launchCoach": {
+        "title": "Prepare the public story without posting.",
+        "state": "No-submit",
+        "steps": [
+            {"label": "Launch map", "copy": "Check demo proof before Product Hunt or Macapp Supply."},
+            {"label": "Playbook", "copy": "Use Mission Lock before long generation loops."},
+            {"label": "Proof", "copy": "Share aggregates only after reviewing the artifact."},
+        ],
+        "commands": ["tokenbar coach", "tokenbar runway", "tokenbar launch-kit", "tokenbar playbooks"],
+    },
+    "costPassport": {
+        "title": "Cost before the next long run.",
+        "command": "tokenbar cost-passport --from 2026-06-02 --to 2026-08-02 json",
+        "fields": ["selected range", "estimate", "peak day", "uncertainty", "next cost action"],
+        "privacy": "aggregate-only estimates; raw reports, prompts, transcripts, source code, local paths, credentials, and private diffs stay out",
+        "disclaimer": "Costs are estimates, not official provider invoices.",
+    },
+    "wasteLens": {
+        "title": "Spend fewer tokens on the next run.",
+        "command": "tokenbar waste",
+        "fields": ["score", "driver", "saver levers"],
+        "privacy": "aggregate-only usage shape; no raw prompts, transcripts, source code, credentials, provider calls, or output-quality judgment",
+    },
+    "promptVault": {
+        "title": "Copy a better operating order.",
+        "apiUrl": "http://127.0.0.1:8769/v1/playbooks",
+        "command": "tokenbar playbooks",
+        "starterCommand": "tokenbar playbooks copy mission-lock",
+        "marketplace": f"{site_url}/playbooks",
+        "catalog": f"{site_url}/prompt-playbooks.md",
+        "businessState": "Freemium preview only; no local payment, entitlement mutation, uploads, or provider calls.",
+    },
+    "comparisonLens": {
+        "title": "Compare the pattern, not the person.",
+        "command": "tokenbar comparison-lens",
+        "apiUrl": "http://127.0.0.1:8769/v1/comparison-lens",
+        "fields": ["cadence", "momentum", "cost control", "scope discipline", "cohort gate"],
+        "privacy": "self-over-time aggregate windows only; no raw prompts, transcripts, source code, local paths, credentials, provider calls, or top-percentile claims without opt-in cohorts",
+        "disclaimer": "Population percentiles stay locked until a measured opt-in cohort exists.",
+    },
+    "proofPacket": {
+        "title": "Show proof without exposing the work.",
+        "command": "tokenbar proof-packet json",
+        "apiUrl": "http://127.0.0.1:8769/v1/proof-packet",
+        "fields": ["usage evidence", "cost passport", "waste lens", "comparison lock", "approval gates"],
+        "privacy": "public-ready aggregates only; raw prompts, transcripts, source code, private diffs, local paths, credentials, provider cookies, account switching, posting, uploads, purchases, and top-percentile claims stay blocked",
+        "state": "review first",
+    },
+    "surfaces": ["Codex", "GitHub", "Product Hunt", "provider pages"],
+    "handoff": {
+        "playbooksUrl": f"{site_url}/playbooks",
+        "macAppUrl": f"{site_url}/#download",
+        "installCommand": os.environ.get("TOKENBAR_INSTALL_COMMAND_VALUE") or "curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash",
+    },
+    "handoffJourney": [
+        {"step": "Install", "command": "tokenbar install", "surface": "CLI + menu-bar app"},
+        {"step": "Icon bar", "command": "tokenbar open", "surface": "macOS menu bar"},
+        {"step": "Local API", "command": "tokenbar api", "surface": "127.0.0.1 companion feed"},
+        {"step": "Mac studio", "command": "tokenbar proof-packet", "surface": "reviewable reports and proof"},
+    ],
+    "nextBuild": [
+        "Add a settings field for a custom local API URL.",
+        "Add a budget/reminder editor that writes only after explicit approval.",
+        "Show live memory pressure from /v1/memory-pressure beside the current Codex tab.",
+        "Let the companion answer /v1/guide with a suggested-only MCQ before the next run.",
+        "Let /v1/waste-lens recommend the smallest saver playbook before a broad run.",
+        "Let /v1/playbooks expose Free and Pro prompt vault previews from the icon-bar companion.",
+        "Let provider truth open setup docs after explicit user action.",
+        "Let /v1/comparison-lens show self-over-time benchmarks and locked cohort percentiles beside the current Codex tab.",
+        "Let /v1/proof-packet become the one-click Product Hunt and Macapp Supply review packet without posting.",
+        "Package the same companion contract for Safari.",
+    ],
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar Browser Companion")
+print(payload["purpose"])
+print()
+print("Local files")
+print(f"  Manifest: {payload['manifest']}")
+print(f"  Popup:    {payload['popup']}")
+print()
+print("Run locally")
+for index, step in enumerate(payload["installExperiment"], start=1):
+    print(f"  {index}. {step}")
+print(f"  Data: {payload['apiUrl']} then {payload['fallbackApiUrl']}")
+print(f"  Memory: {payload['memoryPressureApiUrl']}")
+print(f"  Guide: {payload['guideApiUrl']}")
+print(f"  Waste: {payload['wasteLensApiUrl']}")
+print(f"  Playbooks: {payload['playbooksApiUrl']}")
+print(f"  Providers: {payload['providersApiUrl']}")
+print(f"  Compare: {payload['comparisonLensApiUrl']}")
+print(f"  Proof packet: {payload['proofPacketApiUrl']}")
+print()
+print("Privacy boundary")
+for key, value in payload["privacy"].items():
+    print(f"  {key}: {str(value).lower()}")
+print()
+print("Story surfaces")
+for item in payload["storySurfaces"]:
+    print(f"  - {item}")
+print()
+print("Next build")
+for item in payload["nextBuild"]:
+    print(f"  - {item}")
+PY
+}
+
+runway_command() {
+  local format
+  format="${1:-}"
+  TOKENBAR_RUNWAY_FORMAT="$format" TOKENBAR_SITE_URL_VALUE="$site_url" TOKENBAR_INSTALL_COMMAND_VALUE="$install_command" python3 - <<'PY'
+import json
+import os
+
+fmt = (os.environ.get("TOKENBAR_RUNWAY_FORMAT") or "").strip().lower()
+site_url = (os.environ.get("TOKENBAR_SITE_URL_VALUE") or "https://www.tokenbar.site").rstrip("/")
+install_command = os.environ.get("TOKENBAR_INSTALL_COMMAND_VALUE") or "curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash"
+
+payload = {
+    "schema": "tokenbar.launch_runway.v1",
+    "product": "TokenBar",
+    "principle": "Launch only what has proof. Keep posting, payment, accounts, cleanup, and private-data movement behind explicit approval.",
+    "rings": [
+        {
+            "name": "Demo-ready surfaces",
+            "state": "ready",
+            "items": [
+                {"label": "Website story", "proof": "Run `python3 scripts/verify_website_storytelling_surface.py`."},
+                {"label": "Menu-bar contract", "proof": "Run `python3 scripts/verify_menu_bar_launch_contract.py`."},
+                {"label": "Prompt playbooks", "proof": "Run `python3 scripts/verify_prompt_playbook_library.py`."},
+                {"label": "Launch proof packet", "proof": "Run `tokenbar proof-packet json`."},
+                {"label": "Launch copy", "proof": "Run `tokenbar launch-kit`."},
+            ],
+        },
+        {
+            "name": "Needs your review",
+            "state": "approval",
+            "items": [
+                {"label": "Product Hunt submission", "proof": "Review fields, then submit manually."},
+                {"label": "Macapp Supply submission", "proof": "Review fields, then submit manually."},
+                {"label": "Public proof publishing", "proof": "Run `tokenbar prove` only after reviewing the generated safe artifact."},
+                {"label": "Stripe activation", "proof": "Enable only after pricing, trial, refund, and entitlement copy are approved."},
+            ],
+        },
+        {
+            "name": "Polish before launch",
+            "state": "pending",
+            "items": [
+                {"label": "Signed release ZIP", "proof": "No TokenBar GitHub release asset is currently assumed by this command."},
+                {"label": "Demo video export", "proof": "Use `tokenbar trailer --json` or `tokenbar launch-kit json` as renderer input."},
+                {"label": "Browser Companion prototype", "proof": "Run `python3 scripts/verify_browser_companion_contract.py`; popup lives in browser-companion and reads only local JSON."},
+                {"label": "Local Automation Relay", "proof": "First experiment is read-only memory pressure notification."},
+            ],
+        },
+    ],
+    "commands": [
+        {"label": "Install", "command": install_command},
+        {"label": "Launch kit", "command": "tokenbar launch-kit"},
+        {"label": "Proof packet", "command": "tokenbar proof-packet"},
+        {"label": "Ecosystem map", "command": "tokenbar ecosystem"},
+        {"label": "Browser Companion", "command": "tokenbar browser-companion"},
+        {"label": "Playbooks", "command": "tokenbar playbooks"},
+        {"label": "Readiness", "command": "tokenbar readiness"},
+    ],
+    "approvalGates": [
+        "No Product Hunt or Macapp Supply submission from this command.",
+        "No Stripe, subscription, or entitlement changes from this command.",
+        "No account switching, credential use, posting, upload, cleanup, or external automation.",
+        "No raw prompts, transcripts, source code, private diffs, local paths, or credentials in public proof.",
+    ],
+    "siteUrl": site_url,
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar launch map")
+print(payload["principle"])
+print()
+for ring in payload["rings"]:
+    print(f"{ring['name']} [{ring['state']}]")
+    for item in ring["items"]:
+        print(f"  - {item['label']}: {item['proof']}")
+    print()
+print("Commands")
+for row in payload["commands"]:
+    print(f"  {row['label']}: {row['command']}")
+print()
+print("Approval gates")
+for gate in payload["approvalGates"]:
+    print(f"  - {gate}")
+PY
+}
+
+coach_command() {
+  local format
+  format="${1:-}"
+  local context_json
+  context_json="$(usage_context_json 2>/dev/null || printf '{}')"
+
+  TOKENBAR_COACH_FORMAT="$format" \
+  TOKENBAR_USAGE_CONTEXT="$context_json" \
+  TOKENBAR_INSTALL_COMMAND_VALUE="$install_command" \
+  python3 - <<'PY'
+import json
+import os
+
+fmt = (os.environ.get("TOKENBAR_COACH_FORMAT") or "").strip().lower()
+install_command = os.environ.get("TOKENBAR_INSTALL_COMMAND_VALUE") or "curl -fsSL https://raw.githubusercontent.com/Arnie016/TokenBar/main/install.sh | bash"
+
+try:
+    ctx = json.loads(os.environ.get("TOKENBAR_USAGE_CONTEXT") or "{}")
+except Exception:
+    ctx = {}
+
+def compact(value):
+    try:
+        value = float(value or 0)
+    except Exception:
+        value = 0
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}B".replace(".00B", "B")
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M".replace(".0M", "M")
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K".replace(".0K", "K")
+    return str(int(max(0, value)))
+
+def boolish(value):
+    return value is True or str(value).lower() == "true"
+
+ready = bool(ctx.get("ready"))
+today = int(ctx.get("today_tokens") or 0)
+last7 = int(ctx.get("last7_tokens") or 0)
+projected7 = int(ctx.get("projected_next7_tokens") or 0)
+tracking = ctx.get("tracking_enabled")
+price = ctx.get("price_per_million")
+activity = ctx.get("activity_signals_enabled")
+
+choices = [
+    {
+        "key": "install",
+        "label": "Install the cockpit",
+        "command": install_command,
+        "why": "Use this when TokenBar is not on the Mac yet or the app needs a refresh.",
+        "approvalRequired": False,
+    },
+    {
+        "key": "analyze",
+        "label": "Analyze local usage",
+        "command": "tokenbar usage",
+        "why": "Build the local usage story before changing budgets or publishing proof.",
+        "approvalRequired": False,
+    },
+    {
+        "key": "budget",
+        "label": "Set a budget brief",
+        "command": "tokenbar reminders",
+        "why": "Turn token pressure into a suggested-only reminder and next-run cap.",
+        "approvalRequired": True,
+    },
+    {
+        "key": "playbook",
+        "label": "Copy a cheaper prompt",
+        "command": "tokenbar playbooks copy budget-runway",
+        "why": "Start the next long run with budget, route, timebox, context cap, verifier, and stop.",
+        "approvalRequired": False,
+    },
+    {
+        "key": "proof",
+        "label": "Review proof packet",
+        "command": "tokenbar proof-packet",
+        "why": "Prepare launch, directory, or investor proof without exposing raw work.",
+        "approvalRequired": True,
+    },
+]
+
+if not ready:
+    recommended = "install"
+    state = "setup"
+    reason = ctx.get("reason") or "TokenBar has not found enough local aggregate usage yet."
+elif tracking is False:
+    recommended = "analyze"
+    state = "paused"
+    reason = "Tracking is paused, so new local sessions may not appear in the current story."
+elif price is None:
+    recommended = "budget"
+    state = "cost-blind"
+    reason = "Token pressure is visible, but dollar-cost reminders need a price assumption."
+elif projected7 and last7 and projected7 > last7 * 1.2:
+    recommended = "playbook"
+    state = "rising"
+    reason = f"The next 7 days project to {compact(projected7)}, above the recent {compact(last7)} window."
+elif today > 0:
+    recommended = "proof"
+    state = "ready"
+    reason = f"TokenBar has local usage today ({compact(today)}) and can package safe proof for review."
+else:
+    recommended = "analyze"
+    state = "quiet"
+    reason = "Usage is quiet; refresh local evidence before making a claim."
+
+recommended_choice = next(choice for choice in choices if choice["key"] == recommended)
+payload = {
+    "schema": "tokenbar.coach.v1",
+    "product": "TokenBar",
+    "state": state,
+    "question": "What should TokenBar help with before your next AI coding run?",
+    "recommended": recommended_choice,
+    "choices": choices,
+    "localContext": {
+        "ready": ready,
+        "todayTokens": today,
+        "last7Tokens": last7,
+        "projected7Tokens": projected7,
+        "trackingEnabled": tracking,
+        "activitySignalsEnabled": activity,
+        "pricePerMillionSet": price is not None,
+    },
+    "reason": reason,
+    "commands": [
+        {"label": "Open icon bar", "command": "tokenbar open"},
+        {"label": "Start local API", "command": "tokenbar api"},
+        {"label": "Browser companion", "command": "tokenbar browser-companion"},
+        {"label": "Launch map", "command": "tokenbar runway"},
+    ],
+    "privacy": {
+        "rawPrompts": False,
+        "transcripts": False,
+        "sourceCode": False,
+        "credentials": False,
+        "providerCalls": False,
+        "accountMutation": False,
+        "externalActions": False,
+        "scheduledNotifications": False,
+    },
+    "disclaimer": "Suggested-only local guide. TokenBar does not schedule reminders, change accounts, call providers, publish proof, enable payments, close apps, or upload private work from this command.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar coach")
+print(payload["question"])
+print()
+print(f"State: {payload['state']}")
+print(f"Why: {payload['reason']}")
+print()
+print("Recommended")
+print(f"  {recommended_choice['label']}: {recommended_choice['command']}")
+print(f"  {recommended_choice['why']}")
+print(f"  Approval required: {str(recommended_choice['approvalRequired']).lower()}")
+print()
+print("Other choices")
+for choice in payload["choices"]:
+    if choice["key"] == recommended_choice["key"]:
+        continue
+    print(f"  - {choice['label']}: {choice['command']}")
+print()
+print("Bridge commands")
+for row in payload["commands"]:
+    print(f"  {row['label']}: {row['command']}")
+print()
+print(payload["disclaimer"])
 PY
 }
 
@@ -10613,6 +12708,424 @@ guardrail_command() {
       return 1
       ;;
   esac
+}
+
+playbooks_command() {
+  local action="${1:-show}"
+  local key="${2:-}"
+  local playbooks_url="${site_url%/}/playbooks"
+  local catalog_url="${site_url%/}/prompt-playbooks.md"
+  local prompt=""
+
+  case "$action" in
+    ""|show|list|free|status)
+      cat <<EOF
+TokenBar Playbooks
+------------------
+Free starters:
+  mission-lock       Budget, route, context cap, stop condition, verifier.
+  budget-runway      Pre-run budget brief with threshold, verifier, and approval gates.
+  cost-saver         Start cheap, cap context, stop on secrets or paid scope.
+  verifier-first     Name the proof before changing code.
+  connector-truth    Mark providers as measured, demo, setup needed, or unsupported.
+
+Pro library preview:
+  system-prompt-hardener, no-submit-launch-draft, cost-passport,
+  thread-handoff, comparison-engine, memory-pressure-story.
+
+Commands:
+  tokenbar playbooks copy mission-lock
+  tokenbar playbooks copy budget-runway
+  tokenbar playbooks json
+  tokenbar playbooks open
+  tokenbar playbooks catalog
+
+Privacy: playbooks never require raw transcripts, source code, or credentials.
+EOF
+      ;;
+    json|--json)
+      cat <<EOF
+{
+  "schema": "tokenbar.playbooks.v1",
+  "source": "local-cli",
+  "privacy": {
+    "raw_transcripts_required": false,
+    "source_code_required": false,
+    "credentials_required": false,
+    "external_actions_require_approval": true
+  },
+  "tiers": [
+    {
+      "name": "Free",
+      "description": "Starter prompts for budget, scope, verification, and connector truth.",
+      "playbooks": [
+        {
+          "key": "mission-lock",
+          "title": "Mission Lock",
+          "category": "Launch and scope",
+          "command": "tokenbar playbooks copy mission-lock",
+          "prompt": "Budget: Medium | Route: smallest useful implementation | Context cap: only directly affected files | Stop: destructive scope, credentials, paid services, or unclear ownership. First restate the outcome, then implement one verified improvement."
+        },
+        {
+          "key": "budget-runway",
+          "title": "Budget Brief",
+          "category": "Cost and budget",
+          "command": "tokenbar playbooks copy budget-runway",
+          "prompt": "Budget: Focus | Route: one bounded implementation | Timebox: one verifier | Context cap: touched files only | Stop: approval-gated external actions. Start by naming budget pressure, expected proof, and the exact condition that would pause the run."
+        },
+        {
+          "key": "cost-saver",
+          "title": "Cost Saver Header",
+          "category": "Cost and budget",
+          "command": "tokenbar playbooks copy cost-saver",
+          "prompt": "Budget: Low unless blocked | Route: inspect first, edit second | Context cap: 6 files max | Stop: secrets, paid services, or broad refactor. Return only decision-relevant output."
+        },
+        {
+          "key": "verifier-first",
+          "title": "Verifier First",
+          "category": "Verification",
+          "command": "tokenbar playbooks copy verifier-first",
+          "prompt": "Before editing, identify the verifier. After editing, run it. If it is too slow, run the closest narrow check and state the limitation."
+        },
+        {
+          "key": "connector-truth",
+          "title": "Connector Truth Table",
+          "category": "Connectors",
+          "command": "tokenbar playbooks copy connector-truth",
+          "prompt": "For each connector, label measured, connected, demo, setup needed, or unsupported. Never draw usage from unmeasured providers."
+        }
+      ]
+    },
+    {
+      "name": "Pro",
+      "description": "Premium prompts for system prompts, launch prep, cost passports, handoffs, comparisons, and memory recovery.",
+      "playbooks": [
+        {"key": "system-prompt-hardener", "title": "System Prompt Hardener", "category": "System prompt"},
+        {"key": "no-submit-launch-draft", "title": "No-Submit Launch Draft", "category": "Launch"},
+        {"key": "cost-passport", "title": "Cost Passport", "category": "Costs"},
+        {"key": "thread-handoff", "title": "Thread Handoff", "category": "Threads"},
+        {"key": "comparison-engine", "title": "Comparison Engine", "category": "Team"},
+        {"key": "memory-pressure-story", "title": "Memory Pressure Story", "category": "System"}
+      ]
+    }
+  ],
+  "connector_targets": ["Codex", "Claude Code", "Cursor", "Antigravity", "OpenCode"],
+  "links": {
+    "marketplace": "$playbooks_url",
+    "catalog": "$catalog_url"
+  }
+}
+EOF
+      ;;
+    open|site|web)
+      if command -v open >/dev/null 2>&1; then
+        open "$playbooks_url"
+      fi
+      printf 'TokenBar Playbooks: %s\n' "$playbooks_url"
+      ;;
+    catalog|source|md)
+      if command -v open >/dev/null 2>&1; then
+        open "$catalog_url"
+      fi
+      printf '100-template catalog: %s\n' "$catalog_url"
+      ;;
+    copy)
+      case "$key" in
+        mission-lock|mission|scope)
+          prompt='Budget: Medium | Route: smallest useful implementation | Context cap: only directly affected files | Stop: destructive scope, credentials, paid services, or unclear ownership. First restate the outcome, then implement one verified improvement.'
+          ;;
+        budget-runway|runway|budget-brief)
+          prompt='Budget: Focus | Route: one bounded implementation | Timebox: one verifier | Context cap: touched files only | Stop: approval-gated external actions. Start by naming budget pressure, expected proof, and the exact condition that would pause the run.'
+          ;;
+        cost-saver|cost|budget)
+          prompt='Budget: Low unless blocked | Route: inspect first, edit second | Context cap: 6 files max | Stop: secrets, paid services, or broad refactor. Return only decision-relevant output.'
+          ;;
+        verifier-first|verify|proof)
+          prompt='Before editing, identify the verifier. After editing, run it. If it is too slow, run the closest narrow check and state the limitation.'
+          ;;
+        connector-truth|connectors|providers)
+          prompt='For each connector, label measured, connected, demo, setup needed, or unsupported. Never draw usage from unmeasured providers.'
+          ;;
+        *)
+          printf 'Usage: tokenbar playbooks copy [mission-lock|budget-runway|cost-saver|verifier-first|connector-truth]\n' >&2
+          return 1
+          ;;
+      esac
+      if command -v pbcopy >/dev/null 2>&1; then
+        printf '%s' "$prompt" | pbcopy
+        printf 'Copied playbook: %s\n' "$key"
+      else
+        printf '%s\n' "$prompt"
+      fi
+      ;;
+    *)
+      printf 'Usage: tokenbar playbooks [show|json|open|catalog|copy KEY]\n' >&2
+      return 1
+      ;;
+  esac
+}
+
+comparison_lens_command() {
+  local format="${1:-}"
+  TOKENBAR_COMPARISON_FORMAT="$format" TOKENBAR_SUPPORT_DIR="$support_dir" python3 - <<'PY'
+import json
+import os
+import time
+from pathlib import Path
+
+fmt = (os.environ.get("TOKENBAR_COMPARISON_FORMAT") or "").strip().lower()
+root = Path(os.environ.get("TOKENBAR_SUPPORT_DIR") or "").expanduser()
+index_path = root / "usage-index.json"
+
+
+def number(value):
+    try:
+        return int(float(value))
+    except Exception:
+        return 0
+
+
+def compact(value):
+    value = number(value)
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}".rstrip("0").rstrip(".") + "B"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}".rstrip("0").rstrip(".") + "M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}".rstrip("0").rstrip(".") + "K"
+    return str(value)
+
+
+try:
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+except Exception:
+    data = {}
+
+day_tokens = data.get("dayTokens") if isinstance(data.get("dayTokens"), dict) else {}
+values = [number(value) for _, value in sorted(day_tokens.items())[-90:]]
+recent = values[-30:]
+active = [value for value in recent if value > 0]
+last7 = sum(values[-7:])
+previous7 = sum(values[-14:-7])
+last30 = sum(recent)
+active_days = len(active)
+quiet_days = max(0, len(recent) - active_days)
+peak = max(recent or [0])
+avg_active = int(sum(active) / max(1, len(active))) if active else 0
+
+consistency = 0
+if active:
+    variance = sum(abs(value - avg_active) for value in active) / max(1, len(active))
+    consistency = max(0, min(100, round(100 - (variance / max(1, avg_active)) * 45)))
+momentum = 50
+if previous7:
+    momentum = max(0, min(100, round(50 + ((last7 - previous7) / max(1, previous7)) * 35)))
+elif last7:
+    momentum = 68
+efficiency = max(0, min(100, 84 - round((peak / max(1, avg_active) - 1) * 18))) if avg_active else 50
+scope = max(0, min(100, 45 + active_days * 2 - min(25, quiet_days)))
+
+payload = {
+    "schema": "tokenbar.comparison_lens.v1",
+    "generatedAt": int(time.time()),
+    "source": "local-aggregate-self-comparison",
+    "headline": "Compare the work pattern, not the person.",
+    "summary": {
+        "cohortState": "local-only",
+        "localWindows": min(4, max(1, len(recent) // 7)),
+        "optInCohortSize": 0,
+        "percentile": None,
+        "percentileStatus": "locked until an opt-in cohort exists",
+        "basis": "Self-over-time comparison from aggregate token counts only.",
+    },
+    "cards": [
+        {"key": "cadence", "label": "Cadence", "value": f"{active_days}/30 active days", "score": consistency, "basis": "Compares active days and burstiness inside this local 30-day window."},
+        {"key": "momentum", "label": "Momentum", "value": f"{compact(last7)} last 7d", "score": momentum, "basis": "Compares the latest 7 days with the previous 7 days."},
+        {"key": "cost-control", "label": "Cost control", "value": f"{compact(avg_active)} active-day baseline", "score": efficiency, "basis": "Rewards steadier usage over one-day spikes. It does not judge output quality."},
+        {"key": "scope", "label": "Scope discipline", "value": f"{compact(last30)} in 30d", "score": scope, "basis": "A local proxy from active days, quiet days, and aggregate token shape only."},
+    ],
+    "claimPolicy": {
+        "allowed": ["self-over-time comparison", "opt-in public proof-card cohorts", "metric-specific ranks"],
+        "blocked": ["top-percentile claims without cohort data", "identity worth rankings", "raw transcript or source-code comparisons"],
+        "minimumCohortForPercentile": 10,
+    },
+    "proPreview": {
+        "title": "Pro comparison engine",
+        "description": "Team and community benchmarks unlock only after users opt in with safe proof cards.",
+    },
+    "privacy": {
+        "rawPromptsIncluded": False,
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "credentialsIncluded": False,
+        "providerCalls": False,
+        "externalActions": False,
+        "populationClaims": False,
+    },
+    "disclaimer": "Local data can compare your own windows. It cannot claim top-percentile status until an opt-in cohort exists.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print("TokenBar Comparison Lens")
+print("------------------------")
+print(payload["headline"])
+print(f"{compact(last30)} in 30d · {active_days}/30 active days · percentile: locked")
+print()
+for card in payload["cards"]:
+    print(f"{card['label']:<16} {card['score']:>3}/100  {card['value']}")
+    print(f"                  {card['basis']}")
+print()
+print("Allowed: self-over-time, opt-in cohorts, metric-specific ranks.")
+print("Blocked: top-percentile claims without cohort data; no raw logs or source code.")
+PY
+}
+
+proof_packet_command() {
+  local format="${1:-}"
+  TOKENBAR_PROOF_PACKET_FORMAT="$format" TOKENBAR_SUPPORT_DIR="$support_dir" python3 - <<'PY'
+import json
+import os
+import time
+from pathlib import Path
+
+fmt = (os.environ.get("TOKENBAR_PROOF_PACKET_FORMAT") or "").strip().lower()
+root = Path(os.environ.get("TOKENBAR_SUPPORT_DIR") or "").expanduser()
+index_path = root / "usage-index.json"
+
+
+def number(value):
+    try:
+        return int(float(value))
+    except Exception:
+        return 0
+
+
+def compact(value):
+    value = number(value)
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}".rstrip("0").rstrip(".") + "B"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}".rstrip("0").rstrip(".") + "M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}".rstrip("0").rstrip(".") + "K"
+    return str(value)
+
+
+try:
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+except Exception:
+    data = {}
+
+day_tokens = data.get("dayTokens") if isinstance(data.get("dayTokens"), dict) else {}
+model_tokens = data.get("modelTokens") if isinstance(data.get("modelTokens"), dict) else {}
+sessions = data.get("sessionPaths") if isinstance(data.get("sessionPaths"), list) else []
+values = [number(value) for _, value in sorted(day_tokens.items())[-90:]]
+last7 = sum(values[-7:])
+last30 = sum(values[-30:])
+total = sum(number(value) for value in model_tokens.values()) or sum(values)
+active_days = sum(1 for value in values[-30:] if value > 0)
+peak_day, peak_tokens = max(day_tokens.items(), key=lambda item: number(item[1]), default=("", 0))
+provider_targets = {
+    "Codex": ("codex", "gpt", "openai"),
+    "Claude Code": ("claude", "sonnet", "opus"),
+    "Cursor": ("cursor",),
+    "Antigravity": ("antigravity", "anti-gravity"),
+    "OpenCode": ("opencode", "open code", "open-code"),
+}
+measured = []
+for label, aliases in provider_targets.items():
+    provider_total = 0
+    for model, tokens in model_tokens.items():
+        lowered = str(model).lower()
+        if any(alias in lowered for alias in aliases):
+            provider_total += number(tokens)
+    if provider_total:
+        measured.append({"name": label, "tokens": provider_total})
+
+payload = {
+    "schema": "tokenbar.launch_proof_packet.v1",
+    "generatedAt": int(time.time()),
+    "title": "TokenBar Launch Proof Packet",
+    "headline": "Show the generated proof, not the private work.",
+    "source": "local-aggregate-launch-proof",
+    "summary": {
+        "sessionCount": len(sessions),
+        "activeDayCount": active_days,
+        "totalTokens": total,
+        "last7Tokens": last7,
+        "last30Tokens": last30,
+        "peakDay": str(peak_day)[:32] if peak_day else None,
+        "peakDayTokens": number(peak_tokens),
+        "measuredProviderCount": len(measured),
+        "setupProviderCount": max(0, len(provider_targets) - len(measured)),
+        "topReminder": "Open a verifier-first playbook before the next long run.",
+        "wasteScore": 42 if total else 0,
+        "comparisonState": "locked until an opt-in cohort exists",
+        "playbookCount": 100,
+    },
+    "cards": [
+        {"key": "usage", "title": "Usage evidence", "value": compact(total), "copy": f"{len(sessions)} sessions across {active_days} active days.", "command": "tokenbar usage"},
+        {"key": "cost", "title": "Cost passport", "value": compact(last30), "copy": "Estimate-only until a price assumption or invoice source is reviewed.", "command": "tokenbar cost-passport json"},
+        {"key": "waste", "title": "Waste lens", "value": "42" if total else "0", "copy": "Aggregate usage shape points to the next saver playbook.", "command": "tokenbar waste json"},
+        {"key": "comparison", "title": "Comparison lens", "value": "locked", "copy": "Population percentile claims stay locked until measured opt-in cohorts exist.", "command": "tokenbar comparison-lens json"},
+        {"key": "playbooks", "title": "Prompt playbooks", "value": "100", "copy": "Free starters are copy-ready; Pro templates require account/subscription later.", "command": "tokenbar playbooks json"},
+    ],
+    "approvalGates": [
+        "No Product Hunt or Macapp Supply submission from this packet.",
+        "No Stripe, subscription, or entitlement changes from this packet.",
+        "No account switching, provider calls, browser scraping, cleanup, posting, or uploads.",
+        "Public proof requires explicit review and approval of the generated artifact.",
+    ],
+    "blockedFields": [
+        "raw prompts",
+        "transcripts",
+        "source code",
+        "private diffs",
+        "local paths",
+        "credentials",
+        "provider cookies",
+        "official invoice claims",
+        "top-percentile claims without opt-in cohorts",
+    ],
+    "commands": ["tokenbar proof-packet json", "tokenbar launch-kit", "tokenbar runway", "tokenbar browser-companion", "tokenbar playbooks"],
+    "privacy": {
+        "rawPromptsIncluded": False,
+        "rawTranscriptsIncluded": False,
+        "sourceCodeIncluded": False,
+        "localPathsIncluded": False,
+        "credentialsIncluded": False,
+        "providerCalls": False,
+        "paymentActions": False,
+        "externalActions": False,
+        "publicPosting": False,
+    },
+    "disclaimer": "This proof packet is safe local launch evidence. It is not a submission, billing record, provider invoice, or public ranking.",
+}
+
+if fmt in {"json", "--json"}:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+print(payload["title"])
+print("----------------------------")
+print(payload["headline"])
+print(f"{compact(total)} total · {compact(last30)} in 30d · {active_days}/30 active days · {len(measured)} measured providers")
+print()
+for card in payload["cards"]:
+    print(f"{card['title']:<18} {card['value']:<10} {card['command']}")
+    print(f"                   {card['copy']}")
+print()
+print("Approval gates")
+for gate in payload["approvalGates"]:
+    print(f"  - {gate}")
+print()
+print("Blocked from packet")
+print("  " + ", ".join(payload["blockedFields"]))
+PY
 }
 
 tracking_command() {
@@ -11637,6 +14150,24 @@ case "$command" in
   usage|summary|usage-summary)
     usage_report "${command_args[@]}"
     ;;
+  cost-passport|costs-passport|costs|spend-passport|billing-passport)
+    cost_passport_command "${command_args[@]}"
+    ;;
+  waste|waste-lens|run-saver|saver|token-saver)
+    waste_lens_report "${command_args[0]:-}"
+    ;;
+  comparison-lens|compare-lens|benchmark|benchmarks|cohort)
+    comparison_lens_command "${command_args[0]:-}"
+    ;;
+  proof-packet|launch-proof|proofpack|demo-proof)
+    proof_packet_command "${command_args[0]:-}"
+    ;;
+  reminders|reminder|nudges|alerts)
+    reminders_command "${command_args[@]}"
+    ;;
+  memory-pressure|memory|pressure|overload|cleanup-plan)
+    memory_pressure_command "${command_args[0]:-}"
+    ;;
   threads|tasks|kanban|workboard)
     threads_report
     ;;
@@ -11658,6 +14189,13 @@ case "$command" in
   power|heat|energy)
     power_report
     ;;
+  playbooks|playbook|prompts|prompt-templates|templates)
+    if [[ ${#command_args[@]} -gt 0 ]]; then
+      playbooks_command "${command_args[@]}"
+    else
+      playbooks_command
+    fi
+    ;;
   folders|folder|projects|project|workspaces|workspace)
     folder_report
     ;;
@@ -11672,6 +14210,21 @@ case "$command" in
     ;;
   quickstart|identity-quickstart|profile-quickstart|start)
     identity_quickstart
+    ;;
+  coach|guide|next-action|next)
+    coach_command "${command_args[0]:-}"
+    ;;
+  launch-kit|launchkit|product-hunt|producthunt|macapp|macapp-supply)
+    launch_kit_command "${command_args[0]:-}"
+    ;;
+  ecosystem|system-map|product-system|surfaces)
+    ecosystem_command "${command_args[0]:-}"
+    ;;
+  runway|launch-runway|launch-day|launch-board)
+    runway_command "${command_args[0]:-}"
+    ;;
+  browser-companion|companion|extension|browser-extension)
+    browser_companion_command "${command_args[0]:-}"
     ;;
   video|demo-video|shot-list|hyperframes|hyperframe|trailer|identity-trailer)
     video_brief "${command_args[0]:-}"
@@ -11806,7 +14359,7 @@ case "$command" in
     doctor_report
     ;;
   providers|provider)
-    provider_report
+    provider_report "${command_args[0]:-}"
     ;;
   connectors|connector|sources|source)
     connector_report

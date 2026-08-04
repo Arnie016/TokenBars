@@ -18,8 +18,17 @@ import urllib.request
 STORE_PATH = Path(os.environ.get("TOKENBAR_ACTION_STORE_PATH", "/tmp/tokenbar-action-store.json"))
 MAX_BODY_BYTES = 256_000
 ACTION_NAME = "builder_identity.proof_card.v1"
+REVOKE_ACTION_NAME = "builder_identity.revoke.v1"
 ACTION_WRITE_TOKEN = (os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN") or "").strip()
 ACTION_OWNER_ID = (os.environ.get("TOKENBAR_ACTION_OWNER_ID") or "").strip()
+
+
+class ActionNotFoundError(RuntimeError):
+    pass
+
+
+class ActionForbiddenError(RuntimeError):
+    pass
 
 
 def now_epoch() -> int:
@@ -39,14 +48,24 @@ def supabase_enabled() -> bool:
 
 
 def _request_owner_id(request: BaseHTTPRequestHandler) -> str | None:
-    if not ACTION_WRITE_TOKEN:
-        return ACTION_OWNER_ID or None
-    provided = (request.headers.get("Authorization") or request.headers.get("X-TokenBar-Owner-Token") or "").strip()
-    if provided.lower().startswith("bearer "):
-        provided = provided[7:].strip()
-    if not hmac.compare_digest(provided, ACTION_WRITE_TOKEN):
-        raise RuntimeError("missing or invalid TOKENBAR_ACTION_WRITE_TOKEN")
-    return ACTION_OWNER_ID or "authenticated-owner"
+    if ACTION_WRITE_TOKEN:
+        provided = (request.headers.get("Authorization") or request.headers.get("X-TokenBar-Owner-Token") or "").strip()
+        if provided.lower().startswith("bearer "):
+            provided = provided[7:].strip()
+        if not hmac.compare_digest(provided, ACTION_WRITE_TOKEN):
+            raise ActionForbiddenError("missing or invalid TOKENBAR_ACTION_WRITE_TOKEN")
+
+    owner_key = (request.headers.get("X-TokenBar-Owner-Key") or "").strip()
+    if owner_key:
+        if len(owner_key) < 32 or len(owner_key) > 512:
+            raise ActionForbiddenError("X-TokenBar-Owner-Key must be 32-512 characters")
+        return "device:" + hashlib.sha256(owner_key.encode("utf-8")).hexdigest()
+
+    if ACTION_OWNER_ID:
+        return ACTION_OWNER_ID
+    if ACTION_WRITE_TOKEN:
+        return "authenticated-owner"
+    return None
 
 
 def supabase_request(path: str, method: str = "GET", body: dict | None = None) -> object:
@@ -97,7 +116,7 @@ def action_run_to_row(run: dict) -> dict:
 
 def read_supabase_store() -> dict:
     rows = supabase_request(
-        "tokenbar_action_runs?select=run_id,token,run,proof&order=created_at_epoch.desc&limit=1000"
+        "tokenbar_action_runs?select=run_id,token,status,owner_id,run,proof&order=created_at_epoch.desc&limit=1000"
     )
     runs = {}
     proofs = {}
@@ -110,7 +129,8 @@ def read_supabase_store() -> dict:
         token = str(row.get("token") or "")
         if run_id and isinstance(run, dict):
             runs[run_id] = run
-        if token and isinstance(proof, dict):
+        status = str(row.get("status") or (run.get("status") if isinstance(run, dict) else "") or "complete")
+        if token and status != "revoked" and token not in proofs and isinstance(proof, dict) and proof:
             proofs[token] = proof
     return {"runs": runs, "proofCards": proofs, "storage": "supabase-postgres"}
 
@@ -153,6 +173,91 @@ def save_action_run(run: dict) -> str:
     return "ephemeral-json-file"
 
 
+def _scrub_revoked_run(run: dict, revoked_at: int) -> dict:
+    scrubbed = dict(run)
+    scrubbed["status"] = "revoked"
+    scrubbed["revokedAt"] = revoked_at
+    scrubbed["proof"] = {}
+    scrubbed["result"] = {
+        "summary": "Public Builder Identity proof revoked.",
+        "publicSurfacesRemoved": True,
+        "localArtifactsDeleted": False,
+        "nextAction": "Generate and publish a new proof when you are ready. The private local report was not deleted.",
+    }
+    stages = [item for item in (run.get("stages") or []) if isinstance(item, dict)]
+    stages.append(stage("revoked", "Removed public proof, profile, feed, and ranking surfaces; kept the private local artifact."))
+    scrubbed["stages"] = stages
+    return scrubbed
+
+
+def revoke_action_run(token: str, owner_id: str | None) -> dict:
+    token = str(token or "").strip()
+    if not token.startswith("TBAR-"):
+        raise ValueError("missing TokenBar proof token")
+    if not owner_id:
+        raise ActionForbiddenError("this proof is not bound to a device owner key")
+
+    revoked_at = now_epoch()
+    if supabase_enabled():
+        rows = supabase_request(
+            f"tokenbar_action_runs?token=eq.{quote(token, safe='')}&select=run_id,token,status,owner_id,run,proof,created_at_epoch&order=created_at_epoch.desc&limit=50"
+        )
+        active_rows = [row for row in (rows or []) if isinstance(row, dict) and str(row.get("status") or "complete") != "revoked"]
+        if not active_rows:
+            raise ActionNotFoundError("proof card not found or already revoked")
+        owned_rows = [row for row in active_rows if hmac.compare_digest(str(row.get("owner_id") or ""), owner_id)]
+        if not owned_rows:
+            raise ActionForbiddenError("this device does not own that proof")
+        target = owned_rows[0]
+        run = target.get("run") if isinstance(target.get("run"), dict) else {}
+        scrubbed = _scrub_revoked_run(run, revoked_at)
+        supabase_request(
+            f"tokenbar_action_runs?run_id=eq.{quote(str(target.get('run_id') or ''), safe='')}",
+            method="PATCH",
+            body={"status": "revoked", "run": scrubbed, "proof": {}},
+        )
+        remaining = [row for row in active_rows if row is not target]
+        return {
+            "token": token,
+            "runId": target.get("run_id"),
+            "revokedAt": revoked_at,
+            "publicSurfacesRemoved": not bool(remaining),
+            "localArtifactsDeleted": False,
+            "storage": "supabase-postgres",
+        }
+
+    store = read_store()
+    matches = [
+        run
+        for run in (store.get("runs") or {}).values()
+        if isinstance(run, dict) and run.get("token") == token and run.get("status") != "revoked"
+    ]
+    if not matches:
+        raise ActionNotFoundError("proof card not found or already revoked")
+    owned = [run for run in matches if hmac.compare_digest(str(run.get("ownerId") or ""), owner_id)]
+    if not owned:
+        raise ActionForbiddenError("this device does not own that proof")
+    target = max(owned, key=lambda item: int(item.get("createdAt") or 0))
+    run_id = str(target.get("runId") or "")
+    store.setdefault("runs", {})[run_id] = _scrub_revoked_run(target, revoked_at)
+    remaining = [run for run in matches if run is not target]
+    if remaining:
+        replacement = max(remaining, key=lambda item: int(item.get("createdAt") or 0))
+        replacement_proof = replacement.get("proof") if isinstance(replacement.get("proof"), dict) else {}
+        store.setdefault("proofCards", {})[token] = replacement_proof
+    else:
+        store.setdefault("proofCards", {}).pop(token, None)
+    write_store(store)
+    return {
+        "token": token,
+        "runId": run_id,
+        "revokedAt": revoked_at,
+        "publicSurfacesRemoved": not bool(remaining),
+        "localArtifactsDeleted": False,
+        "storage": "ephemeral-json-file",
+    }
+
+
 def storage_health() -> dict:
     config = supabase_config()
     requested = os.environ.get("TOKENBAR_ACTION_STORE") == "supabase"
@@ -165,6 +270,8 @@ def storage_health() -> dict:
         "supabaseExplicitlyEnabled": enabled,
         "actionWriteTokenConfigured": bool(ACTION_WRITE_TOKEN),
         "actionOwnerIdConfigured": bool(ACTION_OWNER_ID),
+        "deviceOwnerKeysHashed": True,
+        "revocationAction": REVOKE_ACTION_NAME,
         "enableWith": "TOKENBAR_ACTION_STORE=supabase",
         "table": "tokenbar_action_runs",
         "setupSql": "docs/tokenbar_actions_supabase.sql",
@@ -195,7 +302,10 @@ def respond_json(handler: BaseHTTPRequestHandler, status: int, body: dict) -> No
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+    handler.send_header(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Accept, Authorization, X-TokenBar-Owner-Token, X-TokenBar-Owner-Key",
+    )
     handler.send_header("Cache-Control", "no-store")
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
@@ -210,6 +320,12 @@ def respond_html(handler: BaseHTTPRequestHandler, status: int, body: str) -> Non
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
     handler.wfile.write(payload)
+
+
+def public_run(run: dict) -> dict:
+    safe = dict(run)
+    safe.pop("ownerId", None)
+    return safe
 
 
 def public_base(handler: BaseHTTPRequestHandler) -> str:
@@ -587,17 +703,24 @@ def build_builder_story(
         {
             "key": "ambition",
             "label": "Ambition",
-            "score": round(min(100, 35 + (total_tokens / 1_000_000_000) * 1.1 + min(session_count, 300) * 0.08), 1),
-            "confidence": confidence_from(3 if total_tokens else 1, total_tokens),
-            "claim": "Works at unusual scale; the signal is volume plus repeated attempts, not token spend alone.",
+            "score": round(min(100, 32 + min(total_tokens / 1_000_000_000, 25) * 1.1 + min(session_count, 300) * 0.05), 1),
+            "confidence": "medium" if total_tokens and session_count else "low",
+            "claim": "Attempts work at unusual scale. This is an activity proxy, not proof that the work was difficult or valuable.",
             "provenance": ["aggregate token count", "indexed session count", "local usage index"],
         },
         {
             "key": "learningVelocity",
             "label": "Learning velocity",
-            "score": round(min(100, pick_score(scores, ["iteration", "velocity", "steering"], 45) + min(session_count, 250) * 0.08), 1),
-            "confidence": confidence_from(3 if session_count else 1, session_count),
-            "claim": "Learns through fast steering loops and repeated agent feedback, not static repo snapshots.",
+            "score": round(
+                min(
+                    100,
+                    pick_score(scores, ["iteration", "velocity", "steering"], 45) * 0.72
+                    + min(80, max(0, session_count) * 0.32) * 0.28,
+                ),
+                1,
+            ),
+            "confidence": "medium" if session_count else "low",
+            "claim": "Shows repeated steering and revision opportunities. It does not prove that knowledge was retained.",
             "provenance": ["indexed session count", "steering dimension", "safe aggregate metadata"],
         },
         {
@@ -853,6 +976,9 @@ def clean_spotlight_sources(value: object) -> dict:
     sessions = clean_items(raw.get("sessions"), 8, 96)
     projects = clean_items(raw.get("projects"), 8, 120)
     notes = clean_items(raw.get("notes"), 8, 240)
+    has_local_inference = bool(privacy.get("sessionFilesRead")) or int(safe_number(privacy.get("matchedSessionFiles"))) > 0
+    if not (sessions or projects or notes or has_local_inference):
+        return {}
     raw_story = raw.get("story") if isinstance(raw.get("story"), dict) else {}
     raw_beats = raw.get("storyBeats") if isinstance(raw.get("storyBeats"), list) else []
 
@@ -1350,7 +1476,7 @@ def create_action_run(
     digest = identity_digest(identity)
     normalized_share_controls = normalize_share_controls(share_controls)
     share_digest = hashlib.sha256(json.dumps(normalized_share_controls, sort_keys=True).encode("utf-8")).hexdigest()[:8]
-    seed = f"{ACTION_NAME}:{identity['token']}:{idempotency_key or digest}:{share_digest}"
+    seed = f"{ACTION_NAME}:{identity['token']}:{idempotency_key or digest}:{share_digest}:{owner_id or 'legacy'}"
     run_id = "run_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
     proof = build_proof_card(identity, base_url, normalized_share_controls)
     stages = [
@@ -1489,6 +1615,16 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
         for item in (story.get("shippedWork") if isinstance(story.get("shippedWork"), list) else [])
         if isinstance(item, dict) and str(item.get("label") or "").strip()
     ][:4]
+    identity_axes = [
+        {
+            "key": str(item.get("key") or "").strip(),
+            "label": str(item.get("label") or item.get("key") or "Builder signal").strip(),
+            "score": round(safe_number(item.get("score")), 1),
+            "confidence": str(item.get("confidence") or "bounded").strip(),
+        }
+        for item in (story.get("axes") if isinstance(story.get("axes"), list) else [])
+        if isinstance(item, dict) and str(item.get("label") or item.get("key") or "").strip()
+    ][:6]
     title = str(proof.get("title") or "Builder Identity").strip()
     owner_profile = clean_owner_profile(proof.get("ownerProfile"), fallback_name=title)
     archetype = str(proof.get("primaryArchetype") or "Builder").strip()
@@ -1577,6 +1713,7 @@ def proof_to_feed_item(proof: dict, base_url: str = "") -> dict:
         "npcClass": npc_class,
         "bio": owner_profile.get("bio") or story.get("summary") or proof.get("verdict") or f"{title} proof card from local TokenBar analysis.",
         "headline": story.get("headline") or f"{title} proof card",
+        "identityAxes": identity_axes,
         "proofFacts": proof_facts,
         "feedStory": feed_story,
         "whatProved": what_proved,
@@ -1745,6 +1882,8 @@ def aggregate_action_feed(store: dict, base_url: str = "") -> dict:
     regional_leaderboards: dict[str, list[dict]] = {"Global": feed[:12]}
     for item in feed:
         for key in region_keys(item.get("region")):
+            if key == "Global":
+                continue
             regional_leaderboards.setdefault(key, []).append(item)
     regional_leaderboards = {
         key: sorted(rows, key=lambda item: (safe_number(item.get("score")), safe_number(item.get("createdAt"))), reverse=True)[:12]
@@ -2389,7 +2528,7 @@ def handler(request: BaseHTTPRequestHandler) -> None:
             if not run:
                 respond_json(request, 404, {"ok": False, "error": "run not found"})
                 return
-            respond_json(request, 200, {"ok": True, "run": run})
+            respond_json(request, 200, {"ok": True, "run": public_run(run)})
             return
         if token:
             proof = (store.get("proofCards") or {}).get(token)
@@ -2435,9 +2574,11 @@ def handler(request: BaseHTTPRequestHandler) -> None:
                 respond_json(request, 200, {"ok": True, "proof": proof_for_response})
             return
         runs = [
-            run
+            public_run(run)
             for run in (store.get("runs") or {}).values()
-            if isinstance(run, dict) and proof_is_publicly_listed(run.get("proof") if isinstance(run.get("proof"), dict) else {})
+            if isinstance(run, dict)
+            and run.get("status") != "revoked"
+            and proof_is_publicly_listed(run.get("proof") if isinstance(run.get("proof"), dict) else {})
         ]
         runs.sort(key=lambda item: item.get("createdAt", 0), reverse=True)
         action_feed = aggregate_action_feed(store, public_base(request))
@@ -2460,9 +2601,13 @@ def handler(request: BaseHTTPRequestHandler) -> None:
         body = json.loads(request.rfile.read(length).decode("utf-8"))
         if not isinstance(body, dict):
             raise ValueError("expected JSON object")
-        owner_id = _request_owner_id(request)
-        identity = body.get("identity") if isinstance(body.get("identity"), dict) else body
         action = str(body.get("action") or ACTION_NAME)
+        owner_id = _request_owner_id(request)
+        if action == REVOKE_ACTION_NAME:
+            result = revoke_action_run(str(body.get("token") or ""), owner_id)
+            respond_json(request, 200, {"ok": True, "action": REVOKE_ACTION_NAME, **result})
+            return
+        identity = body.get("identity") if isinstance(body.get("identity"), dict) else body
         if action != ACTION_NAME:
             raise ValueError(f"unsupported action: {action}")
         run = create_action_run(
@@ -2474,5 +2619,9 @@ def handler(request: BaseHTTPRequestHandler) -> None:
         )
         storage = save_action_run(run)
         respond_json(request, 201, {"ok": True, "runId": run["runId"], "status": run["status"], "storage": storage, "stages": run["stages"], "result": run["result"], "proof": run["proof"]})
+    except ActionNotFoundError as exc:
+        respond_json(request, 404, {"ok": False, "error": str(exc)})
+    except ActionForbiddenError as exc:
+        respond_json(request, 403, {"ok": False, "error": str(exc)})
     except Exception as exc:
         respond_json(request, 400, {"ok": False, "error": str(exc)})

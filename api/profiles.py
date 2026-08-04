@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import html
+import hashlib
+import hmac
 import json
 import math
 import os
@@ -17,11 +19,15 @@ ACTION_STORE_PATH = Path(os.environ.get("TOKENBAR_ACTION_STORE_PATH", "/tmp/toke
 MAX_BODY_BYTES = 256_000
 
 
+class ProfileForbiddenError(RuntimeError):
+    pass
+
+
 def read_store() -> dict:
     try:
         return json.loads(STORE_PATH.read_text(encoding="utf-8"))
     except Exception:
-        return {"profiles": {}}
+        return {"profiles": {}, "owners": {}}
 
 
 def write_store(store: dict) -> None:
@@ -107,10 +113,11 @@ def get_action_proof_card(token: str) -> dict | None:
     return proof if isinstance(proof, dict) else None
 
 
-def profile_to_row(profile: dict) -> dict:
+def profile_to_row(profile: dict, owner_id: str | None = None) -> dict:
     return {
         "token": profile["token"],
         "profile": profile,
+        "owner_id": owner_id,
         "primary_archetype": profile.get("primaryArchetype"),
         "npc_class": profile.get("npcClass"),
         "specificity_score": profile.get("specificityScore"),
@@ -148,19 +155,89 @@ def get_profile(token: str) -> tuple[dict | None, str]:
     return (store.get("profiles") or {}).get(token), "ephemeral-json-file"
 
 
-def save_profile(profile: dict) -> str:
+def save_profile(profile: dict, owner_id: str | None = None) -> str:
     if supabase_config():
         supabase_request(
             "tokenbar_profiles?on_conflict=token",
             method="POST",
-            body=profile_to_row(profile),
+            body=profile_to_row(profile, owner_id),
         )
         return "supabase-postgres"
 
     store = read_store()
     store.setdefault("profiles", {})[profile["token"]] = profile
+    if owner_id:
+        store.setdefault("owners", {})[profile["token"]] = owner_id
     write_store(store)
     return "ephemeral-json-file"
+
+
+def request_owner_id(request: BaseHTTPRequestHandler) -> str | None:
+    write_token = (os.environ.get("TOKENBAR_ACTION_WRITE_TOKEN") or "").strip()
+    if write_token:
+        provided = (request.headers.get("Authorization") or request.headers.get("X-TokenBar-Owner-Token") or "").strip()
+        if provided.lower().startswith("bearer "):
+            provided = provided[7:].strip()
+        if not hmac.compare_digest(provided, write_token):
+            raise ProfileForbiddenError("missing or invalid TOKENBAR_ACTION_WRITE_TOKEN")
+
+    owner_key = (request.headers.get("X-TokenBar-Owner-Key") or "").strip()
+    if owner_key:
+        if len(owner_key) < 32 or len(owner_key) > 512:
+            raise ProfileForbiddenError("X-TokenBar-Owner-Key must be 32-512 characters")
+        return "device:" + hashlib.sha256(owner_key.encode("utf-8")).hexdigest()
+
+    configured_owner = (os.environ.get("TOKENBAR_ACTION_OWNER_ID") or "").strip()
+    if configured_owner:
+        return configured_owner
+    if write_token:
+        return "authenticated-owner"
+    return None
+
+
+def action_owner_id(token: str) -> str | None:
+    try:
+        from api.actions import read_store as read_action_store_for_owner
+
+        action_store = read_action_store_for_owner()
+    except Exception:
+        action_store = read_action_store()
+
+    for run in (action_store.get("runs") or {}).values():
+        if not isinstance(run, dict):
+            continue
+        proof = run.get("proof") if isinstance(run.get("proof"), dict) else {}
+        if str(run.get("token") or proof.get("token") or "") == token:
+            owner_id = str(run.get("ownerId") or "").strip()
+            if owner_id:
+                return owner_id
+    return None
+
+
+def profile_owner_id(token: str) -> str | None:
+    if supabase_config():
+        rows = supabase_request(
+            f"tokenbar_profiles?token=eq.{quote(token)}&select=owner_id&limit=1"
+        )
+        if isinstance(rows, list) and rows:
+            return str(rows[0].get("owner_id") or "").strip() or None
+        return None
+    return str((read_store().get("owners") or {}).get(token) or "").strip() or None
+
+
+def authorize_profile_write(request: BaseHTTPRequestHandler, token: str, allow_new: bool = False) -> str:
+    owner_id = request_owner_id(request)
+    if not owner_id:
+        raise ProfileForbiddenError(
+            "profile writes require this device's private TokenBar owner key; public TBAR tokens are read-only"
+        )
+
+    expected = action_owner_id(token) or profile_owner_id(token)
+    if expected and not hmac.compare_digest(owner_id, expected):
+        raise ProfileForbiddenError("this device does not own that TokenBar proof")
+    if not expected and not allow_new:
+        raise ProfileForbiddenError("profile is not owner-bound; publish a fresh proof from the TokenBar CLI")
+    return owner_id
 
 
 def apply_submission_to_profile(profile: dict, submission: dict, visibility: str = "") -> dict:
@@ -251,6 +328,7 @@ def build_surface_bundle(
     social_url: str = "",
     rankings_url: str = "",
     loop_rankings_url: str = "",
+    trailer_url: str = "",
     visibility: str = "public",
     share_copy: str = "",
 ) -> dict:
@@ -284,6 +362,12 @@ def build_surface_bundle(
             "label": "Loop rankings",
             "description": "repeatable agent-loop maturity board",
             "url": loop_rankings_url,
+        },
+        {
+            "key": "identityTrailer",
+            "label": "Identity trailer",
+            "description": "30-second storyboard from safe proof anchors",
+            "url": trailer_url,
         },
     ]
     return {
@@ -387,6 +471,7 @@ def proof_card_to_profile(proof: dict) -> dict:
     social_url = proof.get("socialUrl") or ""
     rankings_url = proof.get("rankingsUrl") or ""
     loop_rankings_url = proof.get("loopRankingsUrl") or ""
+    trailer_url = proof.get("trailerUrl") or ""
     privacy = proof.get("privacy") if isinstance(proof.get("privacy"), dict) else {}
     share_controls = proof.get("shareControls") if isinstance(proof.get("shareControls"), dict) else {}
     redactions = privacy.get("redactions") if isinstance(privacy.get("redactions"), dict) else share_controls.get("redactions") if isinstance(share_controls.get("redactions"), dict) else {}
@@ -403,6 +488,7 @@ def proof_card_to_profile(proof: dict) -> dict:
         social_url=social_url,
         rankings_url=rankings_url,
         loop_rankings_url=loop_rankings_url,
+        trailer_url=trailer_url,
         visibility=visibility,
         share_copy=proof.get("shareCopy") or "",
     )
@@ -499,16 +585,19 @@ def proof_card_to_profile(proof: dict) -> dict:
         "socialUrl": social_url,
         "rankingsUrl": rankings_url,
         "loopRankingsUrl": loop_rankings_url,
+        "trailerUrl": trailer_url,
         "actionLinks": {
             "proofCardUrl": proof_url,
             "profileUrl": profile_url,
             "socialUrl": social_url,
             "rankingsUrl": rankings_url,
             "loopRankingsUrl": loop_rankings_url,
+            "trailerUrl": trailer_url,
         },
         "surfaceBundle": surface_bundle,
         "builderSignalInbox": builder_signals,
         "socialLearningSignals": builder_signals,
+        "spotlightSources": proof.get("spotlightSources") if isinstance(proof.get("spotlightSources"), dict) else {},
         "rankBadges": proof.get("rankBadges") if isinstance(proof.get("rankBadges"), list) else [],
         "rankPlacements": proof.get("rankPlacements") if isinstance(proof.get("rankPlacements"), dict) else {},
         "builderStory": story,
@@ -735,11 +824,13 @@ def clean_profile(raw: dict) -> dict:
         "hackathonSubmission",
         "submittedProject",
         "leaderboard",
+        "spotlightSources",
         "shareCopy",
         "shareControls",
         "socialUrl",
         "rankingsUrl",
         "loopRankingsUrl",
+        "trailerUrl",
         "actionLinks",
         "surfaceBundle",
         "rankBadges",
@@ -846,6 +937,7 @@ def clean_profile(raw: dict) -> dict:
             social_url=str(action_links.get("socialUrl") or ""),
             rankings_url=str(action_links.get("rankingsUrl") or ""),
             loop_rankings_url=str(action_links.get("loopRankingsUrl") or ""),
+            trailer_url=str(action_links.get("trailerUrl") or ""),
             visibility=visibility,
             share_copy=str(cleaned.get("shareCopy") or ""),
         )
@@ -937,6 +1029,9 @@ def aggregate_stats(profiles_by_token: dict[str, dict], storage: str) -> dict:
             loop_maturity = profile.get("loopMaturity") or profile.get("loopScore") or proof_score
             provider_sources = profile.get("providerSources") if isinstance(profile.get("providerSources"), list) else []
             provider_count = sum(1 for item in provider_sources if isinstance(item, dict) and item.get("found"))
+            shipping_analysis = profile.get("shippingAnalysis") if isinstance(profile.get("shippingAnalysis"), dict) else {}
+            shipped_work = profile.get("shippedWork") if isinstance(profile.get("shippedWork"), list) else []
+            shipped_work_labels = {str(item.get("label") or "").strip().lower() for item in shipped_work if isinstance(item, dict)}
             session_count = (profile.get("usage") or {}).get("sessionCount") or profile.get("sessionCount") or 0
             try:
                 token_component = min(100.0, math.log10(max(1, float(token_count or 0))) * 10.0)
@@ -946,20 +1041,40 @@ def aggregate_stats(profiles_by_token: dict[str, dict], storage: str) -> dict:
                 range_component = min(100.0, (float(provider_count) * 22.0) + (math.log10(max(1, float(session_count or 0))) * 14.0))
             except Exception:
                 range_component = min(100.0, float(provider_count) * 22.0)
+            try:
+                commit_count = float(shipping_analysis.get("commitCount") or 0)
+            except Exception:
+                commit_count = 0.0
+            try:
+                net_loc = float(shipping_analysis.get("netLoc") or 0)
+            except Exception:
+                net_loc = 0.0
+            outcome_component = 0.0
+            if shipping_analysis.get("available"):
+                outcome_component += 10.0
+                outcome_component += min(30.0, commit_count * 1.5)
+                outcome_component += min(20.0, abs(net_loc) * 0.08)
+            if "repo evidence" in shipped_work_labels:
+                outcome_component += 15.0
+            if "project range" in shipped_work_labels:
+                outcome_component += 15.0
+            outcome_component = max(0.0, min(100.0, outcome_component))
             ranking_breakdown = {
                 "proof": round(float(proof_score or 0), 1),
                 "loop": round(float(loop_maturity or 0), 1),
                 "specificity": round(float(score or 0), 1),
                 "range": round(range_component, 1),
+                "outcomes": round(outcome_component, 1),
                 "tokens": round(token_component, 1),
                 "weights": {
                     "proof": 0.34,
                     "loop": 0.24,
-                    "specificity": 0.22,
-                    "range": 0.14,
-                    "tokens": 0.06,
+                    "specificity": 0.2,
+                    "range": 0.1,
+                    "outcomes": 0.1,
+                    "tokens": 0.02,
                 },
-                "note": "Token volume is capped at 6% of the composite ranking score.",
+                "note": "Token volume is capped at 2%; verified outcomes and proof signals carry more weight.",
             }
             composite_score = leaderboard.get("score")
             if not composite_score:
@@ -968,67 +1083,68 @@ def aggregate_stats(profiles_by_token: dict[str, dict], storage: str) -> dict:
                     + ranking_breakdown["loop"] * ranking_breakdown["weights"]["loop"]
                     + ranking_breakdown["specificity"] * ranking_breakdown["weights"]["specificity"]
                     + ranking_breakdown["range"] * ranking_breakdown["weights"]["range"]
+                    + ranking_breakdown["outcomes"] * ranking_breakdown["weights"]["outcomes"]
                     + ranking_breakdown["tokens"] * ranking_breakdown["weights"]["tokens"]
                 )
-            submission = clean_submission_metadata(
-                profile.get("hackathonSubmission") or profile.get("submittedProject"),
-                fallback_title=str(profile.get("title") or "builder"),
-            )
-            if submission:
-                submission_events[submission["event"]] = submission_events.get(submission["event"], 0) + 1
-                submission_tracks[submission["track"]] = submission_tracks.get(submission["track"], 0) + 1
-            leaderboard_row = {
-                "token": profile.get("token"),
-                "nickname": nickname,
-                "region": region,
-                "title": profile.get("title"),
-                "projectTitle": submission.get("projectTitle") if submission else None,
-                "event": submission.get("event") if submission else None,
-                "track": submission.get("track") if submission else None,
-                "repoUrl": submission.get("repoUrl") if submission else None,
-                "demoUrl": submission.get("demoUrl") if submission else None,
-                "hackathonSubmission": submission,
-                "submittedProject": submission,
-                "primaryArchetype": archetype,
-                "npcClass": npc_class,
-                "bucket": bucket,
-                "specificityScore": round(score, 1),
-                "score": round(float(composite_score or 0), 1),
-                "proofScore": round(float(proof_score or 0), 1),
-                "loopMaturity": round(float(loop_maturity or 0), 1),
-                "loopScore": round(float(loop_maturity or 0), 1),
-                "tokenCount": token_count,
-                "sessionCount": session_count,
-                "rankingBreakdown": ranking_breakdown,
-                "bio": public_profile.get("bio"),
-                "github": (public_profile.get("links") or {}).get("github") if isinstance(public_profile.get("links"), dict) else None,
-            }
-            top_profiles.append({
-                "token": profile.get("token"),
-                "title": profile.get("title"),
-                "projectTitle": submission.get("projectTitle") if submission else None,
-                "event": submission.get("event") if submission else None,
-                "track": submission.get("track") if submission else None,
-                "repoUrl": submission.get("repoUrl") if submission else None,
-                "demoUrl": submission.get("demoUrl") if submission else None,
-                "hackathonSubmission": submission,
-                "submittedProject": submission,
-                "nickname": nickname,
-                "region": region,
-                "primaryArchetype": archetype,
-                "npcClass": npc_class,
-                "bucket": bucket,
-                "specificityScore": round(score, 1),
-                "score": leaderboard_row["score"],
-                "proofScore": leaderboard_row["proofScore"],
-                "loopMaturity": leaderboard_row["loopMaturity"],
-                "loopScore": leaderboard_row["loopScore"],
-                "tokenCount": token_count,
-                "sessionCount": session_count,
-                "rankingBreakdown": ranking_breakdown,
-            })
-            social_feed.append(leaderboard_row)
-            regional_scores.setdefault(str(region), []).append(leaderboard_row)
+                submission = clean_submission_metadata(
+                    profile.get("hackathonSubmission") or profile.get("submittedProject"),
+                    fallback_title=str(profile.get("title") or "builder"),
+                )
+                if submission:
+                    submission_events[submission["event"]] = submission_events.get(submission["event"], 0) + 1
+                    submission_tracks[submission["track"]] = submission_tracks.get(submission["track"], 0) + 1
+                leaderboard_row = {
+                    "token": profile.get("token"),
+                    "nickname": nickname,
+                    "region": region,
+                    "title": profile.get("title"),
+                    "projectTitle": submission.get("projectTitle") if submission else None,
+                    "event": submission.get("event") if submission else None,
+                    "track": submission.get("track") if submission else None,
+                    "repoUrl": submission.get("repoUrl") if submission else None,
+                    "demoUrl": submission.get("demoUrl") if submission else None,
+                    "hackathonSubmission": submission,
+                    "submittedProject": submission,
+                    "primaryArchetype": archetype,
+                    "npcClass": npc_class,
+                    "bucket": bucket,
+                    "specificityScore": round(score, 1),
+                    "score": round(float(composite_score or 0), 1),
+                    "proofScore": round(float(proof_score or 0), 1),
+                    "loopMaturity": round(float(loop_maturity or 0), 1),
+                    "loopScore": round(float(loop_maturity or 0), 1),
+                    "tokenCount": token_count,
+                    "sessionCount": session_count,
+                    "rankingBreakdown": ranking_breakdown,
+                    "bio": public_profile.get("bio"),
+                    "github": (public_profile.get("links") or {}).get("github") if isinstance(public_profile.get("links"), dict) else None,
+                }
+                top_profiles.append({
+                    "token": profile.get("token"),
+                    "title": profile.get("title"),
+                    "projectTitle": submission.get("projectTitle") if submission else None,
+                    "event": submission.get("event") if submission else None,
+                    "track": submission.get("track") if submission else None,
+                    "repoUrl": submission.get("repoUrl") if submission else None,
+                    "demoUrl": submission.get("demoUrl") if submission else None,
+                    "hackathonSubmission": submission,
+                    "submittedProject": submission,
+                    "nickname": nickname,
+                    "region": region,
+                    "primaryArchetype": archetype,
+                    "npcClass": npc_class,
+                    "bucket": bucket,
+                    "specificityScore": round(score, 1),
+                    "score": leaderboard_row["score"],
+                    "proofScore": leaderboard_row["proofScore"],
+                    "loopMaturity": leaderboard_row["loopMaturity"],
+                    "loopScore": leaderboard_row["loopScore"],
+                    "tokenCount": token_count,
+                    "sessionCount": session_count,
+                    "rankingBreakdown": ranking_breakdown,
+                })
+                social_feed.append(leaderboard_row)
+                regional_scores.setdefault(str(region), []).append(leaderboard_row)
         for item in profile.get("providerSources") or []:
             if not isinstance(item, dict):
                 continue
@@ -1266,7 +1382,7 @@ def profile_html(profile: dict, stats: dict, population: dict | None = None) -> 
         rank_context_html = f"""
         <div class="profile-rank-context" aria-label="Public rank context">
           <h3>Public rank context</h3>
-          <p>Derived only from opt-in proof cards. Token volume is capped so the board rewards loop quality, proof, craft, and completion rather than raw spend.</p>
+          <p>Derived only from opt-in proof cards. Verified shipping outcomes and execution quality carry the heaviest weight; token volume is capped.</p>
           <div>{''.join(rank_badge_rows)}</div>
         </div>
         """
@@ -1425,6 +1541,7 @@ def profile_html(profile: dict, stats: dict, population: dict | None = None) -> 
         ("For You feed", "socialUrl"),
         ("Rankings", "rankingsUrl"),
         ("Loop rankings", "loopRankingsUrl"),
+        ("Identity trailer", "trailerUrl"),
     ]:
         href = str(action_links.get(key) or "").strip()
         if not href:
@@ -1909,12 +2026,14 @@ class handler(BaseHTTPRequestHandler):
             respond_json(self, 413, {"ok": False, "error": "profile payload too large"})
             return
 
+        owner_id = None
         try:
             raw = json.loads(self.rfile.read(length).decode("utf-8"))
             if raw.get("schema") == "tokenbar.hackathon_submission_update.v1":
                 token = str(raw.get("token") or "").strip()
                 if not token.startswith("TBAR-") or len(token) < 10:
                     raise ValueError("missing TokenBar identity token")
+                owner_id = authorize_profile_write(self, token)
                 visibility = str(raw.get("visibility") or "public").lower()
                 if visibility not in {"public", "listed", "unlisted", "private"}:
                     visibility = "public"
@@ -1932,7 +2051,7 @@ class handler(BaseHTTPRequestHandler):
                 if not submission:
                     raise ValueError("submission metadata is unsafe or empty")
                 profile = apply_submission_to_profile(existing, submission, visibility)
-                storage = save_profile(profile)
+                storage = save_profile(profile, owner_id)
                 action_store_updated = update_action_submission(token, submission, visibility)
                 profiles, _ = read_profiles()
                 base = public_base(self)
@@ -1959,12 +2078,16 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
             profile = clean_profile(raw)
+            owner_id = authorize_profile_write(self, profile["token"], allow_new=True)
+        except ProfileForbiddenError as exc:
+            respond_json(self, 403, {"ok": False, "error": str(exc)})
+            return
         except Exception as exc:
             respond_json(self, 400, {"ok": False, "error": str(exc)})
             return
 
         try:
-            storage = save_profile(profile)
+            storage = save_profile(profile, owner_id)
             profiles, _ = read_profiles()
         except Exception as exc:
             respond_json(self, 500, {"ok": False, "error": str(exc)})

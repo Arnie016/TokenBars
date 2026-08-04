@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 sys.path.insert(0, str(ROOT))
 
-from api import actions, profiles, report_feedback  # noqa: E402
+from api import actions, local_threads, profiles, report_feedback  # noqa: E402
 
 
 ROUTE_FILES = {
@@ -30,6 +30,7 @@ ROUTE_FILES = {
     "/social": "social.html",
     "/rankings": "rankings.html",
     "/profile": "profile.html",
+    "/threads": "threads.html",
     "/archetypes": "archetypes.html",
     "/docs": "docs.html",
 }
@@ -84,6 +85,9 @@ class TokenBarLocalHandler(BaseHTTPRequestHandler):
             else:
                 self.send_error(405, "method not allowed")
             return True
+        if path == "/api/local-threads":
+            local_threads.handler(self)
+            return True
         return False
 
     def _serve_static(self, send_body: bool = True) -> None:
@@ -116,7 +120,7 @@ def main() -> None:
 
     server = ThreadingHTTPServer((args.host, args.port), TokenBarLocalHandler)
     print(f"TokenBar local proof server: http://{args.host}:{args.port}")
-    print("Routes: /api/actions, /api/profiles, /api/report-feedback, /social, /rankings, /profile")
+    print("Routes: /api/actions, /api/profiles, /api/local-threads, /api/report-feedback, /threads, /social, /rankings, /profile")
     server.serve_forever()
 
 

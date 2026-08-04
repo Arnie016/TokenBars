@@ -26,12 +26,13 @@ DEFAULT_TOKENBAR = ROOT / "bin" / "tokenbar"
 SERVER = ROOT / "scripts" / "tokenbar_local_server.py"
 
 
-def support_profiles_dir() -> Path:
-    return Path.home() / "Library/Application Support/CodexLimitBar/profiles"
+def support_profiles_dir(home: Path | None = None) -> Path:
+    root = home if home else Path.home()
+    return root / "Library/Application Support/CodexLimitBar/profiles"
 
 
-def latest_identity() -> Path | None:
-    candidates = sorted(support_profiles_dir().glob("*.identity.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+def latest_identity(home: Path | None = None) -> Path | None:
+    candidates = sorted(support_profiles_dir(home).glob("*.identity.json"), key=lambda path: path.stat().st_mtime, reverse=True)
     return candidates[0] if candidates else None
 
 
@@ -69,11 +70,13 @@ def get_status(url: str, accept: str = "application/json") -> tuple[int, str]:
         return exc.code, exc.read().decode("utf-8", "replace")
 
 
-def post_json(url: str, payload: dict) -> tuple[int, dict]:
+def post_json(url: str, payload: dict, headers: dict[str, str] | None = None) -> tuple[int, dict]:
+    request_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    request_headers.update(headers or {})
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        headers=request_headers,
         method="POST",
     )
     try:
@@ -106,6 +109,179 @@ def require(condition: object, message: str) -> None:
         raise AssertionError(message)
 
 
+SAFE_FALSE_PRIVACY_KEYS = {
+    "rawtranscriptsincluded",
+    "rawtranscriptsuploaded",
+    "sourcecodeincluded",
+    "sourcecodeuploaded",
+    "rawdiffsincluded",
+    "rawrepouploaded",
+    "storedrawexcerpts",
+}
+FORBIDDEN_PUBLIC_KEYS = {
+    "rawprompt",
+    "rawprompts",
+    "rawtranscript",
+    "rawtranscripts",
+    "sourcecode",
+    "rawdiff",
+    "rawdiffs",
+    "rawrepo",
+    "sourcepath",
+    "localpath",
+    "absolutepath",
+    "workingdirectory",
+    "cwd",
+    "ownerid",
+    "ownerkey",
+    "secret",
+    "secrets",
+    "apikey",
+    "accesstoken",
+    "refreshtoken",
+    "privatekey",
+    "credential",
+    "credentials",
+}
+LOCAL_PATH_PATTERN = re.compile(r"(?:/Users/|/home/|/private/var/|/var/folders/|/tmp/|file://)", re.IGNORECASE)
+SECRET_VALUE_PATTERNS = (
+    re.compile(r"\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}\b"),
+    re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\b(?:ghp_|github_pat_|xoxb-|xoxp-)[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\bAKIA[A-Z0-9]{16}\b"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{20,}", re.IGNORECASE),
+    re.compile(
+        r"\b(?:OPENAI_API_KEY|STRIPE_SECRET_KEY|CLERK_SECRET_KEY|"
+        r"SUPABASE_SERVICE_ROLE_KEY|AGENTMAIL_API_KEY)\s*=\s*\S+",
+        re.IGNORECASE,
+    ),
+)
+
+
+def assert_public_payload_safe(payload: object, label: str) -> None:
+    """Reject private/raw material anywhere in a public TokenBar JSON surface."""
+
+    def walk(value: object, path: str) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                normalized = re.sub(r"[^a-z0-9]+", "", str(key).lower())
+                child_path = f"{path}.{key}"
+                if normalized in SAFE_FALSE_PRIVACY_KEYS:
+                    require(child is False, f"{label} privacy boundary must be false at {child_path}")
+                elif normalized in FORBIDDEN_PUBLIC_KEYS:
+                    raise AssertionError(f"{label} exposed forbidden public field at {child_path}")
+                walk(child, child_path)
+            return
+        if isinstance(value, list):
+            for index, child in enumerate(value):
+                walk(child, f"{path}[{index}]")
+            return
+        if not isinstance(value, str):
+            return
+
+        require(not LOCAL_PATH_PATTERN.search(value), f"{label} exposed a local filesystem path at {path}")
+        for pattern in SECRET_VALUE_PATTERNS:
+            require(not pattern.search(value), f"{label} exposed a credential-shaped value at {path}")
+
+        if len(value) >= 1000:
+            role_lines = re.findall(r"(?im)^\s*(?:user|assistant|system)\s*:\s+", value)
+            require(len(role_lines) < 4, f"{label} exposed transcript-shaped text at {path}")
+
+    walk(payload, "$")
+
+
+def smoke_existing_identity(
+    tokenbar_cli: Path,
+    identity_path: Path,
+    base_url: str,
+    env: dict[str, str],
+    claim_home: Path,
+) -> int:
+    """Exercise a real local identity without adding deterministic fixture fields."""
+    require(identity_path.exists(), f"identity JSON does not exist: {identity_path}")
+    original_bytes = identity_path.read_bytes()
+    identity = json.loads(original_bytes)
+    privacy = identity.get("privacy") if isinstance(identity.get("privacy"), dict) else {}
+    require(privacy.get("rawTranscriptsIncluded") is False, "real identity does not explicitly exclude raw transcripts")
+    require(privacy.get("sourceCodeIncluded") is False, "real identity does not explicitly exclude source code")
+
+    publish_env = env | {
+        "HOME": str(claim_home),
+        "TOKENBAR_ACTION_URL": f"{base_url}/api/actions",
+        "TOKENBAR_PROFILE_UPLOAD_URL": f"{base_url}/api/profiles",
+    }
+    publish = run([str(tokenbar_cli), "publish-proof", str(identity_path)], publish_env, timeout=180)
+    run_match = re.search(r"Builder proof run:\s*(run_[A-Za-z0-9._-]+)", publish.stdout)
+    token_match = re.search(r"Proof card:\s*.*token=(TBAR-[A-Z0-9]+)", publish.stdout)
+    require(run_match, f"real identity publish did not print a run id:\n{publish.stdout}")
+    require(token_match, f"real identity publish did not print a safe token:\n{publish.stdout}")
+    for label in ("Public profile:", "For You feed:", "Leaderboards:", "Loop rankings:", "Share receipt:"):
+        require(label in publish.stdout, f"real identity publish missing {label}")
+
+    run_id = run_match.group(1)
+    token = token_match.group(1)
+    run_payload = get_json(f"{base_url}/api/actions?run={run_id}")
+    proof_payload = get_json(f"{base_url}/api/actions?token={token}")
+    profile_payload = get_json(f"{base_url}/api/profiles?token={token}")
+    feed_payload = get_json(f"{base_url}/api/actions")
+    run_record = run_payload.get("run") or {}
+    proof = proof_payload.get("proof") or {}
+    profile = profile_payload.get("profile") or {}
+    feed = feed_payload.get("feed") or []
+
+    require(run_record.get("status") == "complete", "real identity action did not complete")
+    require(len(run_record.get("stages") or []) >= 6, "real identity action does not expose six inspectable stages")
+    require("ownerId" not in run_record, "real identity public run leaked the hashed owner id")
+    require(proof.get("token") == token, "real identity proof token mismatch")
+    require(profile.get("title"), "real identity public profile has no title")
+    require((profile.get("privacy") or {}).get("rawTranscriptsIncluded") is False, "real identity public profile does not exclude raw transcripts")
+    require((profile.get("privacy") or {}).get("sourceCodeIncluded") is False, "real identity public profile does not exclude source code")
+    assert_public_payload_safe(
+        {"run": run_record, "proof": proof, "profile": profile, "feed": feed_payload},
+        "real identity public payload",
+    )
+
+    public_material = json.dumps(
+        {"run": run_record, "proof": proof, "profile": profile, "feed": feed_payload},
+        sort_keys=True,
+    )
+    require(str(identity_path.parent) not in public_material, "real identity public payload leaked its local profile directory")
+    require(str(Path.home()) not in public_material, "real identity public payload leaked the user's home directory")
+    require('"sourcePath"' not in public_material, "real identity public payload retained a local sourcePath field")
+    require(token in {str(item.get("token") or "") for item in feed if isinstance(item, dict)}, "real identity did not appear in the For You feed")
+    require(token in json.dumps(feed_payload.get("leaderboards") or {}, sort_keys=True), "real identity did not appear in leaderboards")
+    require(token in json.dumps(feed_payload.get("loopRankings") or [], sort_keys=True), "real identity did not appear in loop rankings")
+    global_rows = (feed_payload.get("regionalLeaderboards") or {}).get("Global") or []
+    global_tokens = [str(item.get("token") or "") for item in global_rows if isinstance(item, dict)]
+    require(len(global_tokens) == len(set(global_tokens)), "real identity appears more than once in the Global leaderboard")
+
+    latest_json = run([str(tokenbar_cli), "proof", "latest", "--json"], publish_env, timeout=90)
+    receipt = json.loads(latest_json.stdout)
+    require(receipt.get("schema") == "tokenbar.local_proof_receipt.v1", "real identity local receipt schema mismatch")
+    require(receipt.get("token") == token and receipt.get("runId") == run_id, "real identity local receipt does not match the action")
+    require(receipt.get("ownerBound") is True, "real identity receipt is not owner-bound")
+    require((receipt.get("privacy") or {}).get("rawTranscriptsUploaded") is False, "real identity receipt claims raw transcript upload")
+    require((receipt.get("privacy") or {}).get("sourceCodeUploaded") is False, "real identity receipt claims source-code upload")
+
+    revoked = run([str(tokenbar_cli), "revoke", token], publish_env, timeout=90)
+    require("TokenBar proof revoked" in revoked.stdout, "real identity revoke did not confirm completion")
+    revoked_proof_status, _ = get_status(f"{base_url}/api/actions?token={token}")
+    revoked_profile_status, _ = get_status(f"{base_url}/api/profiles?token={token}")
+    require(revoked_proof_status == 404, "revoked real identity proof remained public")
+    require(revoked_profile_status == 404, "revoked real identity profile remained public")
+    require(identity_path.read_bytes() == original_bytes, "real identity smoke changed the original local artifact")
+
+    print("TokenBar real Builder Identity compatibility smoke passed")
+    print(f"  identity: {identity_path}")
+    print(f"  title: {profile.get('title')}")
+    print(f"  run: {run_id}")
+    print(f"  revoked token: {token}")
+    print(f"  public payload: {len(public_material.encode('utf-8'))} bytes before revocation")
+    print("  privacy: recursive public-payload audit passed (raw fields, local paths, owner keys, credentials)")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke-test the local TokenBar Builder Identity proof flow.")
     parser.add_argument("--port", type=int, default=8768)
@@ -135,6 +311,7 @@ def main() -> int:
     profile_store = temp_dir / "profile-store.json"
     signal_store = temp_dir / "builder-signal-inbox.json"
     signal_home = temp_dir / "signal-home"
+    claim_home = temp_dir / "claim-home"
     env = os.environ.copy()
     env.update(
         {
@@ -155,6 +332,15 @@ def main() -> int:
 
     try:
         wait_for_server(base_url)
+        if server.poll() is not None:
+            output = (server.stdout.read() if server.stdout else "").strip()
+            detail = f": {output}" if output else ""
+            raise RuntimeError(f"smoke server exited before verification; port {args.port} may already be in use{detail}")
+
+        if not args.run_claim:
+            identity_path = args.identity or latest_identity()
+            require(identity_path is not None, "no existing identity JSON is available")
+            return smoke_existing_identity(tokenbar_cli, identity_path, base_url, env, claim_home)
 
         # The inbox assertions below exercise the safe local-signal boundary in
         # both smoke modes. Keep this seed independent from --run-claim so the
@@ -179,8 +365,25 @@ def main() -> int:
         identity_path = args.identity
         claim_publish_stdout = ""
         if args.run_claim:
-            before = latest_identity()
+            session_id = "019e7a08-b6d6-7863-be79-66b20c9353df"
+            session_dir = claim_home / ".codex" / "sessions" / "2026" / "07" / "19"
+            session_dir.mkdir(parents=True, exist_ok=True)
+            session_fixture = session_dir / f"rollout-{session_id}.jsonl"
+            session_fixture.write_text(
+                "\n".join(
+                    [
+                        json.dumps({"type": "user", "text": "Research HyperFrames and motion ideas for an AI video identity trailer."}),
+                        json.dumps({"type": "assistant", "text": "Implemented profile anchors, proof card handoff, and a social feed trailer surface."}),
+                        json.dumps({"type": "tool", "text": "Smoke passed: proof, profile, feed, and trailer views preserve the safe story."}),
+                        json.dumps({"type": "assistant", "text": "Keep this privacy safe: no raw transcripts, private prompts, source code, or secrets are uploaded."}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            before = latest_identity(claim_home)
             claim_env = env | {
+                "HOME": str(claim_home),
                 "TOKENBAR_REPORT_NAME": "TokenBar Local Smoke",
                 "TOKENBAR_ACTION_URL": f"{base_url}/api/actions",
                 "TOKENBAR_PROFILE_UPLOAD_URL": f"{base_url}/api/profiles",
@@ -195,6 +398,8 @@ def main() -> int:
                 "TOKENBAR_PROJECT_REPO": "https://github.com/Arnie016/TokenBar",
                 "TOKENBAR_PROJECT_DEMO": "https://tokenbar-umber.vercel.app/social",
                 "TOKENBAR_PROJECT_TRACK": "Builder Identity",
+                "TOKENBAR_SPOTLIGHT_SESSIONS": session_id,
+                "TOKENBAR_SPOTLIGHT_PROJECTS": "AI video editor",
             }
             claim = run([str(tokenbar_cli), "prove"], claim_env, timeout=180)
             claim_publish_stdout = claim.stdout
@@ -213,9 +418,23 @@ def main() -> int:
             require("For You feed:" in claim.stdout, "prove did not print a feed bundle link")
             require("Leaderboards:" in claim.stdout, "prove did not print a leaderboard bundle link")
             require("Loop rankings:" in claim.stdout, "prove did not print a loop ranking bundle link")
-            after = latest_identity()
+            require("Identity trailer:" in claim.stdout, "prove did not print an identity trailer bundle link")
+            after = latest_identity(claim_home)
             require(after and after != before, "tokenbar claim did not create a fresh identity JSON")
             identity_path = after
+            local_claim_identity = json.loads(identity_path.read_text(encoding="utf-8"))
+            local_spotlight = local_claim_identity.get("spotlightSources") or {}
+            local_story = local_spotlight.get("story") or {}
+            require(local_spotlight.get("schema") == "tokenbar.spotlight_sources.v1", "local claim identity missing spotlight source schema")
+            require("019e7a08-b6d6-7863-be79-66b20c9353df" in (local_spotlight.get("sessions") or []), "local claim identity missing selected session id")
+            require("AI video editor" in (local_spotlight.get("projects") or []), "local claim identity missing selected project")
+            require("video-agent research session" in local_story.get("insight", ""), "local claim identity missing structured spotlight insight")
+            require("without leaking private prompts" in local_story.get("struggle", ""), "local claim identity missing structured spotlight struggle")
+            require((local_spotlight.get("privacy") or {}).get("rawTranscriptsIncluded") is False, "local claim spotlight should exclude raw transcripts")
+            require((local_spotlight.get("privacy") or {}).get("sourceCodeIncluded") is False, "local claim spotlight should exclude source code")
+            require((local_spotlight.get("privacy") or {}).get("sessionFilesRead") is True, "local claim spotlight should mark bounded local session inference")
+            require((local_spotlight.get("privacy") or {}).get("storedRawExcerpts") is False, "local claim spotlight should not store raw excerpts")
+            require(local_spotlight.get("storyBeats"), "local claim spotlight missing safe story beats")
         elif not identity_path:
             identity_path = latest_identity()
 
@@ -256,6 +475,7 @@ def main() -> int:
         identity_path = smoke_identity_path
 
         publish_env = env | {
+            "HOME": str(claim_home),
             "TOKENBAR_ACTION_URL": f"{base_url}/api/actions",
             "TOKENBAR_PROFILE_UPLOAD_URL": f"{base_url}/api/profiles",
         }
@@ -269,11 +489,17 @@ def main() -> int:
         require("tokenbar video" in help_output.stdout, "help output missing video brief command")
         require("tokenbar save URL" in help_output.stdout, "help output missing local builder-signal save command")
         require("tokenbar inbox" in help_output.stdout, "help output missing local builder-signal inbox command")
+        require("tokenbar revoke latest" in help_output.stdout, "help output missing proof revocation command")
         require("tokenbar claim --publish-proof" in help_output.stdout, "help output missing claim publish-proof path")
+        require("tokenbar claim SESSION_ID" in help_output.stdout, "help output missing short spotlight claim path")
         require("Advanced legacy profile JSON upload" in help_output.stdout, "help output missing legacy upload wording")
         quickstart_text = quickstart.stdout
         require("Social / hackathon path" in quickstart_text, "quickstart output missing social/hackathon path")
         require('tokenbar join --project "My Codex App"' in quickstart_text, "quickstart output missing join project command")
+        require("Specific session/project story" in quickstart_text, "quickstart output missing spotlight story path")
+        require("tokenbar claim 019e..." in quickstart_text, "quickstart output missing short spotlight claim example")
+        require('tokenbar claim 019e... --spotlight-project "AI video editor"' in quickstart_text, "quickstart output missing optional spotlight project example")
+        require("without reading or uploading the raw thread" in quickstart_text, "quickstart output missing spotlight privacy boundary")
         join_help = run([str(tokenbar_cli), "join", "--help"], publish_env, timeout=90)
         require("Usage:\n  tokenbar submit" in join_help.stdout, "join help does not route to submit usage")
         require("The command prints a TBAR token plus profile, feed, and leaderboard links." in join_help.stdout, "join help missing social proof output contract")
@@ -340,12 +566,27 @@ def main() -> int:
         require("For You feed:" in publish.stdout, "publish-proof did not print a feed bundle link")
         require("Leaderboards:" in publish.stdout, "publish-proof did not print a leaderboard bundle link")
         require("Loop rankings:" in publish.stdout, "publish-proof did not print a loop ranking bundle link")
+        require("Identity trailer:" in publish.stdout, "publish-proof did not print an identity trailer bundle link")
         require("Share receipt:" in publish.stdout, "publish-proof did not print a share receipt")
         require("Local receipt:" in publish.stdout, "publish-proof did not persist a local proof receipt")
         require("tokenbar proof latest" in publish.stdout, "publish-proof did not print the proof receipt recovery command")
 
         run_id = run_match.group(1)
         token = token_match.group(1)
+        owner_bound_profile_upload = subprocess.run(
+            [str(tokenbar_cli), "share", str(identity_path)],
+            cwd=str(ROOT),
+            env=publish_env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=90,
+        )
+        require(
+            owner_bound_profile_upload.returncode == 0,
+            f"owner-bound profile upload failed:\n{owner_bound_profile_upload.stdout}",
+        )
+        require("Uploaded identity JSON:" in owner_bound_profile_upload.stdout, "owner-bound profile upload did not confirm the artifact")
         latest_proof = run([str(tokenbar_cli), "proof", "latest"], publish_env, timeout=90)
         require(token in latest_proof.stdout, "proof latest did not reprint the safe token")
         require(run_id in latest_proof.stdout, "proof latest did not reprint the action run id")
@@ -364,18 +605,39 @@ def main() -> int:
         require("Submitting a hackathon repo?" in latest_proof.stdout, "proof latest missing hackathon submission recovery path")
         require('tokenbar submit --project "My Codex App"' in latest_proof.stdout, "proof latest missing submit command")
         require("Raw prompts, transcripts, source code, and secrets still stay local" in latest_proof.stdout, "proof latest missing local-first submit boundary")
+        latest_share = run([str(tokenbar_cli), "share", "latest"], publish_env, timeout=90)
+        require(token in latest_share.stdout, "share latest did not reprint the safe token")
+        require(run_id in latest_share.stdout, "share latest did not reprint the action run id")
+        require("Latest safe TokenBar proof" in latest_share.stdout, "share latest missing proof heading")
+        require("Public profile:" in latest_share.stdout, "share latest missing public-profile URL")
+        require("For You feed:" in latest_share.stdout, "share latest missing social feed URL")
+        require("Raw transcripts uploaded: no" in latest_share.stdout, "share latest missing raw transcript boundary")
+        require("Source code uploaded: no" in latest_share.stdout, "share latest missing source code boundary")
         latest_json = run([str(tokenbar_cli), "proof", "latest", "--json"], publish_env, timeout=90)
         local_receipt = json.loads(latest_json.stdout)
         require(local_receipt.get("schema") == "tokenbar.local_proof_receipt.v1", "proof latest JSON missing receipt schema")
         require(local_receipt.get("token") == token, "proof latest JSON token mismatch")
         require(local_receipt.get("runId") == run_id, "proof latest JSON run mismatch")
+        require(local_receipt.get("ownerBound") is True, "proof receipt is not bound to this publishing device")
+        require(local_receipt.get("revoked") is False, "fresh proof receipt is incorrectly marked revoked")
         require((local_receipt.get("privacy") or {}).get("rawTranscriptsUploaded") is False, "local receipt raw transcript boundary is not false")
         require((local_receipt.get("privacy") or {}).get("sourceCodeUploaded") is False, "local receipt source code boundary is not false")
-        require({"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings"}.issubset(set((local_receipt.get("surfaces") or {}).keys())), "local receipt missing safe surface links")
+        require({"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings", "identityTrailer"}.issubset(set((local_receipt.get("surfaces") or {}).keys())), "local receipt missing safe surface links")
         local_surfaces = local_receipt.get("surfaces") or {}
         require(f"/social?token={token}" in local_surfaces.get("socialFeed", ""), "local receipt social URL missing token handoff")
         require(f"/rankings?token={token}" in local_surfaces.get("rankings", ""), "local receipt rankings URL missing token handoff")
         require(f"/rankings?token={token}#loop" in local_surfaces.get("loopRankings", ""), "local receipt loop rankings URL missing token handoff")
+        require(f"/api/actions?token={token}&view=trailer" in local_surfaces.get("identityTrailer", ""), "local receipt trailer URL missing token handoff")
+        surface_env = publish_env | {"TOKENBAR_NO_OPEN": "1"}
+        latest_profile_surface = run([str(tokenbar_cli), "profile", "latest", "--print"], surface_env, timeout=30)
+        latest_social_surface = run([str(tokenbar_cli), "social", "latest", "--print"], surface_env, timeout=30)
+        latest_rankings_surface = run([str(tokenbar_cli), "rankings", "latest", "--print"], surface_env, timeout=30)
+        latest_loop_surface = run([str(tokenbar_cli), "open-proof", "loop", "latest", "--print"], surface_env, timeout=30)
+        require(local_surfaces.get("publicProfile") in latest_profile_surface.stdout, "profile latest did not reuse the receipt profile URL")
+        require(local_surfaces.get("socialFeed") in latest_social_surface.stdout, "social latest did not reuse the receipt feed URL")
+        require(local_surfaces.get("rankings") in latest_rankings_surface.stdout, "rankings latest did not reuse the receipt rankings URL")
+        require(local_surfaces.get("loopRankings") in latest_loop_surface.stdout, "open-proof loop did not reuse the receipt loop URL")
+        require("no analysis rerun and no new upload" in latest_profile_surface.stdout, "proof surface opener missing no-rerun boundary")
         run_payload = get_json(f"{base_url}/api/actions?run={run_id}")
         proof_payload = get_json(f"{base_url}/api/actions?token={token}")
         profile_payload = get_json(f"{base_url}/api/profiles?token={token}")
@@ -391,13 +653,34 @@ def main() -> int:
         share_contract = feed_payload.get("shareContract") or {}
         first = feed[0] if feed else {}
         public_run_ids = {str(item.get("runId") or "") for item in public_runs if isinstance(item, dict)}
+        assert_public_payload_safe(
+            {"run": run_payload.get("run") or {}, "proof": proof, "profile": profile, "feed": feed_payload},
+            "fixture public payload",
+        )
 
         require(run_payload.get("run", {}).get("status") == "complete", "action run did not reload complete")
+        require("ownerId" not in (run_payload.get("run") or {}), "public run response leaked the hashed device owner id")
         require(len(run_payload.get("run", {}).get("stages") or []) >= 6, "action run does not show six stages")
         require(proof.get("token") == token, "proof token mismatch")
         require(profile.get("title"), "public profile fallback did not load")
         require(not (profile.get("privacy") or {}).get("rawTranscriptsIncluded"), "public profile exposes raw transcripts")
         require(not (profile.get("privacy") or {}).get("sourceCodeIncluded"), "public profile exposes source code")
+        proof_spotlight = proof.get("spotlightSources") or {}
+        profile_spotlight = profile.get("spotlightSources") or {}
+        require(proof_spotlight.get("schema") == "tokenbar.spotlight_sources.v1", "proof card missing spotlight source schema")
+        require(profile_spotlight.get("schema") == "tokenbar.spotlight_sources.v1", "public profile missing spotlight source schema")
+        require("019e7a08-b6d6-7863-be79-66b20c9353df" in (proof_spotlight.get("sessions") or []), "proof spotlight missing selected session id")
+        require("AI video editor" in (proof_spotlight.get("projects") or []), "proof spotlight missing selected project")
+        proof_spotlight_story = proof_spotlight.get("story") or {}
+        profile_spotlight_story = profile_spotlight.get("story") or {}
+        require("video-agent research session" in proof_spotlight_story.get("insight", ""), "proof spotlight missing structured insight")
+        require("without leaking private prompts" in proof_spotlight_story.get("struggle", ""), "proof spotlight missing structured struggle")
+        require("proof cards now carry session anchors" in proof_spotlight_story.get("features", ""), "proof spotlight missing structured feature")
+        require("proof, profile, feed, and trailer" in proof_spotlight_story.get("progress", ""), "proof spotlight missing structured progress")
+        require(profile_spotlight_story.get("insight") == proof_spotlight_story.get("insight"), "public profile did not preserve spotlight story")
+        require((proof_spotlight.get("privacy") or {}).get("sessionFilesRead") is True, "spotlight sources should preserve bounded local session inference")
+        require((proof_spotlight.get("privacy") or {}).get("rawTranscriptsIncluded") is False, "spotlight sources should exclude raw transcripts")
+        require((proof_spotlight.get("privacy") or {}).get("storedRawExcerpts") is False, "spotlight sources should not store raw excerpts")
         proof_submission = proof.get("hackathonSubmission") or {}
         profile_submission = profile.get("hackathonSubmission") or {}
         feed_submission = first.get("hackathonSubmission") or {}
@@ -405,31 +688,53 @@ def main() -> int:
         require(profile_submission.get("event") == "TokenBar Smoke Hackathon", "public profile missing submitted event")
         require(feed_submission.get("track") == "Builder Identity", "feed item missing submitted track")
         require(first.get("projectTitle") == "Smoke Proof Repo", "feed item missing project title shortcut")
+        feed_axes = first.get("identityAxes") or []
+        require(len(feed_axes) == 6, "feed item missing six-axis builder form")
+        require(
+            {"craftTaste", "systemsThinking", "completion", "ambition", "learningVelocity", "discernment"}
+            == {item.get("key") for item in feed_axes if isinstance(item, dict)},
+            "feed item builder form keys are incomplete",
+        )
+        require((first.get("feedStory") or {}).get("whatShipped"), "feed item missing shipped-work headline")
         require((feed_payload.get("submissionEvents") or {}).get("TokenBar Smoke Hackathon") == 1, "action feed missing submission event count")
         require((feed_payload.get("submissionTracks") or {}).get("Builder Identity") == 1, "action feed missing submission track count")
-        submit_status, submit_payload = post_json(
-            f"{base_url}/api/profiles",
-            {
-                "schema": "tokenbar.hackathon_submission_update.v1",
-                "token": token,
-                "visibility": "public",
-                "hackathonSubmission": {
-                    "schema": "tokenbar.hackathon_submission.v1",
-                    "event": "Browser Intake Hackathon",
-                    "projectTitle": "Browser Submitted Proof",
-                    "tagline": "Attached from a TBAR token without uploading source.",
-                    "track": "Social proof",
-                    "repoUrl": "https://github.com/Arnie016/TokenBar",
-                    "demoUrl": "https://tokenbar-umber.vercel.app",
-                    "submittedAt": "2026-07-18T00:00:00Z",
-                    "privacy": {
-                        "rawRepoUploaded": False,
-                        "sourceCodeUploaded": False,
-                        "rawTranscriptsUploaded": False,
-                        "publicMetadataOnly": True,
-                    },
+        owner_key_path = claim_home / "Library/Application Support/CodexLimitBar/proof-owner-key"
+        require(owner_key_path.exists(), "publish-proof did not create the private owner key")
+        owner_key = owner_key_path.read_text(encoding="utf-8").strip()
+        owner_headers = {"X-TokenBar-Owner-Key": owner_key}
+        browser_update = {
+            "schema": "tokenbar.hackathon_submission_update.v1",
+            "token": token,
+            "visibility": "public",
+            "hackathonSubmission": {
+                "schema": "tokenbar.hackathon_submission.v1",
+                "event": "Browser Intake Hackathon",
+                "projectTitle": "Browser Submitted Proof",
+                "tagline": "Attached from a TBAR token without uploading source.",
+                "track": "Social proof",
+                "repoUrl": "https://github.com/Arnie016/TokenBar",
+                "demoUrl": "https://tokenbar-umber.vercel.app",
+                "submittedAt": "2026-07-18T00:00:00Z",
+                "privacy": {
+                    "rawRepoUploaded": False,
+                    "sourceCodeUploaded": False,
+                    "rawTranscriptsUploaded": False,
+                    "publicMetadataOnly": True,
                 },
             },
+        }
+        unauth_status, unauth_payload = post_json(f"{base_url}/api/profiles", browser_update)
+        require(unauth_status == 403 and not unauth_payload.get("ok"), "public TBAR token allowed an unauthenticated profile update")
+        wrong_status, wrong_payload = post_json(
+            f"{base_url}/api/profiles",
+            browser_update,
+            headers={"X-TokenBar-Owner-Key": "wrong-device-owner-key-000000000000000000000000"},
+        )
+        require(wrong_status == 403 and not wrong_payload.get("ok"), "wrong device owner key updated a public profile")
+        submit_status, submit_payload = post_json(
+            f"{base_url}/api/profiles",
+            browser_update,
+            headers=owner_headers,
         )
         require(submit_status == 200 and submit_payload.get("ok"), f"browser submission update failed: {submit_payload}")
         require(submit_payload.get("actionStoreUpdated") is True, "browser submission update did not update action proof store")
@@ -439,6 +744,10 @@ def main() -> int:
         updated_feed_payload = get_json(f"{base_url}/api/actions")
         updated_profile = updated_profile_payload.get("profile") or {}
         updated_first = (updated_feed_payload.get("feed") or [{}])[0]
+        assert_public_payload_safe(
+            {"profile": updated_profile, "feed": updated_feed_payload},
+            "browser-updated public payload",
+        )
         require((updated_profile.get("hackathonSubmission") or {}).get("projectTitle") == "Browser Submitted Proof", "profile did not persist browser-submitted project")
         require((updated_first.get("hackathonSubmission") or {}).get("event") == "Browser Intake Hackathon", "action feed did not reload browser-submitted project")
         reject_status, reject_payload = post_json(
@@ -455,8 +764,34 @@ def main() -> int:
                     },
                 },
             },
+            headers=owner_headers,
         )
         require(reject_status == 400 and not reject_payload.get("ok"), "unsafe submission metadata was not rejected")
+        unsafe_identity = {
+            "schema": "tokenbar.identity.v1",
+            "token": "TBAR-UNSAFE-SMOKE",
+            "privacy": {
+                "rawTranscriptsIncluded": True,
+                "sourceCodeIncluded": True,
+            },
+        }
+        unsafe_action_status, unsafe_action_payload = post_json(
+            f"{base_url}/api/actions",
+            {
+                "action": "builder_identity.proof_card.v1",
+                "idempotencyKey": "unsafe-raw-content-smoke",
+                "identity": unsafe_identity,
+            },
+        )
+        require(
+            unsafe_action_status == 400 and not unsafe_action_payload.get("ok"),
+            "unsafe action identity was not rejected before proof-card creation",
+        )
+        require(
+            "rawTranscriptsIncluded=false" in str(unsafe_action_payload.get("error") or "")
+            or "sourceCodeIncluded" in str(unsafe_action_payload.get("error") or ""),
+            "unsafe action rejection did not explain the privacy boundary",
+        )
         proof_owner = proof.get("ownerProfile") or {}
         profile_owner = profile.get("publicProfile") or {}
         require(proof_owner.get("handle") == "tokenbar-smoke", "proof card did not preserve owner handle")
@@ -528,14 +863,16 @@ def main() -> int:
         surface_urls = {item.get("key"): item.get("url") for item in surfaces if isinstance(item, dict)}
         require(surface_bundle.get("schema") == "tokenbar.surface_bundle.v1", "public profile missing surface bundle schema")
         require(
-            {"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings"}.issubset(surface_keys),
+            {"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings", "identityTrailer"}.issubset(surface_keys),
             "surface bundle missing proof/profile/feed/ranking links",
         )
         require(f"/social?token={token}" in surface_urls.get("socialFeed", ""), "surface bundle social feed link does not carry token")
         require(f"/rankings?token={token}" in surface_urls.get("rankings", ""), "surface bundle rankings link does not carry token")
         require(f"/rankings?token={token}#loop" in surface_urls.get("loopRankings", ""), "surface bundle loop ranking link does not carry token")
+        require(f"/api/actions?token={token}&view=trailer" in surface_urls.get("identityTrailer", ""), "surface bundle trailer link does not carry token")
         require(f"/social?token={token}" in profile.get("socialUrl", ""), "public profile social URL does not carry token")
         require(f"/rankings?token={token}" in profile.get("rankingsUrl", ""), "public profile rankings URL does not carry token")
+        require(f"/api/actions?token={token}&view=trailer" in profile.get("trailerUrl", ""), "public profile trailer URL does not carry token")
         bundle_boundary = surface_bundle.get("privacyBoundary") or {}
         require(bundle_boundary.get("rawTranscriptsIncluded") is False, "surface bundle raw transcript boundary is not false")
         require(bundle_boundary.get("sourceCodeIncluded") is False, "surface bundle source code boundary is not false")
@@ -555,9 +892,11 @@ def main() -> int:
         require("no raw transcripts" in first.get("shareCopy", "").lower(), "share copy missing raw transcript boundary")
         require("source code" in first.get("shareCopy", "").lower(), "share copy missing source-code boundary")
         require(first.get("rankingsUrl") and first.get("loopRankingsUrl"), "feed item missing ranking links")
+        require(first.get("trailerUrl"), "feed item missing identity trailer link")
         require(f"/social?token={token}" in first.get("socialUrl", ""), "feed item social URL missing token handoff")
         require(f"/rankings?token={token}" in first.get("rankingsUrl", ""), "feed item rankings URL missing token handoff")
         require(f"/rankings?token={token}#loop" in first.get("loopRankingsUrl", ""), "feed item loop rankings URL missing token handoff")
+        require(f"/api/actions?token={token}&view=trailer" in first.get("trailerUrl", ""), "feed item trailer URL missing token handoff")
         require(first.get("handle") == "tokenbar-smoke", "feed item missing owner handle")
         require(first.get("region") == "Singapore", "feed item missing owner region")
         require((first.get("profileLinks") or {}).get("github") == "https://github.com/Arnie016/TokenBar", "feed item missing owner GitHub link")
@@ -576,7 +915,7 @@ def main() -> int:
         }
         require(feed_surface_bundle.get("schema") == "tokenbar.surface_bundle.v1", "feed item missing surface bundle schema")
         require(
-            {"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings"}.issubset(feed_surface_keys),
+            {"proofCard", "publicProfile", "socialFeed", "rankings", "loopRankings", "identityTrailer"}.issubset(feed_surface_keys),
             "feed item surface bundle missing proof/profile/feed/ranking links",
         )
         feed_bundle_boundary = feed_surface_bundle.get("privacyBoundary") or {}
@@ -588,6 +927,11 @@ def main() -> int:
         require(feed_signals.get("schema") == "tokenbar.builder_signal_summary.v1", "feed item missing builder signal summary")
         require(feed_signals.get("signalCount", 0) >= 1, "feed item builder signal summary missing saved signal count")
         require((feed_signals.get("privacy") or {}).get("urlsIncluded") is False, "feed item builder signals include raw URLs")
+        feed_spotlight = first.get("spotlightSources") or {}
+        require(feed_spotlight.get("schema") == "tokenbar.spotlight_sources.v1", "feed item missing spotlight source schema")
+        require("AI video editor" in (feed_spotlight.get("projects") or []), "feed spotlight missing selected project")
+        feed_spotlight_story = feed_spotlight.get("story") or {}
+        require(feed_spotlight_story.get("features") == proof_spotlight_story.get("features"), "feed item did not preserve spotlight feature story")
         require("aggregate builder-signal hosts and tags" in set(feed_safe_receipt.get("usedEvidence") or []), "feed safe evidence receipt missing builder-signal evidence class")
         require(feed_share_receipt.get("schema") == "tokenbar.share_receipt.v1", "feed item missing share receipt")
         require(feed_share_receipt.get("shareMode") == "public", "feed share receipt did not persist public share mode")
@@ -597,6 +941,7 @@ def main() -> int:
         require(first.get("whatRemainsUncertain"), "feed item missing uncertainty copy")
         feed_story = first.get("feedStory") or {}
         require(feed_story.get("whatShipped"), "feed item missing story card shipped summary")
+        require("proof cards now carry session anchors" in feed_story.get("whatShipped", ""), "feed story did not prefer inferred spotlight feature")
         require(feed_story.get("whyItMatters"), "feed item missing story card why-it-matters copy")
         require(feed_story.get("tradeoff"), "feed item missing story card tradeoff copy")
         require("no raw transcripts" in str(feed_story.get("provenance") or "").lower(), "feed story provenance missing raw transcript boundary")
@@ -632,6 +977,7 @@ def main() -> int:
         app_js = get_text(f"{base_url}/app.js")
         styles_css = get_text(f"{base_url}/styles.css")
         proof_html = get_text(f"{base_url}/api/actions?token={token}")
+        proof_trailer_html = get_text(f"{base_url}/api/actions?token={token}&view=trailer")
         public_profile_html = get_text(f"{base_url}/api/profiles?token={token}")
         require("data-social-feed" in social_html, "social page missing feed mount")
         require("data-hackathon-roster" in social_html, "social page missing hackathon roster mount")
@@ -639,6 +985,9 @@ def main() -> int:
         require("Roster pending" in social_html, "social page missing roster empty state")
         require("tokenbar submit --project" in index_html, "home page missing submit shortcut")
         require("tokenbar submit --project" in docs_html, "docs page missing submit shortcut")
+        require("tokenbar claim 019e..." in docs_html and "--spotlight-project" in docs_html, "docs page missing short spotlight anchor command")
+        require("Raw session files are not uploaded" in docs_html, "docs page missing spotlight privacy boundary")
+        require("--spotlight-struggle" in docs_html and "--spotlight-feature" in docs_html and "--spotlight-progress" in docs_html, "docs page missing structured spotlight story fields")
         require("tokenbar share latest" not in index_html, "home page still uses obsolete share-latest path")
         require("tokenbar submit --project" in social_html, "social page missing submit shortcut")
         require("Submit your build" in social_html, "social page missing top submit booth")
@@ -653,36 +1002,37 @@ def main() -> int:
         require("cd ~/path/to/repo" in social_html, "social page missing repo-local command")
         require("tokenbar save https://example.com --tag inspiration" in social_html, "social page missing builder reference save command")
         require("No raw repo upload" in social_html, "social page missing no-raw-repo-upload privacy promise")
-        require("data-submission-update" in social_html, "social page missing project submission update form")
-        require("Attach project to token" in social_html, "social page missing project submission action")
+        require("data-submission-update" in social_html, "social page missing owner-device command composer")
+        require("Copy owner command" in social_html, "social page missing owner-device submission handoff")
+        require("Attach project to token" not in social_html, "social page still exposes public-token profile mutation")
+        require("read-only TBAR proof token" in social_html, "social page missing read-only public-token boundary")
         require("GitHub URL" in social_html and "Demo URL" in social_html, "social page missing submitted project links")
         require("Opt-in rankings" in social_html and "Shareable proof token" in social_html, "social page missing hackathon profile-token contract")
-        require("data-share-proof" in social_html, "social page missing share-proof action")
-        require("feed-safety" in social_html, "social page static feed missing safety receipt")
+        require("feed-empty-state" in social_html and "No fabricated builders here." in social_html, "social page should show an honest empty feed instead of fake profiles")
         require("data-share-contract" in social_html, "social page missing share contract panel")
         require("Public proof contract" in social_html, "social page missing share contract headline")
         require("raw transcripts, source code, credentials, private diffs, and env files" in social_html, "social page missing never-public contract copy")
         require("data-proof-receipt-form" in social_html, "social page missing local receipt handoff form")
         require("tokenbar proof latest --json" in social_html, "social page missing proof receipt JSON command")
-        require("feed-story-card" in social_html, "social page static feed missing story card")
-        require("What shipped" in social_html and "Why it matters" in social_html, "social page static feed missing story labels")
-        require("No raw transcripts" in social_html and "No source code" in social_html, "social page static feed missing privacy boundary")
         require("feed-safety" in app_js, "dynamic feed renderer missing safety receipt")
+        require("data-share-proof" in app_js, "dynamic feed renderer missing share-proof action")
         require("function renderLocalProofReceipt" in app_js, "dynamic renderer missing local proof receipt preview")
         require("tokenbar.local_proof_receipt.v1" in app_js, "dynamic renderer missing local proof receipt schema check")
         require("rawTranscriptsUploaded" in app_js and "sourceCodeUploaded" in app_js, "dynamic receipt preview missing privacy flag checks")
         require("function renderShareContract" in app_js, "dynamic social renderer missing share contract")
         require("shareContract" in app_js and "Never public" in app_js, "dynamic social renderer missing share contract copy")
-        require("feedStory" in app_js and "feed-story-card" in app_js, "dynamic feed renderer missing story card")
-        require("What shipped" in app_js and "Why it matters" in app_js, "dynamic feed renderer missing story labels")
+        require("feedStory" in app_js and "feed-social-post" in app_js and "feed-story-lede" in app_js, "dynamic feed renderer missing compact shipped-work story")
+        require("What shipped" in app_js and "whyItMatters" in app_js, "dynamic feed renderer missing shipped outcome and meaning")
         require("feed-shipped-work" in app_js, "dynamic feed renderer missing shipped-work receipt")
         require("feed-safe-receipt" in app_js and "token-safe-receipt" in app_js, "dynamic renderer missing safe evidence receipt surfaces")
         require("feed-next-action" in app_js and "Act next" in app_js, "dynamic feed renderer missing next-action plan")
-        require("feed-profile-links" in app_js, "dynamic feed renderer missing owner profile links")
+        require("Open profile" in app_js and "Inspect proof" in app_js, "dynamic feed renderer missing profile/proof actions")
+        require("function renderMiniIdentityRadar" in app_js and "feed-evidence-drawer" in app_js, "dynamic feed renderer missing compact identity form and evidence drawer")
         require("function submissionForProfile" in app_js, "dynamic renderer missing submitted-project helper")
-        require("tokenbar.hackathon_submission_update.v1" in app_js, "dynamic submission form missing POST schema")
+        require("function shellArgument" in app_js and '"tokenbar submit"' in app_js, "dynamic command composer missing safe CLI handoff")
+        require("tokenbar.hackathon_submission_update.v1" not in app_js, "browser still contains public-token profile mutation schema")
         require("data-submission-update-state" in app_js, "dynamic submission form missing status binding")
-        require("feed-submission-card" in app_js and "Submitted project" in app_js, "dynamic feed renderer missing submitted-project card")
+        require("feed-project-line" in app_js and "Submitted project" in app_js, "dynamic feed renderer missing compact submitted-project context")
         require("function renderHackathonRoster" in app_js, "dynamic social renderer missing hackathon roster")
         require("data-hackathon-roster" in app_js, "dynamic social renderer missing roster selector")
         require("renderHackathonRoster(payload.feed)" in app_js, "action feed load does not refresh hackathon roster")
@@ -712,6 +1062,9 @@ def main() -> int:
         require("cd ~/path/to/repo && tokenbar submit --project" in profile_html, "profile page missing one-command repo passport")
         require("what remains uncertain" in profile_html, "profile page missing judge-facing uncertainty promise")
         require("share-mode-lab" in profile_html, "profile page missing share mode lab")
+        require("Anchor the story to a real session" in profile_html, "profile page missing spotlight context card")
+        require("tokenbar claim 019e..." in profile_html, "profile page missing copyable short spotlight claim command")
+        require("without reading or uploading the raw thread" in profile_html, "profile page missing raw-thread spotlight privacy copy")
         require("data-identity-create" in profile_html, "profile page missing browser-first create identity journey")
         require("Choose safe identity artifact" in profile_html, "create identity journey missing safe artifact picker")
         require("Build identity passport" in profile_html and "Preview share card" in profile_html, "create identity journey missing concise processing stages")
@@ -720,17 +1073,25 @@ def main() -> int:
         require("/rankings?token=${encodeURIComponent(token)}" in app_js, "token launcher fallback does not open direct rankings URL")
         require("profile?.actionLinks?.[key]" in app_js, "token launcher does not read nested actionLinks")
         require("setIdentityCreateStage" in app_js and "idempotencyKey: `browser-${submittedSelectionKey}-${visibility}`" in app_js, "browser create identity handler missing staged action flow")
+        require("data-identity-submit" in profile_html and "Generate ${selectedIdentityVisibility()} 60-second passport" in app_js, "browser create identity submit control does not restate the selected privacy mode")
         require("identityArtifactIsSafe" in app_js and "setIdentitySubmitEnabled" in app_js, "browser create identity handler can submit before local safety preflight completes")
         require("announceIdentityVisibility" in app_js and "keeps it out of public discovery" in app_js, "browser create identity handler does not explain selected share visibility")
         require("data-identity-share-contract" in profile_html and "renderIdentityShareContract" in app_js, "browser create identity flow lacks a visibility-specific safe share contract")
         require("data-identity-passport" in app_js and "passportPreview?.scrollIntoView" in app_js, "browser create identity handler does not keep the generated share card in view")
+        require("identity-preview-audience" in app_js and "Direct-link only. Hidden from public discovery, feeds, and rankings." in app_js, "browser create identity preview does not restate the selected unlisted share scope")
+        require("identity-preview-review" in app_js and "open the safe proof, then copy the share preview" in app_js, "browser create identity preview does not guide the final safe-proof and copy review")
+        require('target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(visibility)} proof in a new tab">Open ${escapeHtml(visibility)} proof <span aria-hidden="true">(new tab)</span></a>' in app_js, "browser create identity preview does not disclose that opening proof preserves the in-progress passport in a new tab")
+        require("data-copy-share" in app_js and "function copySharePreview" in app_js and "navigator.clipboard.writeText(text)" in app_js and "Safe share preview copy fallback" in app_js and "document.execCommand(\"copy\")" in app_js and "data-copy-share-state" in app_js and "Safe share preview copied." in app_js, "browser create identity preview does not provide an announced deterministic copy action with a local-preview fallback")
+        require('const canSharePassport = visibility !== "private" && Boolean(shareUrl);' in app_js and 'Owner-only review: no share link or token lookup is created.' in app_js, "browser create identity flow exposes a misleading private share link or token")
         require("passportRequestStarted" in app_js and 'setIdentityCreateStage("passport", "error", "Could not create")' in app_js, "browser create identity flow mislabels a passport request failure as an unsafe artifact")
         require("setIdentityGenerationPending" in app_js and 'identityCreateForm.setAttribute("aria-busy", String(pending))' in app_js, "browser create identity flow does not prevent duplicate passport requests")
         require("data-identity-retry" in profile_html and "identityCreateForm.requestSubmit()" in app_js and "setIdentityRetryVisible(true)" in app_js, "browser create identity flow does not offer a safe retry after passport request failure")
         require("identityArtifactSelectionKey" in app_js and "createIdentityArtifactSelectionKey" in app_js, "browser create identity flow can reuse an older artifact's idempotency key")
+        require('identityFileName.textContent = file ? "Identity JSON selected locally" : "Choose generated identity JSON";' in app_js and "file ? file.name" not in app_js, "browser create identity flow exposes a local filename")
         require("submittedSelectionKey" in app_js and "The selected artifact changed" in app_js, "browser create identity flow can submit a replacement artifact under a stale local approval")
         require("MAX_IDENTITY_ARTIFACT_BYTES = 240_000" in app_js and "It was not read or uploaded" in app_js, "browser create identity flow lacks a local oversized-artifact privacy guard")
         require('if (identityCreatePreview) identityCreatePreview.innerHTML = "";' in app_js, "browser create identity flow leaves a prior passport preview visible while a replacement artifact is checked")
+        require("invalidateIdentityPreviewForVisibilityChange" in app_js and "Generate again to preview" in app_js, "browser create identity flow can leave a stale share card visible after its privacy mode changes")
         require("Anonymous proof" in social_html, "social page missing anonymous proof action")
         require("ranking-privacy-panel" in rankings_html, "rankings page missing privacy rule panel")
         require("Regional proof boards" in rankings_html, "rankings page missing regional proof board headline")
@@ -760,11 +1121,15 @@ def main() -> int:
         require("token-proof-passport" in app_js and "token-proof-passport" in styles_css, "profile token launcher missing proof passport styling")
         require("token-passport-boundary" in app_js and "raw transcripts excluded" in app_js, "profile token launcher missing privacy boundary passport")
         require("function surfaceFromBundle" in app_js, "dynamic social renderer missing surface-bundle link helper")
-        require("Proof bundle unlocked" in app_js and "For You feed" in app_js, "profile token launcher missing proof bundle surfaces")
+        require("Verified builder profile unlocked" in app_js and "For You feed" in app_js, "profile token launcher missing proof bundle surfaces")
         require("/api/profiles${token}" not in app_js, "dynamic profile renderer has malformed token URL fallback")
         require("/api/profiles?token=" in app_js, "dynamic profile renderer missing profile token query URL")
         require("data-profile-lookup" in profile_html, "profile page missing token lookup")
         require("data-token-surface-launcher" in profile_html, "profile page missing token surface launcher")
+        require("id=\"token-dock\"" in profile_html and "One token opens the builder" in profile_html, "profile page missing primary token dock")
+        require("function renderIdentityRadar" in app_js and "token-identity-radar" in styles_css, "profile token passport missing six-axis builder form")
+        require("Signature edge" in app_js and "Next drill" in app_js, "profile token passport missing interpreted strength/frontier")
+        require("function storyEvidenceText" in app_js, "profile token passport does not normalize structured proof evidence")
         require("Paste a `TBAR` token" not in profile_html, "profile page contains malformed backtick token copy")
         require("What remains uncertain" in proof_html, "proof HTML missing uncertainty section")
         require("Safe evidence receipt" in proof_html and "Never used" in proof_html, "proof HTML missing safe evidence receipt")
@@ -805,6 +1170,24 @@ def main() -> int:
         require("Builder reference radar" in public_profile_html, "public profile missing builder reference radar")
         require("Saved links become a private learning trail" in public_profile_html, "public profile missing reference-radar learning trail copy")
         require("Raw URLs, titles, notes, page content, transcripts, and source code stay local" in public_profile_html, "public profile missing reference-radar privacy copy")
+        require("Identity trailer" in public_profile_html, "public profile missing identity trailer link")
+        require("Spotlight sessions" in proof_html and "projects" in proof_html, "proof card missing spotlight section")
+        require("019e7a08-b6d6-7863-be79-66b20c9353df" in proof_html, "proof card HTML missing spotlight session")
+        require("AI video editor" in proof_html, "proof card HTML missing spotlight project")
+        require("video-agent research session" in proof_html, "proof card HTML missing structured spotlight insight")
+        require("proof cards now carry session anchors" in proof_html, "proof card HTML missing structured spotlight feature")
+        require("TokenBar identity trailer" in proof_trailer_html, "identity trailer HTML missing title")
+        require("30-second micro-storyboard" in proof_trailer_html, "identity trailer HTML missing storyboard")
+        require("Spotlight sessions" in proof_trailer_html and "projects" in proof_trailer_html, "identity trailer HTML missing spotlight section")
+        require("019e7a08-b6d6-7863-be79-66b20c9353df" in proof_trailer_html, "identity trailer HTML missing spotlight session")
+        require("AI video editor" in proof_trailer_html, "identity trailer HTML missing spotlight project")
+        require("proof, profile, feed, and trailer views" in proof_trailer_html, "identity trailer HTML missing structured progress")
+        require("No raw transcripts" in proof_trailer_html and "No source code" in proof_trailer_html, "identity trailer HTML missing privacy boundary")
+        require("renderSpotlightSources" in app_js, "browser UI does not render spotlight anchors")
+        require("Spotlight anchors" in app_js and "selected by builder" in app_js, "browser spotlight renderer missing user-selected anchor copy")
+        require("const storyRows" in app_js and "Feature shipped" in app_js, "browser spotlight renderer does not prioritize inferred story beats")
+        require("options.compact ? 3 : 4" in app_js, "compact spotlight renderer hides shipped-feature story")
+        require("spotlight-sources" in styles_css and "spotlight-anchor-grid" in styles_css, "styles missing spotlight anchor cards")
         require("No raw transcripts" in public_profile_html and "No source code" in public_profile_html, "public profile missing safe evidence boundary")
         require("Safe aggregates only" in public_profile_html, "public profile missing aggregate-only boundary")
         require("Share preview" in public_profile_html, "public profile missing share preview")
@@ -866,6 +1249,10 @@ def main() -> int:
         selective_feed = selective_feed_payload.get("feed") or []
         selective_public_runs = selective_feed_payload.get("runs") or []
         selective_share_contract = selective_feed_payload.get("shareContract") or {}
+        assert_public_payload_safe(
+            {"proof": selective_proof, "profile": selective_profile, "feed": selective_feed_payload},
+            "selective public payload",
+        )
         selective_tokens = {str(item.get("token") or "") for item in selective_feed if isinstance(item, dict)}
         selective_public_run_ids = {str(item.get("runId") or "") for item in selective_public_runs if isinstance(item, dict)}
         selective_privacy = selective_proof.get("privacy") or {}
@@ -975,6 +1362,7 @@ def main() -> int:
         private_feed = private_feed_payload.get("feed") or []
         private_public_runs = private_feed_payload.get("runs") or []
         private_share_contract = private_feed_payload.get("shareContract") or {}
+        assert_public_payload_safe(private_feed_payload, "post-private public feed")
         private_tokens = {str(item.get("token") or "") for item in private_feed if isinstance(item, dict)}
         private_public_run_ids = {str(item.get("runId") or "") for item in private_public_runs if isinstance(item, dict)}
         require(private_share_contract.get("privateProofCount", 0) >= 1, "share contract did not count private proof")
@@ -1015,6 +1403,7 @@ def main() -> int:
         require(f"/rankings?token={submit_token}" in submit.stdout, "submit output missing direct rankings URL")
         submit_profile_payload = get_json(f"{base_url}/api/profiles?token={submit_token}")
         submit_profile = submit_profile_payload.get("profile") or {}
+        assert_public_payload_safe(submit_profile, "CLI-submitted public profile")
         submit_submission = submit_profile.get("hackathonSubmission") or {}
         require(submit_submission.get("projectTitle") == "CLI Submitted Proof", "submit profile missing project title")
         require(submit_submission.get("event") == "CLI Intake Hackathon", "submit profile missing event")
@@ -1024,6 +1413,73 @@ def main() -> int:
         require(not (submit_profile.get("privacy") or {}).get("rawTranscriptsIncluded"), "submit profile exposes raw transcripts")
         require(not (submit_profile.get("privacy") or {}).get("sourceCodeIncluded"), "submit profile exposes source code")
 
+        revocable = run(
+            [
+                str(tokenbar_cli),
+                "publish-proof",
+                str(identity_path),
+                "--hide-region",
+            ],
+            publish_env,
+            timeout=90,
+        )
+        revoke_run_match = re.search(r"Builder proof run:\s*(run_[A-Za-z0-9._-]+)", revocable.stdout)
+        revoke_token_match = re.search(r"Proof card:\s*.*token=(TBAR-[A-Z0-9]+)", revocable.stdout)
+        require(revoke_run_match and revoke_token_match, f"revocation fixture did not publish a proof:\n{revocable.stdout}")
+        revoke_run_id = revoke_run_match.group(1)
+        revoke_token = revoke_token_match.group(1)
+        require(revoke_token not in {token, selective_token, private_token, submit_token}, "revocation fixture reused an earlier token")
+        owner_key_path = claim_home / "Library/Application Support/CodexLimitBar/proof-owner-key"
+        require(owner_key_path.is_file(), "publishing did not create the private device owner key")
+        require((owner_key_path.stat().st_mode & 0o777) == 0o600, "device owner key permissions are not 0600")
+
+        wrong_owner_status, wrong_owner_payload = post_json(
+            f"{base_url}/api/actions",
+            {"action": "builder_identity.revoke.v1", "token": revoke_token},
+            {"X-TokenBar-Owner-Key": "wrong-device-owner-key-000000000000"},
+        )
+        require(wrong_owner_status == 403, f"wrong device should not revoke a proof: {wrong_owner_status} {wrong_owner_payload}")
+        require(get_status(f"{base_url}/api/actions?token={revoke_token}")[0] == 200, "wrong-owner attempt removed the proof")
+
+        local_identity_before_revoke = identity_path.read_bytes()
+        revoked = run([str(tokenbar_cli), "revoke", revoke_token], publish_env, timeout=90)
+        require("TokenBar proof revoked" in revoked.stdout, "revoke command missing confirmation heading")
+        require("Public proof, profile, feed, and rankings: removed" in revoked.stdout, "revoke command did not confirm removed public surfaces")
+        require("Private identity, reports, and usage history: kept" in revoked.stdout, "revoke command did not confirm retained local artifacts")
+        require(identity_path.is_file() and identity_path.read_bytes() == local_identity_before_revoke, "revocation changed or deleted the private identity artifact")
+
+        revoked_token_status, _ = get_status(f"{base_url}/api/actions?token={revoke_token}")
+        revoked_profile_status, _ = get_status(f"{base_url}/api/profiles?token={revoke_token}")
+        require(revoked_token_status == 404, f"revoked proof token remained public: {revoked_token_status}")
+        require(revoked_profile_status == 404, f"revoked profile remained public: {revoked_profile_status}")
+        revoked_run_payload = get_json(f"{base_url}/api/actions?run={revoke_run_id}")
+        revoked_run = revoked_run_payload.get("run") or {}
+        require(revoked_run.get("status") == "revoked", "revoked action run did not persist revoked status")
+        require(revoked_run.get("proof") == {}, "revoked action run retained its proof payload")
+        require("ownerId" not in revoked_run, "revoked public run response leaked the hashed device owner id")
+        require((revoked_run.get("result") or {}).get("localArtifactsDeleted") is False, "server revocation claims local artifact deletion")
+        post_revoke_feed = get_json(f"{base_url}/api/actions")
+        require(revoke_token not in {str(item.get("token") or "") for item in (post_revoke_feed.get("feed") or []) if isinstance(item, dict)}, "revoked token remained in For You feed")
+        require(revoke_run_id not in {str(item.get("runId") or "") for item in (post_revoke_feed.get("runs") or []) if isinstance(item, dict)}, "revoked run remained in public action index")
+        require(revoke_token not in json.dumps(post_revoke_feed.get("leaderboards") or {}, sort_keys=True), "revoked token remained in leaderboards")
+
+        revoked_receipt = json.loads((claim_home / "Library/Application Support/CodexLimitBar/proof-receipts" / f"{revoke_token}.json").read_text(encoding="utf-8"))
+        require(revoked_receipt.get("revoked") is True, "local receipt did not persist revoked state")
+        require(revoked_receipt.get("surfaces") == {}, "revoked local receipt retained public surface URLs")
+        revoked_open = subprocess.run(
+            [str(tokenbar_cli), "open-proof", "profile", revoke_token, "--print"],
+            cwd=str(ROOT),
+            env=publish_env | {"TOKENBAR_NO_OPEN": "1"},
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=30,
+            check=False,
+        )
+        require(revoked_open.returncode != 0 and "was revoked by this device" in revoked_open.stdout, "open-proof did not block an explicitly revoked token")
+        post_revoke_latest = run([str(tokenbar_cli), "proof", "latest", "--public"], publish_env, timeout=90)
+        require(revoke_token not in post_revoke_latest.stdout, "proof latest --public returned a revoked proof")
+
         print("TokenBar Builder Identity smoke passed")
         print(f"  cli: {tokenbar_cli}")
         print(f"  run: {run_id}")
@@ -1031,6 +1487,7 @@ def main() -> int:
         print(f"  submit token: {submit_token}")
         print(f"  unlisted token: {selective_token}")
         print(f"  private run: {private_run_id}")
+        print(f"  revoked token: {revoke_token}")
         print(f"  identity: {proof.get('title')}")
         print(f"  proof: {proof.get('proofScore')}/100")
         print(f"  loop: {proof.get('loopMaturity')}/100")
@@ -1040,7 +1497,7 @@ def main() -> int:
         print(f"  social: {first.get('socialUrl')}")
         print(f"  rankings: {first.get('rankingsUrl')}")
         print("  pages: social/rankings/profile/proof HTML mounted")
-        print("  privacy: raw transcripts false, source code false; unlisted redactions and private token boundary verified")
+        print("  privacy: recursive payload audit, owner-bound writes/revocation, unlisted redactions, and private boundary verified")
         return 0
     finally:
         server.terminate()
