@@ -10,3 +10,8 @@ __pycache__/
 *.py[cod]
 dist/
 *.egg-info/
+
+# coverage + generated captures
+*.profraw
+outputs/
+artifacts/
