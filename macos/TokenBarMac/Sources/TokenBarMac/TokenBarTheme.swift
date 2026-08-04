@@ -4,33 +4,83 @@ import FluidGradient
 import SwiftUI
 
 enum TokenBarTheme {
-    static let canvas = Color(red: 0.075, green: 0.078, blue: 0.082)
-    static let sidebar = Color(red: 0.055, green: 0.058, blue: 0.062)
-    static let panel = Color(red: 0.105, green: 0.109, blue: 0.114)
-    static let raised = Color(red: 0.132, green: 0.137, blue: 0.143)
-    static let border = Color.white.opacity(0.105)
-    static let text = Color(red: 0.93, green: 0.93, blue: 0.91)
-    static let secondary = Color(red: 0.62, green: 0.63, blue: 0.62)
-    static let green = Color(red: 0.43, green: 0.82, blue: 0.63)
-    static let cyan = Color(red: 0.38, green: 0.72, blue: 0.80)
-    static let amber = Color(red: 0.91, green: 0.66, blue: 0.35)
-    static let coral = Color(red: 0.92, green: 0.47, blue: 0.42)
-    static let nightInk = Color(red: 0.024, green: 0.024, blue: 0.047)
-    static let nightBlue = Color(red: 0.055, green: 0.063, blue: 0.125)
-    static let nightMist = Color(red: 0.49, green: 0.72, blue: 0.85)
+    static let canvas = Color(red: 0.028, green: 0.032, blue: 0.055)
+    static let sidebar = Color(red: 0.018, green: 0.020, blue: 0.034)
+    static let panel = Color(red: 0.054, green: 0.063, blue: 0.098)
+    static let raised = Color(red: 0.094, green: 0.116, blue: 0.158)
+    static let border = Color(red: 0.42, green: 0.50, blue: 0.61).opacity(0.26)
+    static let text = Color(red: 0.955, green: 0.935, blue: 0.865)
+    static let secondary = Color(red: 0.66, green: 0.69, blue: 0.78)
+    static let green = Color(red: 0.30, green: 0.86, blue: 0.60)
+    static let cyan = Color(red: 0.35, green: 0.76, blue: 0.88)
+    static let amber = Color(red: 0.96, green: 0.68, blue: 0.30)
+    static let coral = Color(red: 0.96, green: 0.38, blue: 0.31)
+    static let indigo = Color(red: 0.47, green: 0.58, blue: 0.96)
+    static let ivory = Color(red: 0.94, green: 0.89, blue: 0.74)
+    static let nightInk = Color(red: 0.012, green: 0.025, blue: 0.031)
+    static let nightBlue = Color(red: 0.025, green: 0.106, blue: 0.125)
+    static let nightMist = Color(red: 0.49, green: 0.77, blue: 0.78)
 
     static func accent(for seed: String) -> Color {
         let value = seed.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) }
-        return [green, cyan, amber, coral][abs(value) % 4]
+        return [cyan, amber, coral, indigo, ivory][abs(value) % 5]
     }
 
     static func boardAccent(_ name: String) -> Color {
         switch name.lowercased() {
+        case "green": cyan
         case "cyan": cyan
         case "amber": amber
         case "coral": coral
-        default: green
+        case "indigo": indigo
+        case "ivory": ivory
+        default: cyan
         }
+    }
+
+    static func identityPalette(_ index: Int) -> (primary: Color, secondary: Color) {
+        let palettes: [(Color, Color)] = [
+            (cyan, amber),
+            (indigo, cyan),
+            (coral, amber),
+            (cyan, indigo),
+            (ivory, coral),
+            (indigo, cyan),
+            (amber, cyan),
+            (coral, indigo),
+            (amber, coral),
+            (cyan, ivory),
+        ]
+        return palettes[abs(index) % palettes.count]
+    }
+}
+
+struct TokenBarAppBackground: View {
+    var body: some View {
+        ZStack {
+            TokenBarTheme.canvas
+            LinearGradient(
+                colors: [
+                    TokenBarTheme.cyan.opacity(0.055),
+                    Color.clear,
+                    TokenBarTheme.coral.opacity(0.035),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Canvas { context, size in
+                let spacing: CGFloat = 44
+                var path = Path()
+                stride(from: -size.height, through: size.width + size.height, by: spacing).forEach { offset in
+                    path.move(to: CGPoint(x: offset, y: 0))
+                    path.addLine(to: CGPoint(x: offset - size.height, y: size.height))
+                }
+                context.stroke(path, with: .color(TokenBarTheme.ivory.opacity(0.018)), lineWidth: 1)
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -41,6 +91,7 @@ enum TokenBarFieldMood {
 
 struct TokenBarFluidField: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("tokenbar.motion.enabled") private var motionEnabled = false
 
     let primary: Color
     var secondary = TokenBarTheme.amber
@@ -49,7 +100,9 @@ struct TokenBarFluidField: View {
     var mood: TokenBarFieldMood = .signal
 
     private var motionPaused: Bool {
-        reduceMotion || ProcessInfo.processInfo.environment["TOKENBAR_DISABLE_MOTION"] == "1"
+        reduceMotion
+            || !motionEnabled
+            || ProcessInfo.processInfo.environment["TOKENBAR_DISABLE_MOTION"] == "1"
     }
 
     var body: some View {
@@ -149,8 +202,7 @@ enum TokenBarSound {
 
     static func play(_ cue: Cue) {
         let defaults = UserDefaults.standard
-        guard defaults.object(forKey: "tokenbar.sound.enabled") == nil
-                || defaults.bool(forKey: "tokenbar.sound.enabled") else {
+        guard defaults.bool(forKey: "tokenbar.sound.enabled") else {
             return
         }
 
@@ -314,8 +366,7 @@ enum TokenBarHaptics {
 
     static func perform(_ cue: Cue) {
         let defaults = UserDefaults.standard
-        guard defaults.object(forKey: "tokenbar.haptics.enabled") == nil
-                || defaults.bool(forKey: "tokenbar.haptics.enabled") else {
+        guard defaults.bool(forKey: "tokenbar.haptics.enabled") else {
             return
         }
         NSHapticFeedbackManager.defaultPerformer.perform(cue.pattern, performanceTime: .now)
@@ -400,7 +451,6 @@ struct SectionLabel: View {
     var body: some View {
         Text(text.uppercased())
             .font(.system(size: 10, weight: .bold))
-            .tracking(1.1)
             .foregroundStyle(TokenBarTheme.secondary)
     }
 }

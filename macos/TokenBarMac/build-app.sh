@@ -7,6 +7,7 @@ OUTPUT_DIR=${1:-"$SCRIPT_DIR/dist"}
 APP_PATH="$OUTPUT_DIR/TokenBar.app"
 ARCHIVE_PATH="$OUTPUT_DIR/TokenBar-macOS.zip"
 ICON_SOURCE="$SCRIPT_DIR/Resources/TokenBarIcon.png"
+STORY_ART_SOURCE="$SCRIPT_DIR/Resources/TokenLoomHero.png"
 
 (
     cd "$SCRIPT_DIR"
@@ -29,6 +30,9 @@ install -m 644 "$SCRIPT_DIR/../../src/tokenbar/identity_mcp.py" "$APP_PATH/Conte
 if [[ -d "$SCRIPT_DIR/Resources/Sounds" ]]; then
     mkdir -p "$APP_PATH/Contents/Resources/Sounds"
     cp "$SCRIPT_DIR"/Resources/Sounds/*.mp3 "$APP_PATH/Contents/Resources/Sounds/"
+fi
+if [[ -f "$STORY_ART_SOURCE" ]]; then
+    install -m 644 "$STORY_ART_SOURCE" "$APP_PATH/Contents/Resources/TokenLoomHero.png"
 fi
 codesign --remove-signature "$APP_PATH/Contents/MacOS/TokenBarMac"
 

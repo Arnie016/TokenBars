@@ -18,12 +18,12 @@ func legacyThreeLaneBoardMigratesToFiveLanes() throws {
 
     let board = try JSONDecoder().decode(ThreadBoardConfiguration.self, from: legacy)
 
-    #expect(board.queuedTitle == "Queue")
+    #expect(board.queuedTitle == "Waiting")
     #expect(board.focusTitle == "Leading")
     #expect(board.recentTitle == "In flight")
     #expect(board.reviewTitle == "Handoffs")
-    #expect(board.doneTitle == "Done")
-    #expect(board.accentName == "green")
+    #expect(board.doneTitle == "Complete")
+    #expect(board.accentName == "cyan")
 }
 
 @Test
