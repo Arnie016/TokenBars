@@ -6642,35 +6642,159 @@ manifest = {
 }
 manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-print(f"Builder Profile: {title}")
-print(subtitle)
-print()
-print(f"Identity token: {profile_token}")
-print(f"Proof score: {leaderboard_score}/100")
-print(f"Loop maturity: {loop_maturity_score}/100")
+import textwrap as _textwrap
 
-# A score with no next action is trivia. Name the two weakest loop dimensions
-# and what specifically raises each, derived from the same signals that scored them.
-LOOP_LIFTS = {
-    "loopDesign": "close one loop end to end - trigger, action, evidence, verdict - before opening another",
-    "roleClarity": "give each agent or session one owned job and one deliverable, not a shared pile",
-    "contractStrength": "state the success metric and stop condition before starting the next task",
-    "stateDiscipline": "write the outcome to a report, ledger, or manifest instead of leaving it in scrollback",
-    "restartQuality": "end long sessions with a restart brief: goal, done, verified, blocker, next command",
-    "tasteRubric": "ship one artifact judged on clarity and restraint, not volume",
-    "traceLiteracy": "read logs, diffs, or command output before declaring a task done",
-    "harnessHygiene": "retire one stale script, scaffold, or dead automation this week",
-    "bottleneckSense": "after your next win, name the constraint it exposed instead of starting fresh work",
+
+def _para(text, indent=""):
+    for _line in _textwrap.wrap(text, width=76, initial_indent=indent, subsequent_indent=indent):
+        print(_line)
+
+
+# Every dimension gets plain-language phrasing: what it is called in everyday
+# words, what a low score feels like, what a high score looks like, and the one
+# move that raises it. Written by hand so the wording is stable across runs.
+LOOP_PLAIN = {
+    "loopDesign": (
+        "finishing what you start",
+        "you open new work faster than you close the last piece",
+        "you carry work to a verdict before moving on",
+        "pick the thing you left half-open and take it all the way to a yes or no before starting anything new",
+    ),
+    "roleClarity": (
+        "who does what",
+        "your sessions carry a shared pile of jobs instead of one owner each",
+        "each session and agent has one job and one thing it hands back",
+        "give your next session one job and one thing it has to hand back",
+    ),
+    "contractStrength": (
+        "saying what done means",
+        "you start before the finish line is written down",
+        "you name the finish line before you start",
+        "write the one sentence that says what done looks like before you start the next task",
+    ),
+    "stateDiscipline": (
+        "where your work ends up",
+        "most of what you figure out stays in scrollback",
+        "what you learn lands somewhere you can find it again",
+        "write your next outcome somewhere you would still find it in a month, not in the chat",
+    ),
+    "restartQuality": (
+        "picking a tangled session back up",
+        "long runs drift and the original goal gets lost",
+        "you can drop a messy run and resume without losing the goal",
+        "end your next long session with five lines: goal, done, verified, stuck, next command",
+    ),
+    "tasteRubric": (
+        "judging your own work",
+        "you ship plenty, and less of it gets judged on whether it actually reads well",
+        "you cut and sharpen your own output before anyone else sees it",
+        "take one thing you already shipped and cut it until it is clearly better, not bigger",
+    ),
+    "traceLiteracy": (
+        "reading the evidence",
+        "you call things done before checking what the output actually says",
+        "you read the log, diff, or output before believing a result",
+        "read the log, diff, or output before you call the next thing done",
+    ),
+    "harnessHygiene": (
+        "clearing out what you stopped using",
+        "old scripts and half-built scaffolds are piling up behind you",
+        "you retire tooling once it stops earning its keep",
+        "delete one script or scaffold you have not touched in a month",
+    ),
+    "bottleneckSense": (
+        "knowing what is actually in the way",
+        "you start fresh work instead of naming what the last win exposed",
+        "you find the next real constraint instead of guessing",
+        "after your next win, write down the constraint it exposed instead of jumping to new work",
+    ),
 }
-_weak = sorted(loop_scale, key=lambda i: i["score"])[:2]
+
+
+def _band(score, bands):
+    for _floor, _text in bands:
+        if score >= _floor:
+            return _text
+    return bands[-1][1]
+
+
+_ranked = sorted(loop_scale, key=lambda item: item["score"])
+_weak = [item for item in _ranked[:2] if item["key"] in LOOP_PLAIN]
+_best = _ranked[-1] if _ranked else None
+
+_headline = title[4:] if title.lower().startswith("the ") else title
+print(f"You are {'an' if _headline[:1].lower() in 'aeiou' else 'a'} {_headline}.")
+print()
+_para(subtitle)
+
+# Raw totals mean nothing on their own, so anchor them against each other.
+_bits = []
+_sessions = int(ctx.get("sessions_indexed") or 0)
+_active = int(ctx.get("active_days_last30") or 0)
+_folders = [f for f in (ctx.get("top_folders") or []) if isinstance(f, dict)]
+if _sessions and _active:
+    _bits.append(f"you ran {_sessions} sessions across {_active} of the last 30 days")
+elif _sessions:
+    _bits.append(f"you ran {_sessions} sessions")
+elif _active:
+    _bits.append(f"you worked on {_active} of the last 30 days")
+if _folders:
+    # ctx carries only the top folders, so never claim a total folder count.
+    # Share of the month is the honest anchor, and it reads better than raw counts.
+    _top = int(_folders[0].get("tokens") or 0)
+    _month = int(ctx.get("last30_tokens") or 0)
+    _name = _folders[0].get("name") or "one folder"
+    _share = int(round(100 * _top / _month)) if _month and _top <= _month else 0
+    if _share >= 50:
+        _bits.append(f"and more than half of that went into one folder, {_name}")
+    elif _share >= 30:
+        _bits.append(f"and about a third of it went into one folder, {_name}")
+    elif _share >= 20:
+        _bits.append(f"and about a fifth of it went into {_name}")
+    elif _share >= 5:
+        _bits.append(f"and the biggest single slice, {_share}%, went into {_name}")
+    else:
+        _bits.append(f"spread thin, with {_name} your busiest folder")
+if _bits:
+    print()
+    _para("Over the last month " + ", ".join(_bits) + ".")
+
+print()
+_para("The way you run work scores {} out of 100, which means {}. Your proof trail scores {}: {}.".format(
+    loop_maturity_score,
+    _band(loop_maturity_score, [
+        (90, "they are tight and only edge cases are left"),
+        (75, "you are running a real system and the gaps are specific now"),
+        (60, "you are past improvising but not yet running a tight system"),
+        (40, "habits are forming but they do not hold across sessions yet"),
+        (0, "most of your work is still improvised session to session"),
+    ]),
+    leaderboard_score,
+    _band(leaderboard_score, [
+        (80, "nearly all of your work leaves something another person could check"),
+        (60, "a good share of your work leaves something another person could check"),
+        (40, "about half your work leaves something another person could check"),
+        (0, "little of your work leaves anything another person could check"),
+    ]),
+))
+
+if _best and _best["key"] in LOOP_PLAIN:
+    _label, _low, _high, _lift = LOOP_PLAIN[_best["key"]]
+    print()
+    _para(f"You are strongest at {_label}: {_high} ({_best['score']} out of 100).")
+
 if _weak:
     print()
-    print("Weakest loop dimensions and what raises them:")
+    _para(f"{'Two things are' if len(_weak) > 1 else 'One thing is'} holding you back.")
     for _item in _weak:
-        _lift = LOOP_LIFTS.get(_item["key"], _item.get("evidence", ""))
-        print(f"  {_item['name']} {_item['score']}/100 - {_lift}")
+        _label, _low, _high, _lift = LOOP_PLAIN[_item["key"]]
+        print()
+        _para(f"{_label[:1].upper()}{_label[1:]}, {_item['score']} out of 100. {_low[:1].upper()}{_low[1:]}.", indent="  ")
+    print()
+    _para("If you change one thing this week: " + LOOP_PLAIN[_weak[0]["key"]][3] + ".")
 
 print()
+print(f"Share token for this report: {profile_token}")
 print(f"Report: {path}")
 print(f"Identity JSON: {identity_json_path}")
 print(f"Skill.md: {skill_md_path}")
