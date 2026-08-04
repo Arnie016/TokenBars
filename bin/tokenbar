@@ -6650,6 +6650,67 @@ def _para(text, indent=""):
         print(_line)
 
 
+_NUMBER_WORDS = {
+    2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six",
+    7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven",
+}
+
+
+def _ordinal(value):
+    if value % 100 in (11, 12, 13):
+        return f"{value}th"
+    return f"{value}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(value % 10, 'th') }"
+
+
+def _span_phrase(days):
+    if days < 3:
+        return "Your first days of logged work"
+    if days < 14:
+        return f"{days} days of logged work"
+    if days < 45:
+        return "About a month of logged work"
+    _months = int(round(days / 30.0))
+    return f"{_NUMBER_WORDS.get(_months, _months)} months of logged work"
+
+
+def _run_history():
+    """Read past reports so the summary can say what actually moved.
+
+    These identity files run to megabytes each and there can be hundreds, so
+    this reads the newest few for the last comparable run and the oldest few
+    for the first scored one, never the whole directory.
+    """
+    try:
+        _files = [p for p in out_dir.glob("*.identity.json") if p != identity_json_path]
+    except OSError:
+        return None
+    if not _files:
+        return None
+    _files.sort(key=lambda p: p.stat().st_mtime)
+
+    def _scored(paths):
+        _out = []
+        for _p in paths:
+            try:
+                _j = json.loads(_p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(_j.get("loopMaturity"), int) and isinstance(_j.get("proofScore"), int):
+                _out.append(_j)
+        return _out
+
+    # Early reports predate the current scoring schema, so the oldest files are
+    # often unscored. Probe an evenly spaced sample across the whole timeline and
+    # take the earliest one that actually carries scores.
+    _step = max(1, len(_files) // 20)
+    _sampled = _scored(_files[::_step][:20])
+    return {
+        "runs": len(_files),
+        "first": _sampled[0] if _sampled else None,
+        "span_days": max(0, int((time.time() - _files[0].stat().st_mtime) // 86400)),
+    }
+
+
 # Every dimension gets plain-language phrasing: what it is called in everyday
 # words, what a low score feels like, what a high score looks like, and the one
 # move that raises it. Written by hand so the wording is stable across runs.
@@ -6727,17 +6788,22 @@ print(f"You are {'an' if _headline[:1].lower() in 'aeiou' else 'a'} {_headline}.
 print()
 _para(subtitle)
 
+_history = _run_history()
+
 # Raw totals mean nothing on their own, so anchor them against each other.
 _bits = []
 _sessions = int(ctx.get("sessions_indexed") or 0)
 _active = int(ctx.get("active_days_last30") or 0)
+_volume = str(ctx.get("last30_compact") or "").strip()
 _folders = [f for f in (ctx.get("top_folders") or []) if isinstance(f, dict)]
 if _sessions and _active:
-    _bits.append(f"you ran {_sessions} sessions across {_active} of the last 30 days")
+    _bits.append(f"{_sessions} sessions across {_active} of the last 30 days")
 elif _sessions:
-    _bits.append(f"you ran {_sessions} sessions")
+    _bits.append(f"{_sessions} sessions")
 elif _active:
-    _bits.append(f"you worked on {_active} of the last 30 days")
+    _bits.append(f"{_active} of the last 30 days worked")
+if _volume:
+    _bits.append(f"{_volume} tokens")
 if _folders:
     # ctx carries only the top folders, so never claim a total folder count.
     # Share of the month is the honest anchor, and it reads better than raw counts.
@@ -6757,7 +6823,8 @@ if _folders:
         _bits.append(f"spread thin, with {_name} your busiest folder")
 if _bits:
     print()
-    _para("Over the last month " + ", ".join(_bits) + ".")
+    _lead = _span_phrase(_history["span_days"]) if _history else "So far"
+    _para(f"{_lead}: " + ", ".join(_bits) + ".")
 
 print()
 _para("The way you run work scores {} out of 100, which means {}. Your proof trail scores {}: {}.".format(
@@ -6777,6 +6844,71 @@ _para("The way you run work scores {} out of 100, which means {}. Your proof tra
         (0, "little of your work leaves anything another person could check"),
     ]),
 ))
+
+# Someone on their hundredth report has earned a comparison, not the same
+# paragraph as a stranger. Report what moved and refuse to explain why:
+# a flat score can mean steady habits or a blunt measure, and the file
+# cannot tell which.
+if _history is None or _history["runs"] < 1:
+    print()
+    _para(
+        "This is your first report, so there is nothing to compare it against yet. "
+        "Change one habit and run it again - the next one will tell you what moved."
+    )
+else:
+    print()
+    _prior = _history.get("first")
+    _opening = f"This is your {_ordinal(_history['runs'] + 1)} report"
+    if _prior:
+        _was = int(_prior["loopMaturity"])
+        _delta = loop_maturity_score - _was
+        _stamp = str(_prior.get("generatedAt") or "")[:10]
+        try:
+            _since = time.strftime("%B %-d", time.strptime(_stamp, "%Y-%m-%d"))
+        except ValueError:
+            _since = ""
+        if _stamp == time.strftime("%Y-%m-%d"):
+            _when = "earlier today"
+        elif _since:
+            _when = f"back on {_since}"
+        else:
+            _when = "on your earliest scored run"
+        _since_phrase = f"since {_since}" if _since else "since your earliest scored run"
+        _points = "point" if abs(_delta) == 1 else "points"
+        if _history["runs"] >= 10 and abs(_delta) <= 2:
+            _para(
+                f"{_opening}, and that first number has barely moved {_since_phrase}: "
+                f"{_was} then, {loop_maturity_score} now. Either your habits are genuinely steady, "
+                "or the score is too blunt to see what you changed."
+            )
+        elif _delta == 0:
+            _para(f"{_opening}, and that score has not moved since {_when}: still {loop_maturity_score}.")
+        elif _delta > 0:
+            _para(f"{_opening}, and that score is up {_delta} {_points} from {_was} {_when}.")
+        else:
+            _para(f"{_opening}, and that score is down {abs(_delta)} {_points} from {_was} {_when}.")
+    else:
+        _para(f"{_opening}, but the earlier ones predate this scoring model, so there is no baseline to compare against yet.")
+
+    # Name the dimension that actually moved, if any did.
+    if _prior:
+        _then = {
+            _i["key"]: _i["score"] for _i in (_prior.get("loopScale") or [])
+            if isinstance(_i, dict) and isinstance(_i.get("score"), int)
+        }
+        _moves = [
+            (item["score"] - _then[item["key"]], item["key"])
+            for item in loop_scale if item["key"] in _then and item["key"] in LOOP_PLAIN
+        ]
+        if _moves:
+            _mv, _mk = max(_moves, key=lambda pair: abs(pair[0]))
+            # When the overall score is flat the sentence above already said so,
+            # so only speak up when one habit genuinely broke away from the rest.
+            if abs(_mv) >= 4:
+                _para(
+                    f"The one habit that did shift is {LOOP_PLAIN[_mk][0]}, "
+                    f"{'up' if _mv > 0 else 'down'} {abs(_mv)} points."
+                )
 
 if _best and _best["key"] in LOOP_PLAIN:
     _label, _low, _high, _lift = LOOP_PLAIN[_best["key"]]
