@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TokenBar Mobile Privacy</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { margin: 0; background: #090a0d; color: #f5f2e9; }
+      main { width: min(720px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 96px; }
+      h1 { margin: 0 0 12px; font-size: clamp(36px, 8vw, 64px); line-height: 1; letter-spacing: 0; }
+      h2 { margin: 40px 0 10px; font-size: 20px; letter-spacing: 0; }
+      p, li { color: #b7bbc5; font-size: 16px; line-height: 1.65; }
+      strong { color: #f5f2e9; }
+      a { color: #7fa2ff; }
+      .stamp { color: #7ee1c3; font-size: 13px; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="stamp">Effective 5 September 2026</p>
+      <h1>TokenBar Mobile Privacy</h1>
+      <p>TokenBar Mobile is designed to show aggregate coding-agent usage without copying the private work behind it.</p>
+
+      <h2>Data processed on your devices</h2>
+      <p>When you choose to connect a Mac, TokenBar transfers an aggregate analytics record over your local network using a short-lived, one-use code. The record can include token totals, dates, model and provider labels, cost assumptions, forecast ranges, and derived working-pattern summaries.</p>
+
+      <h2>Data excluded from the handoff</h2>
+      <p>TokenBar does not include raw prompts, chat transcripts, source code, secrets, credentials, or private file paths in the mobile analytics handoff.</p>
+
+      <h2>Storage and deletion</h2>
+      <p>The imported aggregate is stored on the phone. You can remove it from Settings by choosing <strong>Forget imported record</strong>. That action does not delete the original local logs on the Mac.</p>
+
+      <h2>Network access</h2>
+      <p>Pairing uses HTTP on your local network. The one-use code limits access but does not encrypt the transfer. Connect only on a network you trust, or import an exported file instead.</p>
+      <p>The app retrieves public model rankings from Hugging Face and public reset information from codex-resets.com. These requests include the network information needed to deliver a response, such as your IP address, but do not include your imported token record or private notes. Those services apply their own privacy terms.</p>
+      <p>Research, product, and course links open when you select them. The linked sites apply their own privacy terms. The course link includes a referral code.</p>
+
+      <h2>Sharing</h2>
+      <p>TokenBar does not publish your imported record automatically. Any future social sharing must be an explicit user action and should contain only the fields shown in its preview.</p>
+
+      <h2>Estimates</h2>
+      <p>Cost and forecast figures are analytical estimates. They are not provider invoices and are not used for automated financial decisions.</p>
+
+      <h2>Contact</h2>
+      <p>General questions can be submitted through the <a href="https://github.com/Arnie016/TokenBars/issues">TokenBar issue tracker</a>. Issues are public: do not include private logs, pairing codes, credentials, or personal information.</p>
+    </main>
+  </body>
+</html>
